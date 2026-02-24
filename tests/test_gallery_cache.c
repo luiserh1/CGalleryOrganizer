@@ -1,7 +1,9 @@
-#include "gallery_cache.h"
-#include "test_framework.h"
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "test_framework.h"
+
+#include "gallery_cache.h"
 
 void test_cache_extract_basic_metadata(void) {
   system("echo 'hello' > temp_meta.txt");
@@ -27,8 +29,6 @@ void test_cache_flow(void) {
   md.modificationDate = 123456789.0;
 
   ASSERT_TRUE(CacheUpdateEntry(&md));
-
-  // md.path is now owned by the cache, do not free it.
 
   // 3. Save cache
   ASSERT_TRUE(CacheSave());

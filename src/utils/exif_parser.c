@@ -1,8 +1,8 @@
-#include "exif_parser.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "exif_parser.h"
 
 // EXIF Tag IDs
 #define TAG_IMAGE_WIDTH 0x0100
@@ -237,8 +237,8 @@ static void parse_ifd(const unsigned char *tiff_base, size_t tiff_len,
       parse_ifd(tiff_base, tiff_len, sub_offset, big_endian, out, false);
     } else if (tag == TAG_GPS_IFD && follow_sub_ifds) {
       // Follow the GPS sub-IFD
-      uint32_t gps_offset = read_u32(ifd_ptr + 8, big_endian);
-      parse_gps_ifd(tiff_base, tiff_len, gps_offset, big_endian, out);
+      uint32_t gps_off = read_u32(ifd_ptr + 8, big_endian);
+      parse_gps_ifd(tiff_base, tiff_len, gps_off, big_endian, out);
     } else {
       parse_ifd_entry(tiff_base, tiff_len, ifd_ptr, big_endian, out);
     }
@@ -322,7 +322,7 @@ ExifData ExifParse(const char *filepath) {
         // Get IFD0 offset
         uint32_t ifd0_offset = read_u32(tiff_base + 4, big_endian);
 
-        // Parse IFD0 (which links to EXIF sub-IFD and GPS IFD)
+        // Parse IFD0 (links to EXIF sub-IFD and GPS IFD)
         parse_ifd(tiff_base, tiff_len, ifd0_offset, big_endian, &result, true);
 
         result.valid = true;

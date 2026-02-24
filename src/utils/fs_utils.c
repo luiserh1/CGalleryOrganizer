@@ -1,8 +1,12 @@
-#include "fs_utils.h"
-
 #include <ctype.h>
+#include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "fs_utils.h"
 
 static const char *SUPPORTED_EXTS[] = {
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".bmp", // Images
@@ -37,12 +41,6 @@ bool FsIsSupportedMedia(const char *path) {
 
   return false;
 }
-
-// FsWalkDirectory and FsGetAbsolutePath Implementation
-#include <dirent.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 bool FsGetAbsolutePath(const char *path, char *out_path, size_t out_size) {
   if (!path || !out_path || out_size == 0)

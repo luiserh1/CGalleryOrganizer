@@ -1,10 +1,11 @@
-#include "gallery_cache.h"
-#include "cJSON.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#include "gallery_cache.h"
+
+#include "cJSON.h"
 
 static cJSON *g_cache_root = NULL;
 static char g_cache_path[1024] = {0};
@@ -51,8 +52,7 @@ bool CacheSave(void) {
   if (!g_cache_root || g_cache_path[0] == '\0')
     return false;
 
-  char *json_str =
-      cJSON_PrintUnformatted(g_cache_root); // or cJSON_Print for pretty
+  char *json_str = cJSON_PrintUnformatted(g_cache_root);
   if (!json_str)
     return false;
 
@@ -116,15 +116,15 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
   if (!entry)
     return false;
 
-  cJSON *modDateNode = cJSON_GetObjectItem(entry, "modificationDate");
-  cJSON *fileSizeNode = cJSON_GetObjectItem(entry, "fileSize");
+  cJSON *mod_date_node = cJSON_GetObjectItem(entry, "modificationDate");
+  cJSON *file_size_node = cJSON_GetObjectItem(entry, "fileSize");
 
-  if (!modDateNode || !fileSizeNode)
+  if (!mod_date_node || !file_size_node)
     return false;
 
-  if (modDateNode->valuedouble != current_mod_date)
+  if (mod_date_node->valuedouble != current_mod_date)
     return false;
-  if ((long)fileSizeNode->valuedouble != current_size)
+  if ((long)file_size_node->valuedouble != current_size)
     return false;
 
   // Populate fields
@@ -177,11 +177,8 @@ bool ExtractBasicMetadata(const char *absolute_path, double *out_mod_date,
 
   *out_size = (long)st.st_size;
 
-  // st_mtimespec (macOS struct stat) vs st_mtim (linux)
-  // Actually POSIX uses st_mtime for seconds. Using simply seconds is safer for
-  // cross-compilation or we can use the microsecond parts if available via
-  // #ifdefs. For now we use st_mtime (unix timestamp in seconds) which is
-  // standard C POSIX
+  // st_mtime is the POSIX standard for modification time in seconds.
+  // macOS also provides st_mtimespec for nanosecond precision.
   *out_mod_date = (double)st.st_mtime;
 
   return true;

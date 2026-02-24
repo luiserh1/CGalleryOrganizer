@@ -1,9 +1,10 @@
-#include "exif_parser.h"
-#include "fs_utils.h"
-#include "gallery_cache.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "exif_parser.h"
+#include "fs_utils.h"
+#include "gallery_cache.h"
 
 static int g_files_scanned = 0;
 static int g_files_cached = 0;
@@ -17,7 +18,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
     long size = 0;
 
     if (ExtractBasicMetadata(absolute_path, &mod_date, &size)) {
-      // Setup the DTO
+      // Setup the metadata entry
       ImageMetadata md = {0};
       md.path = strdup(absolute_path);
       md.modificationDate = mod_date;

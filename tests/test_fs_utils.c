@@ -1,8 +1,10 @@
-#include "fs_utils.h"
-#include "test_framework.h"
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "test_framework.h"
+
+#include "fs_utils.h"
 
 // Helper structure for WalkCallback counting
 typedef struct {
