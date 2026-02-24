@@ -43,3 +43,9 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Location**: `include/gif_parser.h`, `src/utils/gif_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written GIF binary parser using only standard C library.
 - **Note**: Extracts width and height from GIF header. Supports both GIF87a and GIF89a formats.
+
+### 5. HEIC Parser
+- **Purpose**: Extracting metadata (dimensions) from HEIC files.
+- **Location**: `include/heic_parser.h`, `src/utils/heic_parser.c`
+- **Dependencies**: None. Zero-dependency, hand-written HEIC binary parser using only standard C library.
+- **Note**: Extracts width and height from moov/mvhd atoms. Supports HEIC files using ISOBMFF container format.

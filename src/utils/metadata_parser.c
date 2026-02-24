@@ -5,6 +5,7 @@
 #include "png_parser.h"
 #include "webp_parser.h"
 #include "gif_parser.h"
+#include "heic_parser.h"
 
 static const char *get_extension(const char *path) {
     if (!path)
@@ -31,6 +32,10 @@ static bool is_webp(const char *ext) {
 
 static bool is_gif(const char *ext) {
     return ext && strcmp(ext, ".gif") == 0;
+}
+
+static bool is_heic(const char *ext) {
+    return ext && strcmp(ext, ".heic") == 0;
 }
 
 ImageMetadata ExtractMetadata(const char *filepath) {
@@ -71,6 +76,12 @@ ImageMetadata ExtractMetadata(const char *filepath) {
         if (gif.width > 0 && gif.height > 0) {
             metadata.width = gif.width;
             metadata.height = gif.height;
+        }
+    } else if (is_heic(ext)) {
+        HeicData heic = HeicParse(filepath);
+        if (heic.width > 0 && heic.height > 0) {
+            metadata.width = heic.width;
+            metadata.height = heic.height;
         }
     }
 
