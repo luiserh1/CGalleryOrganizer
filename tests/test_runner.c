@@ -11,6 +11,8 @@ extern void register_gif_parser_tests(void);
 extern void register_heic_parser_tests(void);
 extern void register_bmp_parser_tests(void);
 extern void register_integration_tests(void);
+extern void register_hash_utils_tests(void);
+extern void register_duplicate_finder_tests(void);
 
 int main(int argc, char **argv) {
   printf("=== CGalleryOrganizer Test Suite ===\n\n");
@@ -33,6 +35,8 @@ int main(int argc, char **argv) {
   register_gif_parser_tests();
   register_heic_parser_tests();
   register_bmp_parser_tests();
+  register_hash_utils_tests();
+  register_duplicate_finder_tests();
   register_integration_tests();
 
   int run_count = 0;

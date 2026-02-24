@@ -19,7 +19,7 @@ CGalleryOrganizer is a local, privacy-first application designed to analyze, cla
 
 ---
 
-## v0.1.0 Scope: Core Foundation & Basic Metadata (Current)
+## v0.1.0 Scope: Core Foundation & Basic Metadata (Completed)
 
 ### Primary Goal
 Establish the project structure, testing framework, code style, and implement basic directory traversal and metadata extraction.
@@ -39,7 +39,7 @@ Establish the project structure, testing framework, code style, and implement ba
 
 ---
 
-## v0.2.0 Scope: Exact Duplicates & Actions
+## v0.2.0 Scope: Exact Duplicates & Actions (Working On)
 
 ### Primary Goal
 Implement file hashing to detect exact duplicates and introduce action routines based on caching results.

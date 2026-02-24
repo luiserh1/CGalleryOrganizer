@@ -2,10 +2,10 @@ CC = clang
 CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -Iinclude -Ivendor -Isrc
 
 SRC_DIRS = src/core src/systems src/utils
-SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/main.c vendor/cJSON.c
+SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/main.c vendor/cJSON.c vendor/md5.c vendor/sha256.c src/systems/duplicate_finder.c
 OBJS = $(SRCS:.c=.o)
 
-TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS)))
+TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/systems/duplicate_finder.c
 TEST_OBJS = $(TEST_SRCS:.c=.o)
 TEST_BIN = tests/bin/test_runner
 

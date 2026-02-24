@@ -106,3 +106,84 @@ bool FsWalkDirectory(const char *root_path, FsWalkCallback callback,
   closedir(dir);
   return continue_walk;
 }
+
+bool FsDeleteFile(const char *path) {
+  if (!path)
+    return false;
+  return remove(path) == 0;
+}
+
+bool FsRenameFile(const char *old_path, const char *new_path) {
+  if (!old_path || !new_path)
+    return false;
+  return rename(old_path, new_path) == 0;
+}
+
+static void FsGetFilenameAndExt(const char *path, char *filename,
+                                size_t filename_size, char *ext,
+                                size_t ext_size) {
+  const char *last_slash = strrchr(path, '/');
+  const char *base = last_slash ? last_slash + 1 : path;
+
+  const char *last_dot = strrchr(base, '.');
+  if (!last_dot || last_dot == base) {
+    strncpy(filename, base, filename_size - 1);
+    filename[filename_size - 1] = '\0';
+    ext[0] = '\0';
+  } else {
+    size_t name_len = last_dot - base;
+    if (name_len > filename_size - 1)
+      name_len = filename_size - 1;
+    strncpy(filename, base, name_len);
+    filename[name_len] = '\0';
+
+    strncpy(ext, last_dot, ext_size - 1);
+    ext[ext_size - 1] = '\0';
+  }
+}
+
+bool FsMoveFile(const char *source_path, const char *target_dir,
+                char *out_new_path, size_t out_size) {
+  if (!source_path || !target_dir)
+    return false;
+
+  char filename[256] = {0};
+  char ext[32] = {0};
+  FsGetFilenameAndExt(source_path, filename, sizeof(filename), ext,
+                      sizeof(ext));
+
+  char current_target[MAX_PATH_LENGTH];
+  int counter = 0;
+
+  // mkdir if it doesn't exist
+  struct stat st;
+  if (stat(target_dir, &st) != 0) {
+    // Simple mkdir. Does not do recursive mkdir -p.
+    mkdir(target_dir, 0755);
+  }
+
+  while (1) {
+    if (counter == 0) {
+      snprintf(current_target, sizeof(current_target), "%s/%s%s", target_dir,
+               filename, ext);
+    } else {
+      snprintf(current_target, sizeof(current_target), "%s/%s_%d%s", target_dir,
+               filename, counter, ext);
+    }
+
+    if (access(current_target, F_OK) != 0) {
+      // File does not exist here, safe to move
+      break;
+    }
+    counter++;
+  }
+
+  if (FsRenameFile(source_path, current_target)) {
+    if (out_new_path && out_size > 0) {
+      strncpy(out_new_path, current_target, out_size - 1);
+      out_new_path[out_size - 1] = '\0';
+    }
+    return true;
+  }
+  return false;
+}

@@ -11,62 +11,62 @@ static cJSON *g_cache_root = NULL;
 static char g_cache_path[1024] = {0};
 
 bool CacheInit(const char *cache_path) {
-    if (!cache_path)
-        return false;
+  if (!cache_path)
+    return false;
 
-    strncpy(g_cache_path, cache_path, sizeof(g_cache_path) - 1);
+  strncpy(g_cache_path, cache_path, sizeof(g_cache_path) - 1);
 
-    FILE *f = fopen(cache_path, "r");
-    if (f) {
-        fseek(f, 0, SEEK_END);
-        long length = ftell(f);
-        fseek(f, 0, SEEK_SET);
+  FILE *f = fopen(cache_path, "r");
+  if (f) {
+    fseek(f, 0, SEEK_END);
+    long length = ftell(f);
+    fseek(f, 0, SEEK_SET);
 
-        if (length > 0) {
-            char *content = malloc(length + 1);
-            if (content) {
-                fread(content, 1, length, f);
-                content[length] = '\0';
-                g_cache_root = cJSON_Parse(content);
-                free(content);
-            }
-        }
-        fclose(f);
+    if (length > 0) {
+      char *content = malloc(length + 1);
+      if (content) {
+        fread(content, 1, length, f);
+        content[length] = '\0';
+        g_cache_root = cJSON_Parse(content);
+        free(content);
+      }
     }
+    fclose(f);
+  }
 
-    if (!g_cache_root) {
-        g_cache_root = cJSON_CreateObject(); // Empty cache
-    }
-    return true;
+  if (!g_cache_root) {
+    g_cache_root = cJSON_CreateObject(); // Empty cache
+  }
+  return true;
 }
 
 void CacheShutdown(void) {
-    if (g_cache_root) {
-        cJSON_Delete(g_cache_root);
-        g_cache_root = NULL;
-    }
-    g_cache_path[0] = '\0';
+  if (g_cache_root) {
+    cJSON_Delete(g_cache_root);
+    g_cache_root = NULL;
+  }
+  g_cache_path[0] = '\0';
 }
 
 bool CacheSave(void) {
-    if (!g_cache_root || g_cache_path[0] == '\0')
-        return false;
+  if (!g_cache_root || g_cache_path[0] == '\0')
+    return false;
 
-    char *json_str = cJSON_PrintUnformatted(g_cache_root);
-    if (!json_str)
-        return false;
+  char *json_str = cJSON_PrintUnformatted(g_cache_root);
+  if (!json_str)
+    return false;
 
-    FILE *f = fopen(g_cache_path, "w");
-    if (!f) {
-        free(json_str);
-        return false;
-    }
-
-    fputs(json_str, f);
-    fclose(f);
+  FILE *f = fopen(g_cache_path, "w");
+  if (!f) {
     free(json_str);
+    return false;
+  }
 
-    return true;
+  fputs(json_str, f);
+  fclose(f);
+  free(json_str);
+
+  return true;
 }
 
 bool CacheUpdateEntry(const ImageMetadata *data) {
@@ -95,6 +95,9 @@ bool CacheUpdateEntry(const ImageMetadata *data) {
   if (data->hasGps) {
     cJSON_AddNumberToObject(entry, "gpsLatitude", data->gpsLatitude);
     cJSON_AddNumberToObject(entry, "gpsLongitude", data->gpsLongitude);
+  }
+  if (data->exactHashMd5[0] != '\0') {
+    cJSON_AddStringToObject(entry, "exactHashMd5", data->exactHashMd5);
   }
 
   // Replace if exists, otherwise add
@@ -161,6 +164,9 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
     if (lon)
       out_md->gpsLongitude = lon->valuedouble;
   }
+  node = cJSON_GetObjectItem(entry, "exactHashMd5");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->exactHashMd5, node->valuestring, 32);
 
   return true;
 }
@@ -182,4 +188,105 @@ bool ExtractBasicMetadata(const char *absolute_path, double *out_mod_date,
   *out_mod_date = (double)st.st_mtime;
 
   return true;
+}
+
+bool CacheGetRawEntry(const char *key, ImageMetadata *out_md) {
+  if (!g_cache_root || !key || !out_md)
+    return false;
+
+  cJSON *entry = cJSON_GetObjectItem(g_cache_root, key);
+  if (!entry)
+    return false;
+
+  memset(out_md, 0, sizeof(ImageMetadata));
+  out_md->path = strdup(key);
+
+  cJSON *node;
+  node = cJSON_GetObjectItem(entry, "modificationDate");
+  if (node)
+    out_md->modificationDate = node->valuedouble;
+
+  node = cJSON_GetObjectItem(entry, "fileSize");
+  if (node)
+    out_md->fileSize = (long)node->valuedouble;
+
+  node = cJSON_GetObjectItem(entry, "dateTaken");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->dateTaken, node->valuestring, METADATA_MAX_STRING - 1);
+  node = cJSON_GetObjectItem(entry, "width");
+  if (node)
+    out_md->width = (int)node->valuedouble;
+  node = cJSON_GetObjectItem(entry, "height");
+  if (node)
+    out_md->height = (int)node->valuedouble;
+  node = cJSON_GetObjectItem(entry, "cameraMake");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->cameraMake, node->valuestring, METADATA_MAX_STRING - 1);
+  node = cJSON_GetObjectItem(entry, "cameraModel");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->cameraModel, node->valuestring, METADATA_MAX_STRING - 1);
+  node = cJSON_GetObjectItem(entry, "orientation");
+  if (node)
+    out_md->orientation = (int)node->valuedouble;
+  node = cJSON_GetObjectItem(entry, "gpsLatitude");
+  if (node) {
+    out_md->hasGps = true;
+    out_md->gpsLatitude = node->valuedouble;
+    cJSON *lon = cJSON_GetObjectItem(entry, "gpsLongitude");
+    if (lon)
+      out_md->gpsLongitude = lon->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "exactHashMd5");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->exactHashMd5, node->valuestring, 32);
+
+  return true;
+}
+
+int CacheGetEntryCount(void) {
+  if (!g_cache_root)
+    return 0;
+  int c = cJSON_GetArraySize(g_cache_root);
+  printf("[DEBUG CacheGetEntryCount] cJSON_GetArraySize returned %d\n", c);
+  return c;
+}
+
+char **CacheGetAllKeys(int *out_count) {
+  if (!g_cache_root) {
+    printf("[DEBUG CacheGetAllKeys] g_cache_root is NULL!\n");
+    if (out_count)
+      *out_count = 0;
+    return NULL;
+  }
+  if (!out_count) {
+    printf("[DEBUG CacheGetAllKeys] out_count is NULL!\n");
+    return NULL;
+  }
+
+  int count = cJSON_GetArraySize(g_cache_root);
+  printf("[DEBUG CacheGetAllKeys] cJSON_GetArraySize returned %d\n", count);
+  if (count == 0) {
+    *out_count = 0;
+    return NULL;
+  }
+
+  char **keys = malloc(count * sizeof(char *));
+  int i = 0;
+  cJSON *child = g_cache_root->child;
+  while (child && i < count) {
+    keys[i] = strdup(child->string);
+    child = child->next;
+    i++;
+  }
+  *out_count = i;
+  return keys;
+}
+
+void CacheFreeKeys(char **keys, int count) {
+  if (!keys)
+    return;
+  for (int i = 0; i < count; i++) {
+    free(keys[i]);
+  }
+  free(keys);
 }

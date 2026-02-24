@@ -21,6 +21,9 @@ typedef struct {
   double gpsLatitude;
   double gpsLongitude;
   int orientation; // 1-8 per EXIF spec, 0 if unknown
+
+  // Exact duplicate detection
+  char exactHashMd5[33];
 } ImageMetadata;
 
 // Caching interface
@@ -40,8 +43,18 @@ bool CacheUpdateEntry(const ImageMetadata *data);
 bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
                         long current_size, ImageMetadata *out_md);
 
+// Retrieves metadata without validating against the filesystem
+bool CacheGetRawEntry(const char *key, ImageMetadata *out_md);
+
+// Retrieves the total number of cached entries
+int CacheGetEntryCount(void);
+
 // Helper to extract basic metadata from disk
 bool ExtractBasicMetadata(const char *absolute_path, double *out_mod_date,
                           long *out_size);
+
+// Gets a list of all raw cache keys (allocated array of allocated strings)
+char **CacheGetAllKeys(int *out_count);
+void CacheFreeKeys(char **keys, int count);
 
 #endif // GALLERY_CACHE_H

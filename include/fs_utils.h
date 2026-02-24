@@ -22,4 +22,15 @@ bool FsIsSupportedMedia(const char *path);
 // Returns true on success
 bool FsGetAbsolutePath(const char *path, char *out_path, size_t out_size);
 
+// Deletes a file from the filesystem.
+bool FsDeleteFile(const char *path);
+
+// Renames a file or moves it within the same filesystem.
+bool FsRenameFile(const char *old_path, const char *new_path);
+
+// Moves a file to a new directory, automatically handling filename collisions
+// by appending numeric suffixes if necessary.
+bool FsMoveFile(const char *source_path, const char *target_dir,
+                char *out_new_path, size_t out_size);
+
 #endif // FS_UTILS_H
