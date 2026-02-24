@@ -78,25 +78,11 @@ bool CacheUpdateEntry(const ImageMetadata *data) {
   cJSON_AddStringToObject(entry, "path", data->path);
   cJSON_AddNumberToObject(entry, "modificationDate", data->modificationDate);
   cJSON_AddNumberToObject(entry, "fileSize", (double)data->fileSize);
-  cJSON_AddNumberToObject(entry, "textDensity", data->textDensity);
-  cJSON_AddBoolToObject(entry, "isNature", data->isNature);
-  cJSON_AddBoolToObject(entry, "hasPeopleOrAnimals", data->hasPeopleOrAnimals);
-  cJSON_AddNumberToObject(entry, "maxFaceArea", data->maxFaceArea);
-  cJSON_AddBoolToObject(entry, "hasBarcode", data->hasBarcode);
-  cJSON_AddNumberToObject(entry, "barcodeArea", data->barcodeArea);
 
-  // Feature print array
-  cJSON *fp_array = cJSON_CreateArray();
-  for (int i = 0; i < data->featurePrintSize && i < MAX_FEATURE_PRINT; i++) {
-    cJSON_AddItemToArray(fp_array, cJSON_CreateNumber(data->featurePrint[i]));
-  }
-  cJSON_AddItemToObject(entry, "featurePrint", fp_array);
-
-  // Replace if exists, otherwise append
-  cJSON_ReplaceItemInObject(g_cache_root, data->path, entry);
-  // Note: cJSON_ReplaceItemInObject actually only replaces if it exists.
-  // Wait, the API might not append if missing. Let's check safely:
-  if (!cJSON_GetObjectItem(g_cache_root, data->path)) {
+  // Replace if exists, otherwise add
+  if (cJSON_GetObjectItem(g_cache_root, data->path)) {
+    cJSON_ReplaceItemInObject(g_cache_root, data->path, entry);
+  } else {
     cJSON_AddItemToObject(g_cache_root, data->path, entry);
   }
 
@@ -123,21 +109,12 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
   if ((long)fileSizeNode->valuedouble != current_size)
     return false;
 
-  // Populate simple fields (v0.1.0/v0.2.0)
+  // Populate fields
   memset(out_md, 0, sizeof(ImageMetadata));
   out_md->path = strdup(absolute_path);
   out_md->modificationDate = current_mod_date;
   out_md->fileSize = current_size;
 
-  cJSON *isNatureNode = cJSON_GetObjectItem(entry, "isNature");
-  if (isNatureNode)
-    out_md->isNature = cJSON_IsTrue(isNatureNode);
-
-  cJSON *textDensityNode = cJSON_GetObjectItem(entry, "textDensity");
-  if (textDensityNode)
-    out_md->textDensity = textDensityNode->valuedouble;
-
-  // Will parse arrays and full heuristics fully in later iteration
   return true;
 }
 

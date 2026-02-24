@@ -25,8 +25,6 @@ void test_cache_flow(void) {
   md.path = strdup("/fake/path.jpg");
   md.fileSize = 100;
   md.modificationDate = 123456789.0;
-  md.textDensity = 0.5;
-  md.isNature = true;
 
   ASSERT_TRUE(CacheUpdateEntry(&md));
 
@@ -46,8 +44,6 @@ void test_cache_flow(void) {
 
   // 6. Verify data
   ASSERT_EQ(100, loaded_md.fileSize);
-  ASSERT_TRUE(loaded_md.isNature);
-  // Note: loaded_md.path is a pointer into the cache, do not free it.
 
   // 7. Get invalid entry (size changed)
   ASSERT_FALSE(

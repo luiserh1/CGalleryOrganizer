@@ -4,21 +4,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define MAX_FEATURE_PRINT 128
-
 typedef struct {
   char *path;              // Absolute path (owned dynamically)
   double modificationDate; // Unix timestamp
   long fileSize;           // File size in bytes
-  // ML Heuristics (v0.2.0+)
-  double textDensity;
-  double featurePrint[MAX_FEATURE_PRINT];
-  int featurePrintSize;
-  bool isNature;
-  bool hasPeopleOrAnimals;
-  double maxFaceArea;
-  bool hasBarcode;
-  double barcodeArea;
 } ImageMetadata;
 
 // Caching interface
