@@ -301,33 +301,48 @@ ExifData ExifParse(const char *filepath) {
         const unsigned char *tiff_base = buf + pos + 10;
         size_t tiff_len = bytes_read - (pos + 10);
 
-        if (tiff_len < 8)
-          break;
+        if (tiff_len >= 8) {
+          // Determine byte order
+          bool big_endian;
+          bool order_valid = true;
+          if (tiff_base[0] == 'M' && tiff_base[1] == 'M') {
+            big_endian = true;
+          } else if (tiff_base[0] == 'I' && tiff_base[1] == 'I') {
+            big_endian = false;
+          } else {
+            order_valid = false; // Invalid byte order
+          }
 
-        // Determine byte order
-        bool big_endian;
-        if (tiff_base[0] == 'M' && tiff_base[1] == 'M') {
-          big_endian = true;
-        } else if (tiff_base[0] == 'I' && tiff_base[1] == 'I') {
-          big_endian = false;
-        } else {
-          break; // Invalid byte order
+          if (order_valid) {
+            // Verify TIFF magic (42)
+            uint16_t magic = read_u16(tiff_base + 2, big_endian);
+            if (magic == 42) {
+              // Get IFD0 offset
+              uint32_t ifd0_offset = read_u32(tiff_base + 4, big_endian);
+
+              // Parse IFD0 (links to EXIF sub-IFD and GPS IFD)
+              parse_ifd(tiff_base, tiff_len, ifd0_offset, big_endian, &result,
+                        true);
+              result.valid = true;
+            }
+          }
         }
-
-        // Verify TIFF magic (42)
-        uint16_t magic = read_u16(tiff_base + 2, big_endian);
-        if (magic != 42)
-          break;
-
-        // Get IFD0 offset
-        uint32_t ifd0_offset = read_u32(tiff_base + 4, big_endian);
-
-        // Parse IFD0 (links to EXIF sub-IFD and GPS IFD)
-        parse_ifd(tiff_base, tiff_len, ifd0_offset, big_endian, &result, true);
-
-        result.valid = true;
-        break;
       }
+    } else if (marker >= 0xC0 && marker <= 0xC3 && marker != 0xC4 &&
+               marker != 0xC8 && marker != 0xCC) { // SOF0, SOF1, SOF2, etc
+      // Found SOF marker, extract basic dimensions
+      if (pos + 8 < bytes_read) {
+        int height = (buf[pos + 5] << 8) | buf[pos + 6];
+        int width = (buf[pos + 7] << 8) | buf[pos + 8];
+        if (result.width == 0 && result.height == 0) {
+          result.width = width;
+          result.height = height;
+        }
+      }
+      // If we only needed dimensions, we could break here, but we keep scanning
+      // for EXIF if not found yet
+      if (result.valid)
+        break;
     }
 
     // Skip to next segment

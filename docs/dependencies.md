@@ -57,10 +57,11 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
   - RIFF container: 4-byte "RIFF" + 4-byte file size + 4-byte "WEBP"
   - Simple format (lossy): "RIFF" + size + "WEBP" + VP8 chunk (type 0x56503820)
   - Simple format (lossless): "RIFF" + size + "WEBP" + VP8L chunk (type 0x5650384C)
-  - Extended format: VP8X chunk (type 0x56503858) + flags + VP8/VP8L chunk
+  - Extended format: VP8X chunk (type 0x58385056) + flags + VP8/VP8L chunk
+  - VP8X payload (10 bytes): flags (4 bytes) + width-1 (3 bytes) + height-1 (3 bytes)
   - VP8 frame: 3-byte frame tag + 7 bytes header + 3-byte scaling spec + dimensions at bytes 10-12
   - VP8L: 1-byte signature (0x2F) + 4-byte little-endian dimensions at bits 5-31
-- **Note**: Extracts width and height from WebP VP8/VP8L chunks. Supports both lossy and lossless WebP formats.
+- **Note**: Extracts width and height from WebP VP8X, VP8, or VP8L chunks. Supports both lossy, lossless, and extended WebP formats.
 
 ### 4. GIF Parser
 - **Purpose**: Extracting metadata (dimensions) from GIF files.
@@ -81,12 +82,12 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Format Specification**: [Wikipedia ISOBMFF](https://en.wikipedia.org/wiki/ISO_base_media_file_format), [Apple QuickTime mvhd](https://developer.apple.com/documentation/quicktime-file-format/movie_header_atom)
 - **Binary Structure**:
   - File Type Box (ftyp): 4-byte size + "ftyp" (0x66747970) + 4-byte major brand + compatible brands
-  - HEIC brand: "heic" at byte 8, or "mif1" for HEIF base image
-  - Movie Box (moov): Contains movie header (mvhd) and track boxes (trak)
-  - Movie Header (mvhd): 4-byte size + "mvhd" (0x6D766864) + version/flags + creation time + modification time + time scale + duration + preferred rate + preferred volume + matrix + track ID
-  - Track Header (tkhd): 4-byte size + "tkhd" + dimensions at bytes 44-51 (width) and 52-59 (height) - 16.16 fixed-point format
+  - HEIC brand: "heic", "heix", "mif1", or "msf1"
+  - Meta Box (meta): 4-byte size + "meta" (0x6D657461) + version/flags
+  - Item Property Box (iprp): Contains Item Property Container Box (ipco)
+  - Image Spatial Extents Box (ispe): 4-byte size + "ispe" (0x69737065) + version/flags + width (4 bytes, big-endian) + height (4 bytes, big-endian)
   - All boxes use 4-byte size (big-endian) + 4-byte type
-- **Note**: Extracts width and height from moov/mvhd atoms. Supports HEIC files using ISOBMFF container format.
+- **Note**: Extracts width and height primarily from the `ispe` box nested inside the `meta` -> `iprp` -> `ipco` hierarchy. Supports HEIC still images.
 
 ### 6. BMP Parser
 - **Purpose**: Extracting metadata (dimensions) from BMP files.
