@@ -18,6 +18,18 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Version**: TBD
 - **Modifications**: None. Included as-is.
 
+### 2. MD5 Hashing Utility
+- **Purpose**: Fast cryptographic hashing for exact file duplication detection.
+- **Location**: `vendor/md5.c`, `vendor/md5.h`
+- **License**: Public Domain / Standard Open Source
+- **Modifications**: None. Included as-is.
+
+### 3. SHA-256 Hashing Utility
+- **Purpose**: Secure cryptographic hashing as a fallback for MD5 duplicates verification.
+- **Location**: `vendor/sha256.c`, `vendor/sha256.h`
+- **License**: Public Domain / Standard Open Source
+- **Modifications**: None. Included as-is.
+
 ---
 
 ## Internal Dependencies
