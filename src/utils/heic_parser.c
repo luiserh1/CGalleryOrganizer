@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <stdbool.h>
@@ -94,6 +95,52 @@ static int find_ispe_box(FILE *f, unsigned int box_size, int *width,
   return -1;
 }
 
+static void scan_for_exif(FILE *f, HeicData *metadata) {
+  long original_pos = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  const size_t CHUNK_SIZE = 65536;
+  const size_t OVERLAP = 16;
+  unsigned char *buf = malloc(CHUNK_SIZE);
+  if (!buf)
+    return;
+
+  size_t bytes_read = fread(buf, 1, CHUNK_SIZE, f);
+  while (bytes_read > 0) {
+    for (size_t i = 0; i + 6 <= bytes_read; i++) {
+      if (buf[i] == 'E' && buf[i + 1] == 'x' && buf[i + 2] == 'i' &&
+          buf[i + 3] == 'f' && buf[i + 4] == 0 && buf[i + 5] == 0) {
+        long exif_file_offset = ftell(f) - bytes_read + i;
+        long current_search_pos = ftell(f);
+
+        fseek(f, exif_file_offset, SEEK_SET);
+        unsigned char exif_buf[65536];
+        size_t exif_len = fread(exif_buf, 1, sizeof(exif_buf), f);
+
+        ExifData parsed_exif = ParseRawExifBlock(exif_buf, exif_len);
+        if (parsed_exif.valid) {
+          metadata->has_exif = true;
+          metadata->exif = parsed_exif;
+          free(buf);
+          fseek(f, original_pos, SEEK_SET);
+          return;
+        }
+
+        fseek(f, current_search_pos, SEEK_SET);
+      }
+    }
+
+    if (bytes_read < CHUNK_SIZE)
+      break;
+
+    fseek(f, -OVERLAP, SEEK_CUR);
+    bytes_read = fread(buf, 1, CHUNK_SIZE, f);
+  }
+
+  free(buf);
+  fseek(f, original_pos, SEEK_SET);
+}
+
 HeicData HeicParse(const char *filepath) {
   HeicData metadata = {0};
 
@@ -153,6 +200,12 @@ HeicData HeicParse(const char *filepath) {
       break;
 
     fseek(f, box.box_size - 8, SEEK_CUR);
+  }
+
+  // After processing everything, if we haven't found exif yet (or just to be
+  // sure), scan for it.
+  if (!metadata.has_exif) {
+    scan_for_exif(f, &metadata);
   }
 
   fclose(f);

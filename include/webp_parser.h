@@ -1,11 +1,15 @@
 #ifndef WEBP_PARSER_H
 #define WEBP_PARSER_H
 
+#include "exif_parser.h"
 #include <stdbool.h>
 
-#include "gallery_cache.h"
-
-typedef ImageMetadata WebpData;
+typedef struct {
+  int width;
+  int height;
+  bool has_exif;
+  ExifData exif;
+} WebpData;
 
 WebpData WebpParse(const char *filepath);
 

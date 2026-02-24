@@ -2,6 +2,7 @@
 #define EXIF_PARSER_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #define EXIF_MAX_STRING 256
 
@@ -28,6 +29,11 @@ typedef struct {
   // Orientation
   int orientation; // 1-8 per EXIF spec, 0 if unknown
 } ExifData;
+
+// Parses raw EXIF data block (starting either with "Exif\0\0" or TIFF header
+// directly) Returns an ExifData struct. Check .valid to see if parsing
+// succeeded.
+ExifData ParseRawExifBlock(const unsigned char *data, size_t len);
 
 // Parses EXIF data from a JPEG file.
 // Returns an ExifData struct. Check .valid to see if parsing succeeded.

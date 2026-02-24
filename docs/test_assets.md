@@ -9,9 +9,12 @@ This document catalogs the test images used for integration testing, including t
 | sample_exif.jpg | JPEG | Flowers at Kew Gardens | 240x160 | Yes |
 | sample_no_exif.jpg | JPEG | Flowers at Kew Gardens - Modified | 240x160 | No |
 | sample.png | PNG | Cover of Papua New Guinean Passport | 113x161 | N/A |
+| sample_exif.png | PNG | Cover of Papua New Guinean Passport - Modified | 113x161 | Yes |
 | sample.webp | WebP | Drawing of a Dog Home | 400x400 | N/A |
+| sample_exif.webp | WebP | Drawing of a Dog Home - Modified | 400x400 | Yes |
 | sample.gif | GIF | Northern Lights timelapse | 500x331 | N/A |
 | sample.heic | HEIC | Shivanasamudram falls early morning view | 256x192 | N/A |
+| sample_exif.heic | HEIC | Shivanasamudram falls early morning view - Modified | 256x192 | Yes |
 | sample.bmp | BMP | Checkertrd Giant rabbit | 256x151 | N/A |
 
 ## Sources
@@ -57,6 +60,24 @@ This document catalogs the test images used for integration testing, including t
 - **License**: CC BY-SA 4.0
 - **Author**: DestinationFearFan
 - **Modifications**: From JPG to BMP via default GIMP export
+
+### Image 8: Cover of Papua New Guinean Passport - Modified
+- **Source URL**: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Cover_of_Papua_New_Guinean_Passport.png)
+- **License**: Public domain
+- **Author**: Papua New Guine government
+- **Modifications**: EXIF metadata inserted using exiftool
+
+### Image 9: Drawing of a Dog Home - Modified
+- **Source URL**:  [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Drawing-of-a-Dog-Home-400-x-400-1.webp)
+- **License**: CC BY-SA 4.0
+- **Author**:  Mike Bruce
+- **Modifications**: EXIF metadata inserted using exiftool
+
+### Image 10: Shivanasamudram falls early morning view - Modified
+- **Source URL**: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Shivanasamudram_falls_early_morning_view.HEIC.jpg)
+- **License**: CC BY-SA 3.0
+- **Author**: Maskaravivek
+- **Modifications**: From JPG to HEIC via default GIMP export, then EXIF metadata inserted using exiftool
 
 ## Guidelines for Adding Test Images
 

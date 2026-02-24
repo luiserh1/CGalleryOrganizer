@@ -33,7 +33,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
   - TIFF header: 8-byte IFD header (byte order mark + magic 0x002A)
   - IFD0 contains standard tags: ImageWidth (0x0100), ImageLength (0x0101), Make (0x010F), Model (0x0110)
   - EXIF IFD pointer at tag 0x8769 contains DateTimeOriginal (0x9003), GPS IFD pointer at tag 0x8825
-- **Note**: Only supports JPEG files. Non-JPEG formats (PNG, GIF, HEIC, MOV) do not have their metadata extracted via this parser.
+- **Note**: Acts as the core generic EXIF parsing engine. Used by JPEG, PNG, WebP, and HEIC parsers to extract rich metadata when available.
 
 ### 2. PNG Parser
 - **Purpose**: Extracting metadata (dimensions) from PNG files.
@@ -46,7 +46,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
   - IHDR chunk type: 0x49484452 ("IHDR")
   - IHDR data (13 bytes): Width(4) + Height(4) + BitDepth(1) + ColorType(1) + Compression(1) + Filter(1) + Interlace(1)
   - Width and Height are 4-byte big-endian integers at bytes 0-3 and 4-7 of IHDR data
-- **Note**: Extracts width and height from PNG IHDR chunk. Does not extract text metadata (tEXt chunks).
+- **Note**: Extracts width and height from PNG IHDR chunk. Also reads the `eXIf` chunk if present and passes it to the core EXIF parser for rich metadata.
 
 ### 3. WebP Parser
 - **Purpose**: Extracting metadata (dimensions) from WebP files.
@@ -61,7 +61,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
   - VP8X payload (10 bytes): flags (4 bytes) + width-1 (3 bytes) + height-1 (3 bytes)
   - VP8 frame: 3-byte frame tag + 7 bytes header + 3-byte scaling spec + dimensions at bytes 10-12
   - VP8L: 1-byte signature (0x2F) + 4-byte little-endian dimensions at bits 5-31
-- **Note**: Extracts width and height from WebP VP8X, VP8, or VP8L chunks. Supports both lossy, lossless, and extended WebP formats.
+- **Note**: Extracts width and height from WebP VP8X, VP8, or VP8L chunks. Reads the `EXIF` chunk if present and passes it to the core EXIF parser.
 
 ### 4. GIF Parser
 - **Purpose**: Extracting metadata (dimensions) from GIF files.
@@ -87,7 +87,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
   - Item Property Box (iprp): Contains Item Property Container Box (ipco)
   - Image Spatial Extents Box (ispe): 4-byte size + "ispe" (0x69737065) + version/flags + width (4 bytes, big-endian) + height (4 bytes, big-endian)
   - All boxes use 4-byte size (big-endian) + 4-byte type
-- **Note**: Extracts width and height primarily from the `ispe` box nested inside the `meta` -> `iprp` -> `ipco` hierarchy. Supports HEIC still images.
+- **Note**: Extracts width and height from the `ispe` box. Also scans the file for embedded `Exif\0\0` blocks to extract rich metadata.
 
 ### 6. BMP Parser
 - **Purpose**: Extracting metadata (dimensions) from BMP files.

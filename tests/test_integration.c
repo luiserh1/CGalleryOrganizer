@@ -17,7 +17,17 @@ void test_metadata_png_dimensions(void) {
   ImageMetadata metadata = ExtractMetadata(filepath);
 
   ASSERT_TRUE(metadata.width > 0);
+  ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
+}
+
+void test_metadata_png_with_exif(void) {
+  const char *filepath = "tests/assets/png/sample_exif.png";
+  ImageMetadata metadata = ExtractMetadata(filepath);
+
+  ASSERT_TRUE(metadata.width > 0);
+  ASSERT_TRUE(metadata.height > 0);
+  ASSERT_TRUE(metadata.cameraMake[0] != '\0');
 }
 
 void test_metadata_gif_dimensions(void) {
@@ -47,6 +57,15 @@ void test_metadata_webp_dimensions(void) {
   ASSERT_TRUE(metadata.height > 0);
 }
 
+void test_metadata_webp_with_exif(void) {
+  const char *filepath = "tests/assets/webp/sample_exif.webp";
+  ImageMetadata metadata = ExtractMetadata(filepath);
+
+  ASSERT_TRUE(metadata.width > 0);
+  ASSERT_TRUE(metadata.height > 0);
+  ASSERT_TRUE(metadata.cameraMake[0] != '\0');
+}
+
 void test_metadata_heic_dimensions(void) {
   const char *filepath = "tests/assets/heic/sample.heic";
 
@@ -54,6 +73,15 @@ void test_metadata_heic_dimensions(void) {
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
+}
+
+void test_metadata_heic_with_exif(void) {
+  const char *filepath = "tests/assets/heic/sample_exif.heic";
+  ImageMetadata metadata = ExtractMetadata(filepath);
+
+  ASSERT_TRUE(metadata.width > 0);
+  ASSERT_TRUE(metadata.height > 0);
+  ASSERT_TRUE(metadata.cameraMake[0] != '\0');
 }
 
 void test_metadata_jpeg_with_exif(void) {
@@ -97,7 +125,11 @@ void register_integration_tests(void) {
                 "integration");
   register_test("test_metadata_webp_dimensions", test_metadata_webp_dimensions,
                 "integration");
+  register_test("test_metadata_webp_with_exif", test_metadata_webp_with_exif,
+                "integration");
   register_test("test_metadata_heic_dimensions", test_metadata_heic_dimensions,
+                "integration");
+  register_test("test_metadata_heic_with_exif", test_metadata_heic_with_exif,
                 "integration");
   register_test("test_metadata_jpeg_with_exif", test_metadata_jpeg_with_exif,
                 "integration");

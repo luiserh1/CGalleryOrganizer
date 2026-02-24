@@ -1,11 +1,15 @@
 #ifndef PNG_PARSER_H
 #define PNG_PARSER_H
 
+#include "exif_parser.h"
 #include <stdbool.h>
 
-#include "gallery_cache.h"
-
-typedef ImageMetadata PngData;
+typedef struct {
+  int width;
+  int height;
+  bool has_exif;
+  ExifData exif;
+} PngData;
 
 PngData PngParse(const char *filepath);
 

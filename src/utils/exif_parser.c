@@ -247,6 +247,50 @@ static void parse_ifd(const unsigned char *tiff_base, size_t tiff_len,
   }
 }
 
+ExifData ParseRawExifBlock(const unsigned char *data, size_t len) {
+  ExifData result;
+  memset(&result, 0, sizeof(ExifData));
+
+  if (!data || len < 8)
+    return result;
+
+  const unsigned char *tiff_base = data;
+  size_t tiff_len = len;
+
+  // Check for standard "Exif\0\0" prefix used in APP1 and some other containers
+  if (len >= 14 && data[0] == 'E' && data[1] == 'x' && data[2] == 'i' &&
+      data[3] == 'f' && data[4] == 0x00 && data[5] == 0x00) {
+    tiff_base = data + 6;
+    tiff_len = len - 6;
+  }
+
+  // Determine byte order
+  bool big_endian;
+  bool order_valid = true;
+  if (tiff_base[0] == 'M' && tiff_base[1] == 'M') {
+    big_endian = true;
+  } else if (tiff_base[0] == 'I' && tiff_base[1] == 'I') {
+    big_endian = false;
+  } else {
+    order_valid = false; // Invalid byte order
+  }
+
+  if (order_valid) {
+    // Verify TIFF magic (42)
+    uint16_t magic = read_u16(tiff_base + 2, big_endian);
+    if (magic == 42) {
+      // Get IFD0 offset
+      uint32_t ifd0_offset = read_u32(tiff_base + 4, big_endian);
+
+      // Parse IFD0 (links to EXIF sub-IFD and GPS IFD)
+      parse_ifd(tiff_base, tiff_len, ifd0_offset, big_endian, &result, true);
+      result.valid = true;
+    }
+  }
+
+  return result;
+}
+
 ExifData ExifParse(const char *filepath) {
   ExifData result;
   memset(&result, 0, sizeof(ExifData));
@@ -297,33 +341,12 @@ ExifData ExifParse(const char *filepath) {
           buf[pos + 6] == 'i' && buf[pos + 7] == 'f' && buf[pos + 8] == 0x00 &&
           buf[pos + 9] == 0x00) {
 
-        // TIFF header starts after "Exif\0\0"
-        const unsigned char *tiff_base = buf + pos + 10;
-        size_t tiff_len = bytes_read - (pos + 10);
-
-        if (tiff_len >= 8) {
-          // Determine byte order
-          bool big_endian;
-          bool order_valid = true;
-          if (tiff_base[0] == 'M' && tiff_base[1] == 'M') {
-            big_endian = true;
-          } else if (tiff_base[0] == 'I' && tiff_base[1] == 'I') {
-            big_endian = false;
-          } else {
-            order_valid = false; // Invalid byte order
-          }
-
-          if (order_valid) {
-            // Verify TIFF magic (42)
-            uint16_t magic = read_u16(tiff_base + 2, big_endian);
-            if (magic == 42) {
-              // Get IFD0 offset
-              uint32_t ifd0_offset = read_u32(tiff_base + 4, big_endian);
-
-              // Parse IFD0 (links to EXIF sub-IFD and GPS IFD)
-              parse_ifd(tiff_base, tiff_len, ifd0_offset, big_endian, &result,
-                        true);
-              result.valid = true;
+        if (segment_len >= 2) {
+          size_t payload_len = segment_len - 2;
+          if (pos + 4 + payload_len <= bytes_read) {
+            ExifData parsed = ParseRawExifBlock(buf + pos + 4, payload_len);
+            if (parsed.valid) {
+              result = parsed;
             }
           }
         }

@@ -39,6 +39,19 @@ static bool is_heic(const char *ext) {
 
 static bool is_bmp(const char *ext) { return ext && strcmp(ext, ".bmp") == 0; }
 
+static void copy_exif_to_metadata(ImageMetadata *metadata,
+                                  const ExifData *exif) {
+  if (!exif || !exif->valid)
+    return;
+  strncpy(metadata->dateTaken, exif->dateTaken, METADATA_MAX_STRING - 1);
+  strncpy(metadata->cameraMake, exif->cameraMake, METADATA_MAX_STRING - 1);
+  strncpy(metadata->cameraModel, exif->cameraModel, METADATA_MAX_STRING - 1);
+  metadata->orientation = exif->orientation;
+  metadata->hasGps = exif->hasGps;
+  metadata->gpsLatitude = exif->gpsLatitude;
+  metadata->gpsLongitude = exif->gpsLongitude;
+}
+
 ImageMetadata ExtractMetadata(const char *filepath) {
   ImageMetadata metadata = {0};
 
@@ -53,27 +66,21 @@ ImageMetadata ExtractMetadata(const char *filepath) {
       metadata.width = exif.width;
       metadata.height = exif.height;
     }
-    if (exif.valid) {
-      strncpy(metadata.dateTaken, exif.dateTaken, METADATA_MAX_STRING - 1);
-      strncpy(metadata.cameraMake, exif.cameraMake, METADATA_MAX_STRING - 1);
-      strncpy(metadata.cameraModel, exif.cameraModel, METADATA_MAX_STRING - 1);
-      metadata.orientation = exif.orientation;
-      metadata.hasGps = exif.hasGps;
-      metadata.gpsLatitude = exif.gpsLatitude;
-      metadata.gpsLongitude = exif.gpsLongitude;
-    }
+    copy_exif_to_metadata(&metadata, &exif);
   } else if (is_png(ext)) {
     PngData png = PngParse(filepath);
     if (png.width > 0 && png.height > 0) {
       metadata.width = png.width;
       metadata.height = png.height;
     }
+    copy_exif_to_metadata(&metadata, &png.exif);
   } else if (is_webp(ext)) {
     WebpData webp = WebpParse(filepath);
     if (webp.width > 0 && webp.height > 0) {
       metadata.width = webp.width;
       metadata.height = webp.height;
     }
+    copy_exif_to_metadata(&metadata, &webp.exif);
   } else if (is_gif(ext)) {
     GifData gif = GifParse(filepath);
     if (gif.width > 0 && gif.height > 0) {
@@ -86,6 +93,7 @@ ImageMetadata ExtractMetadata(const char *filepath) {
       metadata.width = heic.width;
       metadata.height = heic.height;
     }
+    copy_exif_to_metadata(&metadata, &heic.exif);
   } else if (is_bmp(ext)) {
     BmpData bmp = BmpParse(filepath);
     if (bmp.width > 0 && bmp.height > 0) {

@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 
+#include "exif_parser.h"
 #include "webp_parser.h"
 
 #define RIFF_SIGNATURE_SIZE 4
@@ -14,6 +15,7 @@ static const char WEBP_SIGNATURE[4] = {'W', 'E', 'B', 'P'};
 #define CHUNK_VP8 0x20385056  // "VP8 "
 #define CHUNK_VP8L 0x4C385056 // "VP8L"
 #define CHUNK_VP8X 0x58385056 // "VP8X"
+#define CHUNK_EXIF 0x46495845 // "EXIF"
 
 typedef struct {
   char signature[4];
@@ -140,55 +142,70 @@ static int parse_vp8x_chunk(FILE *f, unsigned int chunk_size, int *width,
 }
 
 WebpData WebpParse(const char *filepath) {
-  WebpData metadata = {0};
+  WebpData result;
+  memset(&result, 0, sizeof(WebpData));
 
   if (!filepath)
-    return metadata;
+    return result;
 
   FILE *f = fopen(filepath, "rb");
   if (!f)
-    return metadata;
+    return result;
 
-  RiffHeader riff;
-  if (read_riff_header(f, &riff) != 0) {
+  RiffHeader header;
+  if (read_riff_header(f, &header) != 0) {
     fclose(f);
-    return metadata;
+    return result;
   }
 
-  if (memcmp(riff.signature, RIFF_SIGNATURE, RIFF_SIGNATURE_SIZE) != 0 ||
-      memcmp(riff.webp, WEBP_SIGNATURE, 4) != 0) {
+  if (memcmp(header.signature, RIFF_SIGNATURE, RIFF_SIGNATURE_SIZE) != 0 ||
+      memcmp(header.webp, WEBP_SIGNATURE, 4) != 0) {
     fclose(f);
-    return metadata;
+    return result;
   }
+
+  bool found_dimensions = false;
+  bool found_exif = false;
 
   ChunkHeader chunk;
   while (read_chunk_header(f, &chunk) == 0) {
-    if (chunk.chunk_type == CHUNK_VP8X) {
-      if (parse_vp8x_chunk(f, chunk.chunk_size, &metadata.width,
-                           &metadata.height) == 0) {
-        fclose(f);
-        return metadata;
+    long next_chunk_pos = ftell(f) + chunk.chunk_size;
+    if (chunk.chunk_size % 2 != 0)
+      next_chunk_pos++;
+
+    if (chunk.chunk_type == CHUNK_VP8X && !found_dimensions) {
+      if (parse_vp8x_chunk(f, chunk.chunk_size, &result.width,
+                           &result.height) == 0) {
+        found_dimensions = true;
       }
-    } else if (chunk.chunk_type == CHUNK_VP8) {
-      if (parse_vp8_chunk(f, &metadata.width, &metadata.height) == 0) {
-        fclose(f);
-        return metadata;
+    } else if (chunk.chunk_type == CHUNK_VP8 && !found_dimensions) {
+      if (parse_vp8_chunk(f, &result.width, &result.height) == 0) {
+        found_dimensions = true;
       }
-    } else if (chunk.chunk_type == CHUNK_VP8L) {
-      if (parse_vp8l_chunk(f, &metadata.width, &metadata.height) == 0) {
-        fclose(f);
-        return metadata;
+    } else if (chunk.chunk_type == CHUNK_VP8L && !found_dimensions) {
+      if (parse_vp8l_chunk(f, &result.width, &result.height) == 0) {
+        found_dimensions = true;
+      }
+    } else if (chunk.chunk_type == CHUNK_EXIF && !found_exif) {
+      unsigned char *exif_buf = malloc(chunk.chunk_size);
+      if (exif_buf) {
+        if (fread(exif_buf, 1, chunk.chunk_size, f) == chunk.chunk_size) {
+          ExifData parsed_exif = ParseRawExifBlock(exif_buf, chunk.chunk_size);
+          if (parsed_exif.valid) {
+            result.has_exif = true;
+            result.exif = parsed_exif;
+          }
+          found_exif = true;
+        }
+        free(exif_buf);
       }
     }
 
-    if (chunk.chunk_size % 2 != 0)
-      chunk.chunk_size++;
-    fseek(f, chunk.chunk_size, SEEK_CUR);
+    fseek(f, next_chunk_pos, SEEK_SET);
   }
 
   fclose(f);
-
-  return metadata;
+  return result;
 }
 
 bool WebpGetDimensions(const char *filepath, int *width, int *height) {
