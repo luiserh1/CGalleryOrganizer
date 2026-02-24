@@ -11,7 +11,7 @@ TEST_BIN = tests/bin/test_runner
 
 TARGET = bin/gallery_organizer
 
-.PHONY: all clean test
+.PHONY: all clean test help
 
 all: $(TARGET)
 
@@ -34,3 +34,10 @@ clean:
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+help:
+	@echo "Available commands:"
+	@echo "  make all    - Build the main executable (default)"
+	@echo "  make test   - Build and run the test suite"
+	@echo "  make clean  - Remove built objects and binaries"
+	@echo "  make help   - Show this help message"
