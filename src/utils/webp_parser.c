@@ -60,14 +60,24 @@ static int parse_vp8_chunk(FILE *f, int *width, int *height) {
     if (!key_frame)
         return -1;
 
-    fseek(f, 7, SEEK_CUR);
-
-    unsigned char dimensions[3];
-    if (fread(dimensions, 1, 3, f) != 3)
+    // For key frames, check start code (0x9d 0x01 0x2a)
+    unsigned char start_code[3];
+    if (fread(start_code, 1, 3, f) != 3)
+        return -1;
+    
+    if (start_code[0] != 0x9d || start_code[1] != 0x01 || start_code[2] != 0x2a)
         return -1;
 
-    *width = ((dimensions[1] << 8) | dimensions[0]) & 0x3FFF;
-    *height = ((dimensions[2] << 8) | (dimensions[1] >> 6)) & 0x3FFF;
+    // Read dimensions (2 bytes each, little endian)
+    unsigned char width_bytes[2];
+    unsigned char height_bytes[2];
+    if (fread(width_bytes, 1, 2, f) != 2)
+        return -1;
+    if (fread(height_bytes, 1, 2, f) != 2)
+        return -1;
+
+    *width = width_bytes[0] | (width_bytes[1] << 8);
+    *height = height_bytes[0] | (height_bytes[1] << 8);
 
     return 0;
 }

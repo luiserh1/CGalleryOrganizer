@@ -57,20 +57,27 @@ BmpData BmpParse(const char *filepath) {
         return metadata;
     }
 
-    fseek(f, 14 + header_size, SEEK_SET);
-
-    unsigned char dims[8];
-    if (fread(dims, 1, 8, f) != 8) {
-        fclose(f);
-        return metadata;
-    }
-
+    // Read dimensions based on header size
+    // BITMAPINFOHEADER (40 bytes): width at offset 4, height at offset 8
+    // BITMAPCOREHEADER (12 bytes): width at offset 4, height at offset 6 (16-bit)
     if (header_size >= 40) {
+        // BITMAPINFOHEADER or later
+        unsigned char dims[8];
+        if (fread(dims, 1, 8, f) != 8) {
+            fclose(f);
+            return metadata;
+        }
         metadata.width = read_s32_le(dims);
         metadata.height = read_s32_le(dims + 4);
     } else {
-        metadata.width = (int)(unsigned short)dims[0] | ((int)(unsigned short)dims[1] << 8);
-        metadata.height = (int)(unsigned short)dims[2] | ((int)(unsigned short)dims[3] << 8);
+        // BITMAPCOREHEADER (OS/2 1.x)
+        unsigned char dims[4];
+        if (fread(dims, 1, 4, f) != 4) {
+            fclose(f);
+            return metadata;
+        }
+        metadata.width = (int)(unsigned short)(dims[0] | (dims[1] << 8));
+        metadata.height = (int)(unsigned short)(dims[2] | (dims[3] << 8));
     }
 
     if (metadata.height < 0)
