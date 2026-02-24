@@ -137,3 +137,11 @@ vendor/             # Third-party dependencies (strictly isolated)
 - Third-party code belongs strictly in `vendor/`.
 - All dependencies must be documented in `docs/dependencies.md`.
 - Prefer single-file or header-only C libraries.
+
+---
+
+## 10. Compilation and Warnings
+
+- All code must compile cleanly without any warnings.
+- The `Makefile` must enforce strict compilation by including `-Wall -Wextra -Werror -pedantic` in `CFLAGS`.
+- Any warnings treated as errors must be addressed properly by fixing the underlying code rather than bypassed.

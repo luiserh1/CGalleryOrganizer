@@ -6,12 +6,6 @@
 
 #include "heic_parser.h"
 
-#define HEIC_SIGNATURE_SIZE 12
-static const unsigned char HEIC_SIGNATURE[HEIC_SIGNATURE_SIZE] = {
-    0x00, 0x00, 0x00, 0x18, 'f', 't', 'y', 'p', 'h', 'e', 'i', 'c'};
-
-static const unsigned char HEIC_ALT_SIGNATURE[8] = {'h', 'e', 'i', 'c', 0};
-
 #define BOX_ftyp 0x66747970
 #define BOX_moov 0x6D6F6F76
 #define BOX_mvhd 0x6D766864
