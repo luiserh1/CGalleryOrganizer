@@ -48,4 +48,4 @@ make test
 - **v0.5.0+**: Interactive macOS native / Raylib UI.
 
 ## ⚖️ License
-MIT
+TBD

@@ -1,12 +1,14 @@
-# External Dependencies
+# Dependencies
 
-This file documents all third-party code relied upon by the CGalleryOrganizer project.
-
-**Rule:** All external dependencies MUST be stored in the `/vendor/` directory and must not be mixed with the core `src/` code.
+This file documents all third-party code relied upon by the CGalleryOrganizer project, as well as the self-contained internally developed functionality that is not part of the core of the project.
 
 ---
 
-## 1. cJSON
+## External Dependencies
+
+**Rule:** All external dependencies MUST be stored in the `/vendor/` directory and must not be mixed with the core `src/` code.
+
+### 1. cJSON
 - **Purpose**: Parsing and writing the `gallery_cache.json` file.
 - **Location**: `vendor/cJSON.c`, `vendor/cJSON.h`
 - **License**: MIT License
@@ -16,7 +18,9 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 
 ---
 
-## Internal: EXIF Parser
+## Internal Dependencies
+
+### 1. EXIF Parser
 - **Purpose**: Extracting EXIF metadata (date taken, camera model, GPS, dimensions) from JPEG files.
 - **Location**: `include/exif_parser.h`, `src/utils/exif_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written JPEG EXIF binary parser using only standard C library.
