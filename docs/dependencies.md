@@ -25,3 +25,9 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Location**: `include/exif_parser.h`, `src/utils/exif_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written JPEG EXIF binary parser using only standard C library.
 - **Note**: Only supports JPEG files. Non-JPEG formats (PNG, GIF, HEIC, MOV) do not have their metadata extracted via this parser.
+
+### 2. PNG Parser
+- **Purpose**: Extracting metadata (dimensions) from PNG files.
+- **Location**: `include/png_parser.h`, `src/utils/png_parser.c`
+- **Dependencies**: None. Zero-dependency, hand-written PNG binary parser using only standard C library.
+- **Note**: Extracts width and height from PNG IHDR chunk. Does not extract text metadata (tEXt chunks).

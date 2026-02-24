@@ -5,6 +5,7 @@
 
 extern void register_fs_utils_tests(void);
 extern void register_gallery_cache_tests(void);
+extern void register_png_parser_tests(void);
 
 int main(int argc, char **argv) {
   printf("=== CGalleryOrganizer Test Suite ===\n\n");
@@ -22,6 +23,7 @@ int main(int argc, char **argv) {
   // Register tests
   register_fs_utils_tests();
   register_gallery_cache_tests();
+  register_png_parser_tests();
 
   int run_count = 0;
   for (int i = 0; i < g_test_count; i++) {
