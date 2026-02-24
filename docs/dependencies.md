@@ -2,6 +2,8 @@
 
 This file documents all third-party code relied upon by the CGalleryOrganizer project, as well as the self-contained internally developed functionality that is not part of the core of the project.
 
+**Last consulted:** 2026-02-24
+
 ---
 
 ## External Dependencies
@@ -24,7 +26,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Purpose**: Extracting EXIF metadata (date taken, camera model, GPS, dimensions) from JPEG files.
 - **Location**: `include/exif_parser.h`, `src/utils/exif_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written JPEG EXIF binary parser using only standard C library.
-- **Format Specification**: [Exif 2.32 (JEITA)](https://www.cipa.jp/exif2.32/), [Exif Tool Tag Names](https://exiv2.org/tags.html)
+- **Format Specification**: [Library of Congress EXIF](https://www.loc.gov/preservation/digital/formats/fdd/fdd000146.shtml)
 - **Binary Structure**:
   - JPEG files contain EXIF data in APP1 marker segment (0xFFE1)
   - APP1 contains: 2-byte length, "Exif\0\0", then TIFF header
@@ -76,7 +78,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Purpose**: Extracting metadata (dimensions) from HEIC files.
 - **Location**: `include/heic_parser.h`, `src/utils/heic_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written HEIC binary parser using only standard C library.
-- **Format Specification**: [ISO Base Media File Format (ISOBMFF) ISO 14496-12](https://www.iso.org/standard/83102.html), [Apple QuickTime mvhd](https://developer.apple.com/documentation/quicktime-file-format/movie_header_atom)
+- **Format Specification**: [Wikipedia ISOBMFF](https://en.wikipedia.org/wiki/ISO_base_media_file_format), [Apple QuickTime mvhd](https://developer.apple.com/documentation/quicktime-file-format/movie_header_atom)
 - **Binary Structure**:
   - File Type Box (ftyp): 4-byte size + "ftyp" (0x66747970) + 4-byte major brand + compatible brands
   - HEIC brand: "heic" at byte 8, or "mif1" for HEIF base image
