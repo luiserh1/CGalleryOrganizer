@@ -25,7 +25,6 @@ CGalleryOrganizer is a local, privacy-first application designed to analyze, cla
 Establish the project structure, testing framework, code style, and implement basic directory traversal and metadata extraction.
 
 ### Core Architecture
-- Isolated `v0.1.0-metadata-extractor` branch.
 - Directories for `src/`, `include/`, `tests/`, `vendor/`, and `docs/`.
 - Custom, lightweight testing framework.
 

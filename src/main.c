@@ -48,7 +48,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.1.0-dev\n");
+  printf("CGalleryOrganizer v0.1.1-dev\n");
 
   if (argc < 2) {
     printf("Usage: %s <directory_to_scan>\n", argv[0]);

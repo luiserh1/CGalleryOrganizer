@@ -11,62 +11,62 @@ static cJSON *g_cache_root = NULL;
 static char g_cache_path[1024] = {0};
 
 bool CacheInit(const char *cache_path) {
-  if (!cache_path)
-    return false;
+    if (!cache_path)
+        return false;
 
-  strncpy(g_cache_path, cache_path, sizeof(g_cache_path) - 1);
+    strncpy(g_cache_path, cache_path, sizeof(g_cache_path) - 1);
 
-  FILE *f = fopen(cache_path, "r");
-  if (f) {
-    fseek(f, 0, SEEK_END);
-    long length = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    FILE *f = fopen(cache_path, "r");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        long length = ftell(f);
+        fseek(f, 0, SEEK_SET);
 
-    if (length > 0) {
-      char *content = malloc(length + 1);
-      if (content) {
-        fread(content, 1, length, f);
-        content[length] = '\0';
-        g_cache_root = cJSON_Parse(content);
-        free(content);
-      }
+        if (length > 0) {
+            char *content = malloc(length + 1);
+            if (content) {
+                fread(content, 1, length, f);
+                content[length] = '\0';
+                g_cache_root = cJSON_Parse(content);
+                free(content);
+            }
+        }
+        fclose(f);
     }
-    fclose(f);
-  }
 
-  if (!g_cache_root) {
-    g_cache_root = cJSON_CreateObject(); // Empty cache
-  }
-  return true;
+    if (!g_cache_root) {
+        g_cache_root = cJSON_CreateObject(); // Empty cache
+    }
+    return true;
 }
 
 void CacheShutdown(void) {
-  if (g_cache_root) {
-    cJSON_Delete(g_cache_root);
-    g_cache_root = NULL;
-  }
-  g_cache_path[0] = '\0';
+    if (g_cache_root) {
+        cJSON_Delete(g_cache_root);
+        g_cache_root = NULL;
+    }
+    g_cache_path[0] = '\0';
 }
 
 bool CacheSave(void) {
-  if (!g_cache_root || g_cache_path[0] == '\0')
-    return false;
+    if (!g_cache_root || g_cache_path[0] == '\0')
+        return false;
 
-  char *json_str = cJSON_PrintUnformatted(g_cache_root);
-  if (!json_str)
-    return false;
+    char *json_str = cJSON_PrintUnformatted(g_cache_root);
+    if (!json_str)
+        return false;
 
-  FILE *f = fopen(g_cache_path, "w");
-  if (!f) {
+    FILE *f = fopen(g_cache_path, "w");
+    if (!f) {
+        free(json_str);
+        return false;
+    }
+
+    fputs(json_str, f);
+    fclose(f);
     free(json_str);
-    return false;
-  }
 
-  fputs(json_str, f);
-  fclose(f);
-  free(json_str);
-
-  return true;
+    return true;
 }
 
 bool CacheUpdateEntry(const ImageMetadata *data) {
