@@ -106,6 +106,24 @@ void test_metadata_jpeg_no_exif(void) {
   ASSERT_TRUE(metadata.height > 0);
 }
 
+void test_metadata_png_fake_extension(void) {
+  const char *filepath = "tests/assets/png/fake.png";
+  ImageMetadata metadata = ExtractMetadata(filepath);
+
+  // Fake extension: PNG parser should gracefully reject the JPG magic bytes.
+  ASSERT_EQ(0, metadata.width);
+  ASSERT_EQ(0, metadata.height);
+}
+
+void test_metadata_bmp_truncated(void) {
+  const char *filepath = "tests/assets/bmp/truncated.bmp";
+  ImageMetadata metadata = ExtractMetadata(filepath);
+
+  // Truncated file: BMP parser should safely abort rather than segfault.
+  ASSERT_EQ(0, metadata.width);
+  ASSERT_EQ(0, metadata.height);
+}
+
 void test_metadata_jpeg_deep_exif(void) {
   const char *filepath = "tests/assets/jpg/sample_deep_exif.jpg";
   ImageMetadata metadata = ExtractMetadata(filepath);
@@ -232,6 +250,10 @@ void register_integration_tests(void) {
   register_test("test_metadata_jpeg_no_exif", test_metadata_jpeg_no_exif,
                 "integration");
   register_test("test_metadata_jpeg_deep_exif", test_metadata_jpeg_deep_exif,
+                "integration");
+  register_test("test_metadata_png_fake_extension",
+                test_metadata_png_fake_extension, "integration");
+  register_test("test_metadata_bmp_truncated", test_metadata_bmp_truncated,
                 "integration");
   register_test("test_unified_metadata_dispatcher",
                 test_unified_metadata_dispatcher, "integration");
