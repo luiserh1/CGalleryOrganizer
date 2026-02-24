@@ -30,6 +30,7 @@ clean:
 	rm -f $(OBJS) $(TEST_OBJS) tests/test_runner.o
 	rm -rf bin
 	rm -rf tests/bin
+	rm -f gallery_cache.json
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@

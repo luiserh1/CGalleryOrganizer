@@ -4,3 +4,4 @@ temp/
 bin/
 tests/bin/
 *.out
+gallery_cache.json
