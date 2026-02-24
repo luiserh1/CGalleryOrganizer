@@ -106,6 +106,26 @@ void test_metadata_jpeg_no_exif(void) {
   ASSERT_TRUE(metadata.height > 0);
 }
 
+void test_metadata_jpeg_deep_exif(void) {
+  const char *filepath = "tests/assets/jpg/sample_deep_exif.jpg";
+  ImageMetadata metadata = ExtractMetadata(filepath);
+
+  ASSERT_TRUE(metadata.width > 0);
+  ASSERT_TRUE(metadata.height > 0);
+  ASSERT_TRUE(metadata.hasGps);
+
+  // Verify Eiffel Tower coordinate extraction (48.8584 N, 2.2945 E)
+  double lat_diff = metadata.gpsLatitude - 48.8584;
+  if (lat_diff < 0)
+    lat_diff = -lat_diff;
+  ASSERT_TRUE(lat_diff < 0.001);
+
+  double lon_diff = metadata.gpsLongitude - 2.2945;
+  if (lon_diff < 0)
+    lon_diff = -lon_diff;
+  ASSERT_TRUE(lon_diff < 0.001);
+}
+
 void test_unified_metadata_dispatcher(void) {
   const char *png_path = "tests/assets/png/sample.png";
   const char *gif_path = "tests/assets/gif/sample.gif";
@@ -210,6 +230,8 @@ void register_integration_tests(void) {
   register_test("test_metadata_jpeg_with_exif", test_metadata_jpeg_with_exif,
                 "integration");
   register_test("test_metadata_jpeg_no_exif", test_metadata_jpeg_no_exif,
+                "integration");
+  register_test("test_metadata_jpeg_deep_exif", test_metadata_jpeg_deep_exif,
                 "integration");
   register_test("test_unified_metadata_dispatcher",
                 test_unified_metadata_dispatcher, "integration");
