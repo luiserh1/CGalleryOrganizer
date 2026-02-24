@@ -1,3 +1,4 @@
+#include "exif_parser.h"
 #include "fs_utils.h"
 #include "gallery_cache.h"
 #include <stdio.h>
@@ -22,7 +23,20 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       md.modificationDate = mod_date;
       md.fileSize = size;
 
-      // For v0.1.0 we just mock the ML values to 0/false by default
+      // Try to extract EXIF data
+      ExifData exif = ExifParse(absolute_path);
+      if (exif.valid) {
+        strncpy(md.dateTaken, exif.dateTaken, METADATA_MAX_STRING - 1);
+        md.width = exif.width;
+        md.height = exif.height;
+        strncpy(md.cameraMake, exif.cameraMake, METADATA_MAX_STRING - 1);
+        strncpy(md.cameraModel, exif.cameraModel, METADATA_MAX_STRING - 1);
+        md.orientation = exif.orientation;
+        md.hasGps = exif.hasGps;
+        md.gpsLatitude = exif.gpsLatitude;
+        md.gpsLongitude = exif.gpsLongitude;
+      }
+
       if (CacheUpdateEntry(&md)) {
         g_files_cached++;
       }

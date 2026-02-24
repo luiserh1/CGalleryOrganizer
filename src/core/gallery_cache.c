@@ -79,6 +79,24 @@ bool CacheUpdateEntry(const ImageMetadata *data) {
   cJSON_AddNumberToObject(entry, "modificationDate", data->modificationDate);
   cJSON_AddNumberToObject(entry, "fileSize", (double)data->fileSize);
 
+  // EXIF fields
+  if (data->dateTaken[0] != '\0')
+    cJSON_AddStringToObject(entry, "dateTaken", data->dateTaken);
+  if (data->width > 0)
+    cJSON_AddNumberToObject(entry, "width", data->width);
+  if (data->height > 0)
+    cJSON_AddNumberToObject(entry, "height", data->height);
+  if (data->cameraMake[0] != '\0')
+    cJSON_AddStringToObject(entry, "cameraMake", data->cameraMake);
+  if (data->cameraModel[0] != '\0')
+    cJSON_AddStringToObject(entry, "cameraModel", data->cameraModel);
+  if (data->orientation > 0)
+    cJSON_AddNumberToObject(entry, "orientation", data->orientation);
+  if (data->hasGps) {
+    cJSON_AddNumberToObject(entry, "gpsLatitude", data->gpsLatitude);
+    cJSON_AddNumberToObject(entry, "gpsLongitude", data->gpsLongitude);
+  }
+
   // Replace if exists, otherwise add
   if (cJSON_GetObjectItem(g_cache_root, data->path)) {
     cJSON_ReplaceItemInObject(g_cache_root, data->path, entry);
@@ -114,6 +132,35 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
   out_md->path = strdup(absolute_path);
   out_md->modificationDate = current_mod_date;
   out_md->fileSize = current_size;
+
+  // EXIF fields
+  cJSON *node;
+  node = cJSON_GetObjectItem(entry, "dateTaken");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->dateTaken, node->valuestring, METADATA_MAX_STRING - 1);
+  node = cJSON_GetObjectItem(entry, "width");
+  if (node)
+    out_md->width = (int)node->valuedouble;
+  node = cJSON_GetObjectItem(entry, "height");
+  if (node)
+    out_md->height = (int)node->valuedouble;
+  node = cJSON_GetObjectItem(entry, "cameraMake");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->cameraMake, node->valuestring, METADATA_MAX_STRING - 1);
+  node = cJSON_GetObjectItem(entry, "cameraModel");
+  if (node && cJSON_IsString(node))
+    strncpy(out_md->cameraModel, node->valuestring, METADATA_MAX_STRING - 1);
+  node = cJSON_GetObjectItem(entry, "orientation");
+  if (node)
+    out_md->orientation = (int)node->valuedouble;
+  node = cJSON_GetObjectItem(entry, "gpsLatitude");
+  if (node) {
+    out_md->hasGps = true;
+    out_md->gpsLatitude = node->valuedouble;
+    cJSON *lon = cJSON_GetObjectItem(entry, "gpsLongitude");
+    if (lon)
+      out_md->gpsLongitude = lon->valuedouble;
+  }
 
   return true;
 }

@@ -4,10 +4,23 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define METADATA_MAX_STRING 256
+
 typedef struct {
   char *path;              // Absolute path (owned dynamically)
-  double modificationDate; // Unix timestamp
+  double modificationDate; // Unix timestamp (from filesystem)
   long fileSize;           // File size in bytes
+
+  // EXIF fields (populated when available)
+  char dateTaken[METADATA_MAX_STRING]; // "YYYY:MM:DD HH:MM:SS" or empty
+  int width;
+  int height;
+  char cameraMake[METADATA_MAX_STRING];  // e.g. "Apple"
+  char cameraModel[METADATA_MAX_STRING]; // e.g. "iPhone 14 Pro"
+  bool hasGps;
+  double gpsLatitude;
+  double gpsLongitude;
+  int orientation; // 1-8 per EXIF spec, 0 if unknown
 } ImageMetadata;
 
 // Caching interface
