@@ -49,3 +49,9 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Location**: `include/heic_parser.h`, `src/utils/heic_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written HEIC binary parser using only standard C library.
 - **Note**: Extracts width and height from moov/mvhd atoms. Supports HEIC files using ISOBMFF container format.
+
+### 6. BMP Parser
+- **Purpose**: Extracting metadata (dimensions) from BMP files.
+- **Location**: `include/bmp_parser.h`, `src/utils/bmp_parser.c`
+- **Dependencies**: None. Zero-dependency, hand-written BMP binary parser using only standard C library.
+- **Note**: Extracts width and height from BITMAPINFOHEADER. Supports standard BMP format.
