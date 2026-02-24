@@ -4,6 +4,7 @@
 #include "exif_parser.h"
 #include "png_parser.h"
 #include "webp_parser.h"
+#include "gif_parser.h"
 
 static const char *get_extension(const char *path) {
     if (!path)
@@ -26,6 +27,10 @@ static bool is_png(const char *ext) {
 
 static bool is_webp(const char *ext) {
     return ext && strcmp(ext, ".webp") == 0;
+}
+
+static bool is_gif(const char *ext) {
+    return ext && strcmp(ext, ".gif") == 0;
 }
 
 ImageMetadata ExtractMetadata(const char *filepath) {
@@ -60,6 +65,12 @@ ImageMetadata ExtractMetadata(const char *filepath) {
         if (webp.width > 0 && webp.height > 0) {
             metadata.width = webp.width;
             metadata.height = webp.height;
+        }
+    } else if (is_gif(ext)) {
+        GifData gif = GifParse(filepath);
+        if (gif.width > 0 && gif.height > 0) {
+            metadata.width = gif.width;
+            metadata.height = gif.height;
         }
     }
 

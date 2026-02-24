@@ -37,3 +37,9 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **Location**: `include/webp_parser.h`, `src/utils/webp_parser.c`
 - **Dependencies**: None. Zero-dependency, hand-written WebP binary parser using only standard C library.
 - **Note**: Extracts width and height from WebP VP8/VP8L chunks. Supports both lossy and lossless WebP formats.
+
+### 4. GIF Parser
+- **Purpose**: Extracting metadata (dimensions) from GIF files.
+- **Location**: `include/gif_parser.h`, `src/utils/gif_parser.c`
+- **Dependencies**: None. Zero-dependency, hand-written GIF binary parser using only standard C library.
+- **Note**: Extracts width and height from GIF header. Supports both GIF87a and GIF89a formats.
