@@ -19,6 +19,8 @@ This document catalogs the test images used for integration testing, including t
 
 ## Sources
 
+**Note on Unlisted Assets:** Any images or assets present in the `tests/assets/` directories that are not explicitly listed in this registry are either original works provided by the developer, or are directly derived from the Creative Commons licensed images listed below for testing purposes (e.g., heavily fuzzed, duplicated, truncated, or metadata-altered edge-case variants).
+
 ### Image 1: Flowers at Kew Gardens
 - **Source URL**: [Flickr](https://www.flickr.com/photos/adulau/8648707725/in/photostream/)
 - **License**: CC BY-SA 2.0
