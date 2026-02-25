@@ -12,7 +12,7 @@ CGalleryOrganizer is a local, privacy-first application designed to analyze, cla
 
 ## Core Design Principles
 
-- **Zero-to-Minimal Dependencies**: Third-party libraries (JSON parsers, ML frameworks) are heavily isolated in `vendor/` and documented in `docs/dependencies.md`.
+- **Zero-to-Minimal Vendor Dependencies**: Third-party C header packages (JSON parsers, ML frameworks) are heavily isolated in `vendor/`. Heavy system-level libraries (like `exiv2` for robust format parsing) are integrated natively via the host OS package manager and securely abstracted behind pure C wrappers. All dependencies are documented in `docs/dependencies.md`.
 - **Granular Evolution**: Features are strictly bounded by minor version bumps (0.1.0 -> 0.2.0, etc.).
 - **Strict Data Contract**: The application revolves around a JSON-backed cache (`gallery_cache.json`) to avoid re-computing expensive heuristics.
 - **TDD Driven**: All logic (FS parsing, caching, hashing, math) is tested via a custom, lightweight framework without relying on external testing libraries.

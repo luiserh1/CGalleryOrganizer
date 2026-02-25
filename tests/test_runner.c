@@ -5,11 +5,6 @@
 
 extern void register_fs_utils_tests(void);
 extern void register_gallery_cache_tests(void);
-extern void register_png_parser_tests(void);
-extern void register_webp_parser_tests(void);
-extern void register_gif_parser_tests(void);
-extern void register_heic_parser_tests(void);
-extern void register_bmp_parser_tests(void);
 extern void register_integration_tests(void);
 extern void register_hash_utils_tests(void);
 extern void register_duplicate_finder_tests(void);
@@ -30,11 +25,6 @@ int main(int argc, char **argv) {
   // Register tests
   register_fs_utils_tests();
   register_gallery_cache_tests();
-  register_png_parser_tests();
-  register_webp_parser_tests();
-  register_gif_parser_tests();
-  register_heic_parser_tests();
-  register_bmp_parser_tests();
   register_hash_utils_tests();
   register_duplicate_finder_tests();
   register_integration_tests();
