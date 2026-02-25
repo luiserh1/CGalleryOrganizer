@@ -2,7 +2,7 @@ CC = clang
 CXX = clang++
 CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "")
 CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "")
-LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "")
+LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "") -lm
 
 # Directories
 BUILD_DIR = build

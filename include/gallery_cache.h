@@ -36,6 +36,9 @@ typedef struct {
   bool mlHasText;
   char mlModelClassification[64];
   char mlModelTextDetection[64];
+  char mlModelEmbedding[64];
+  int mlEmbeddingDim;
+  char *mlEmbeddingBase64; // Base64-encoded embedding bytes (owned dynamically)
   char *mlRawJson; // Provider raw payload (owned dynamically)
 } ImageMetadata;
 

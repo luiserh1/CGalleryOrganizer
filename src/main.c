@@ -10,6 +10,7 @@
 #include "metadata_parser.h"
 #include "ml_api.h"
 #include "organizer.h"
+#include "similarity_engine.h"
 
 static int g_files_scanned = 0;
 static int g_files_cached = 0;
@@ -20,10 +21,12 @@ static const char *k_group_keys[] = {"date", "camera", "format", "orientation",
 typedef struct {
   bool exhaustive;
   bool ml_enrich;
+  bool similarity_report;
   bool ml_enabled;
   int ml_files_evaluated;
   int ml_files_classified;
   int ml_files_with_text;
+  int ml_files_embedded;
   int ml_failures;
 } AppScanContext;
 
@@ -34,6 +37,9 @@ static void PrintUsage(const char *argv0) {
   printf("  -h, --help        Show this help message and exit\n");
   printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
   printf("  --ml-enrich       Run local ML enrichment (classification + text detection)\n");
+  printf("  --similarity-report Build similarity report using embeddings\n");
+  printf("  --sim-threshold <0..1> Similarity threshold (default: 0.92)\n");
+  printf("  --sim-topk <n>    Max neighbors per anchor (default: 5)\n");
   printf("  --organize        Execute metadata-based restructuring\n");
   printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
          "Default: date\n");
@@ -177,21 +183,62 @@ static void ApplyMlResultToMetadata(ImageMetadata *md, const MlResult *ml) {
     }
     md->mlRawJson = strdup(ml->provider_raw_json);
   }
+
+  if (ml->has_embedding && ml->embedding && ml->embedding_dim > 0) {
+    char *encoded = NULL;
+    if (SimilarityEncodeEmbeddingBase64(ml->embedding, ml->embedding_dim,
+                                        &encoded)) {
+      if (md->mlEmbeddingBase64) {
+        free(md->mlEmbeddingBase64);
+      }
+      md->mlEmbeddingBase64 = encoded;
+      md->mlEmbeddingDim = ml->embedding_dim;
+    }
+  }
+
+  if (ml->model_id_embedding[0] != '\0') {
+    strncpy(md->mlModelEmbedding, ml->model_id_embedding,
+            sizeof(md->mlModelEmbedding) - 1);
+    md->mlModelEmbedding[sizeof(md->mlModelEmbedding) - 1] = '\0';
+  }
 }
 
 static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *md,
                                       AppScanContext *ctx) {
-  if (!ctx || !md || !ctx->ml_enrich || !ctx->ml_enabled) {
+  if (!ctx || !md || !ctx->ml_enabled ||
+      (!ctx->ml_enrich && !ctx->similarity_report)) {
+    return;
+  }
+
+  bool need_classification =
+      ctx->ml_enrich && md->mlModelClassification[0] == '\0';
+  bool need_text = ctx->ml_enrich && md->mlModelTextDetection[0] == '\0';
+  bool need_embedding =
+      ctx->similarity_report &&
+      (md->mlEmbeddingDim <= 0 || md->mlEmbeddingBase64 == NULL ||
+       md->mlModelEmbedding[0] == '\0');
+
+  if (!need_classification && !need_text && !need_embedding) {
     return;
   }
 
   ctx->ml_files_evaluated++;
 
-  MlFeature requested[2] = {ML_FEATURE_CLASSIFICATION,
-                            ML_FEATURE_TEXT_DETECTION};
+  MlFeature requested[3] = {0};
+  int requested_count = 0;
+  if (need_classification) {
+    requested[requested_count++] = ML_FEATURE_CLASSIFICATION;
+  }
+  if (need_text) {
+    requested[requested_count++] = ML_FEATURE_TEXT_DETECTION;
+  }
+  if (need_embedding) {
+    requested[requested_count++] = ML_FEATURE_EMBEDDING;
+  }
+
   MlResult result = {0};
 
-  if (!MlInferImage(absolute_path, requested, 2, &result)) {
+  if (!MlInferImage(absolute_path, requested, requested_count, &result)) {
     ctx->ml_failures++;
     return;
   }
@@ -203,8 +250,74 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
   if (result.has_text_detection && result.text_box_count > 0) {
     ctx->ml_files_with_text++;
   }
+  if (result.has_embedding && result.embedding_dim > 0) {
+    ctx->ml_files_embedded++;
+  }
 
   MlFreeResult(&result);
+}
+
+static bool BuildSimilarityReportFromCache(const char *report_path,
+                                           float threshold, int topk) {
+  if (!report_path) {
+    return false;
+  }
+
+  int key_count = 0;
+  char **keys = CacheGetAllKeys(&key_count);
+  if (key_count <= 0) {
+    SimilarityReport empty = {0};
+    if (!SimilarityBuildReport("embed-default", threshold, topk, NULL, 0,
+                               &empty)) {
+      CacheFreeKeys(keys, key_count);
+      return false;
+    }
+    bool written = SimilarityWriteReportJson(report_path, &empty);
+    SimilarityFreeReport(&empty);
+    CacheFreeKeys(keys, key_count);
+    return written;
+  }
+  if (!keys) {
+    return false;
+  }
+
+  ImageMetadata *entries = calloc((size_t)key_count, sizeof(ImageMetadata));
+  if (!entries) {
+    CacheFreeKeys(keys, key_count);
+    return false;
+  }
+
+  int usable_count = 0;
+  for (int i = 0; i < key_count; i++) {
+    ImageMetadata md = {0};
+    if (!CacheGetRawEntry(keys[i], &md)) {
+      continue;
+    }
+    if (md.mlEmbeddingDim > 0 && md.mlEmbeddingBase64 &&
+        md.mlModelEmbedding[0] != '\0') {
+      entries[usable_count++] = md;
+    } else {
+      CacheFreeMetadata(&md);
+    }
+  }
+
+  SimilarityReport report = {0};
+  const char *model_id =
+      usable_count > 0 ? entries[0].mlModelEmbedding : "embed-default";
+  bool ok = SimilarityBuildReport(model_id, threshold, topk, entries,
+                                  usable_count, &report);
+  if (ok) {
+    ok = SimilarityWriteReportJson(report_path, &report);
+  }
+
+  SimilarityFreeReport(&report);
+  for (int i = 0; i < usable_count; i++) {
+    CacheFreeMetadata(&entries[i]);
+  }
+
+  free(entries);
+  CacheFreeKeys(keys, key_count);
+  return ok;
 }
 
 static bool ScanCallback(const char *absolute_path, void *user_data) {
@@ -307,13 +420,16 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.3.0\n");
+  printf("CGalleryOrganizer v0.4.0\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
+  bool similarity_report = false;
   bool organize = false;
   bool preview = false;
   bool rollback = false;
+  float sim_threshold = 0.92f;
+  int sim_topk = 5;
   const char *target_dir = NULL;
   const char *env_dir = NULL;
   const char *group_by_arg = NULL;
@@ -329,6 +445,32 @@ int main(int argc, char **argv) {
       exhaustive = true;
     } else if (strcmp(argv[i], "--ml-enrich") == 0) {
       ml_enrich = true;
+    } else if (strcmp(argv[i], "--similarity-report") == 0) {
+      similarity_report = true;
+    } else if (strcmp(argv[i], "--sim-threshold") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --sim-threshold requires a value in [0,1].\n");
+        return 1;
+      }
+      char *endptr = NULL;
+      sim_threshold = strtof(argv[++i], &endptr);
+      if (!endptr || *endptr != '\0' || sim_threshold < 0.0f ||
+          sim_threshold > 1.0f) {
+        printf("Error: --sim-threshold must be a number in [0,1].\n");
+        return 1;
+      }
+    } else if (strcmp(argv[i], "--sim-topk") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --sim-topk requires a positive integer.\n");
+        return 1;
+      }
+      char *endptr = NULL;
+      long parsed = strtol(argv[++i], &endptr, 10);
+      if (!endptr || *endptr != '\0' || parsed <= 0 || parsed > 1000) {
+        printf("Error: --sim-topk must be a positive integer.\n");
+        return 1;
+      }
+      sim_topk = (int)parsed;
     } else if (strcmp(argv[i], "--organize") == 0) {
       organize = true;
     } else if (strcmp(argv[i], "--group-by") == 0) {
@@ -360,8 +502,16 @@ int main(int argc, char **argv) {
     printf("Error: Cannot specify --rollback with --organize or --preview.\n");
     return 1;
   }
+  if (rollback && similarity_report) {
+    printf("Error: Cannot specify --rollback with --similarity-report.\n");
+    return 1;
+  }
   if (organize && preview) {
     printf("Error: Cannot specify --organize and --preview together.\n");
+    return 1;
+  }
+  if (similarity_report && (organize || preview)) {
+    printf("Error: --similarity-report cannot be combined with --organize/--preview.\n");
     return 1;
   }
 
@@ -386,6 +536,10 @@ int main(int argc, char **argv) {
 
   if (target_dir == NULL) {
     PrintUsage(argv[0]);
+    return 1;
+  }
+  if (similarity_report && !env_dir) {
+    printf("Error: --similarity-report requires an environment directory.\n");
     return 1;
   }
 
@@ -415,7 +569,7 @@ int main(int argc, char **argv) {
     strncpy(models_root, "build/models", sizeof(models_root) - 1);
   }
 
-  if (ml_enrich) {
+  if (ml_enrich || similarity_report) {
     if (!MlInit(models_root)) {
       printf("Error: Failed to initialize ML runtime from %s.\n", models_root);
       printf("Hint: run scripts/download_models.sh first or set CGO_MODELS_ROOT.\n");
@@ -430,10 +584,12 @@ int main(int argc, char **argv) {
 
   AppScanContext scan_ctx = {.exhaustive = exhaustive,
                              .ml_enrich = ml_enrich,
+                             .similarity_report = similarity_report,
                              .ml_enabled = ml_initialized,
                              .ml_files_evaluated = 0,
                              .ml_files_classified = 0,
                              .ml_files_with_text = 0,
+                             .ml_files_embedded = 0,
                              .ml_failures = 0};
 
   if (!FsWalkDirectory(target_dir, ScanCallback, &scan_ctx)) {
@@ -452,13 +608,34 @@ int main(int argc, char **argv) {
   printf("Scan complete.\n");
   printf("Files scanned: %d\n", g_files_scanned);
   printf("Media files cached: %d\n", g_files_cached);
-  if (ml_enrich) {
+  if (ml_enrich || similarity_report) {
     printf("ML evaluated: %d\n", scan_ctx.ml_files_evaluated);
-    printf("ML classified: %d\n", scan_ctx.ml_files_classified);
-    printf("ML with text: %d\n", scan_ctx.ml_files_with_text);
+    if (ml_enrich) {
+      printf("ML classified: %d\n", scan_ctx.ml_files_classified);
+      printf("ML with text: %d\n", scan_ctx.ml_files_with_text);
+    }
+    if (similarity_report) {
+      printf("ML embedded: %d\n", scan_ctx.ml_files_embedded);
+    }
     printf("ML failures/skips: %d\n", scan_ctx.ml_failures);
   }
   printf("\n");
+
+  if (similarity_report) {
+    char report_path[1024] = {0};
+    snprintf(report_path, sizeof(report_path), "%s/similarity_report.json",
+             env_dir);
+    if (!BuildSimilarityReportFromCache(report_path, sim_threshold, sim_topk)) {
+      printf("Error: Failed to generate similarity report at %s.\n",
+             report_path);
+      if (ml_initialized) {
+        MlShutdown();
+      }
+      CacheShutdown();
+      return 1;
+    }
+    printf("Similarity report generated: %s\n", report_path);
+  }
 
   if (preview || organize) {
     if (!env_dir) {
@@ -521,7 +698,7 @@ int main(int argc, char **argv) {
 
     OrganizerShutdown();
     free(group_keys_owned);
-  } else {
+  } else if (!similarity_report) {
     DuplicateReport rep = FindExactDuplicates();
     int moved_count = 0;
 

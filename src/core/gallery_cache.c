@@ -138,12 +138,17 @@ bool CacheUpdateEntry(const ImageMetadata *data) {
     cJSON_AddStringToObject(entry, "mlModelTextDetection",
                             data->mlModelTextDetection);
   }
+  if (data->mlModelEmbedding[0] != '\0') {
+    cJSON_AddStringToObject(entry, "mlModelEmbedding", data->mlModelEmbedding);
+  }
+  if (data->mlEmbeddingDim > 0 && data->mlEmbeddingBase64) {
+    cJSON_AddNumberToObject(entry, "mlEmbeddingDim", data->mlEmbeddingDim);
+    cJSON_AddStringToObject(entry, "mlEmbeddingBase64", data->mlEmbeddingBase64);
+  }
   if (data->mlRawJson) {
     cJSON *raw_ml = cJSON_Parse(data->mlRawJson);
     if (raw_ml) {
       cJSON_AddItemToObject(entry, "mlRaw", raw_ml);
-    } else {
-      cJSON_AddStringToObject(entry, "mlRawString", data->mlRawJson);
     }
   }
 
@@ -248,14 +253,22 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
     strncpy(out_md->mlModelTextDetection, node->valuestring,
             sizeof(out_md->mlModelTextDetection) - 1);
   }
+  node = cJSON_GetObjectItem(entry, "mlModelEmbedding");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlModelEmbedding, node->valuestring,
+            sizeof(out_md->mlModelEmbedding) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlEmbeddingDim");
+  if (node && cJSON_IsNumber(node)) {
+    out_md->mlEmbeddingDim = (int)node->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "mlEmbeddingBase64");
+  if (node && cJSON_IsString(node)) {
+    out_md->mlEmbeddingBase64 = strdup(node->valuestring);
+  }
   node = cJSON_GetObjectItem(entry, "mlRaw");
   if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
     out_md->mlRawJson = cJSON_PrintUnformatted(node);
-  } else {
-    node = cJSON_GetObjectItem(entry, "mlRawString");
-    if (node && cJSON_IsString(node)) {
-      out_md->mlRawJson = strdup(node->valuestring);
-    }
   }
 
   return true;
@@ -363,14 +376,22 @@ bool CacheGetRawEntry(const char *key, ImageMetadata *out_md) {
     strncpy(out_md->mlModelTextDetection, node->valuestring,
             sizeof(out_md->mlModelTextDetection) - 1);
   }
+  node = cJSON_GetObjectItem(entry, "mlModelEmbedding");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlModelEmbedding, node->valuestring,
+            sizeof(out_md->mlModelEmbedding) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlEmbeddingDim");
+  if (node && cJSON_IsNumber(node)) {
+    out_md->mlEmbeddingDim = (int)node->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "mlEmbeddingBase64");
+  if (node && cJSON_IsString(node)) {
+    out_md->mlEmbeddingBase64 = strdup(node->valuestring);
+  }
   node = cJSON_GetObjectItem(entry, "mlRaw");
   if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
     out_md->mlRawJson = cJSON_PrintUnformatted(node);
-  } else {
-    node = cJSON_GetObjectItem(entry, "mlRawString");
-    if (node && cJSON_IsString(node)) {
-      out_md->mlRawJson = strdup(node->valuestring);
-    }
   }
 
   return true;
@@ -449,5 +470,9 @@ void CacheFreeMetadata(ImageMetadata *md) {
   if (md->mlRawJson) {
     free(md->mlRawJson);
     md->mlRawJson = NULL;
+  }
+  if (md->mlEmbeddingBase64) {
+    free(md->mlEmbeddingBase64);
+    md->mlEmbeddingBase64 = NULL;
   }
 }
