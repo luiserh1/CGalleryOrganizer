@@ -10,15 +10,10 @@ A high-performance, privacy-first tool written in C for analyzing, classifying, 
 - **Extreme Performance**: Recursive directory scanning for 10k+ files in seconds.
 - **Rich Metadata Extraction**:
     - **Basic FS Data**: Size, modification timestamps, absolute paths.
-    - **JPEG EXIF Parsing**: Hand-written, zero-dependency parser for Date Taken, Image Dimensions, Camera Model, and GPS Coordinates.
-    - **PNG Support**: Extracts Image Dimensions from PNG files.
-    - **WebP Support**: Extracts Image Dimensions from WebP files.
-    - **GIF Support**: Extracts Image Dimensions from GIF files.
-    - **HEIC Support**: Extracts Image Dimensions from HEIC files.
-    - **BMP Support**: Extracts Image Dimensions from BMP files.
+    - **Universal Format Parsing**: Fully integrated with the native C++ **Exiv2** library to robustly extract dimensions, dates, models, GPS, and orientation data from JPEG, PNG, WebP, GIF, BMP, HEIC, and others. Exiv2's magic-byte architecture effortlessly bypasses fake file extensions and corrupted headers without triggering buffer crashes.
 - **Smart JSON Caching**: Incremental updates and auto-invalidation when files are modified.
 - **Test-Driven**: 100% test coverage for core filesystem and caching logic.
-- **Zero-Dependency Core**: Minimalist implementation with only `cJSON` as a vendored dependency.
+- **Zero-Dependency Core**: Pure C core utilizing only `cJSON`, cryptographic hashing vendors, and a single system-bound Exiv2 bridge.
 
 ## 🛠 Build & Run
 
