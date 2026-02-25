@@ -27,8 +27,16 @@ void test_cache_flow(void) {
   md.path = strdup("/fake/path.jpg");
   md.fileSize = 100;
   md.modificationDate = 123456789.0;
+  strcpy(md.mlPrimaryClass, "landscape_photo");
+  md.mlPrimaryClassConfidence = 0.73f;
+  md.mlHasText = true;
+  md.mlTextBoxCount = 1;
+  strcpy(md.mlModelClassification, "clf-default");
+  strcpy(md.mlModelTextDetection, "text-default");
+  md.mlRawJson = strdup("{\"demo\":true}");
 
   ASSERT_TRUE(CacheUpdateEntry(&md));
+  CacheFreeMetadata(&md);
 
   // 3. Save cache
   ASSERT_TRUE(CacheSave());
@@ -44,6 +52,13 @@ void test_cache_flow(void) {
 
   // 6. Verify data
   ASSERT_EQ(100, loaded_md.fileSize);
+  ASSERT_STR_EQ("landscape_photo", loaded_md.mlPrimaryClass);
+  ASSERT_TRUE(loaded_md.mlPrimaryClassConfidence > 0.0f);
+  ASSERT_TRUE(loaded_md.mlHasText);
+  ASSERT_EQ(1, loaded_md.mlTextBoxCount);
+  ASSERT_STR_EQ("clf-default", loaded_md.mlModelClassification);
+  ASSERT_TRUE(loaded_md.mlRawJson != NULL);
+  CacheFreeMetadata(&loaded_md);
 
   // 7. Get invalid entry (size changed)
   ASSERT_FALSE(

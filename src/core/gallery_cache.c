@@ -120,6 +120,33 @@ bool CacheUpdateEntry(const ImageMetadata *data) {
     }
   }
 
+  // ML fields
+  if (data->mlPrimaryClass[0] != '\0') {
+    cJSON_AddStringToObject(entry, "mlPrimaryClass", data->mlPrimaryClass);
+    cJSON_AddNumberToObject(entry, "mlPrimaryClassConfidence",
+                            data->mlPrimaryClassConfidence);
+  }
+  if (data->mlHasText || data->mlTextBoxCount > 0) {
+    cJSON_AddBoolToObject(entry, "mlHasText", data->mlHasText);
+    cJSON_AddNumberToObject(entry, "mlTextBoxCount", data->mlTextBoxCount);
+  }
+  if (data->mlModelClassification[0] != '\0') {
+    cJSON_AddStringToObject(entry, "mlModelClassification",
+                            data->mlModelClassification);
+  }
+  if (data->mlModelTextDetection[0] != '\0') {
+    cJSON_AddStringToObject(entry, "mlModelTextDetection",
+                            data->mlModelTextDetection);
+  }
+  if (data->mlRawJson) {
+    cJSON *raw_ml = cJSON_Parse(data->mlRawJson);
+    if (raw_ml) {
+      cJSON_AddItemToObject(entry, "mlRaw", raw_ml);
+    } else {
+      cJSON_AddStringToObject(entry, "mlRawString", data->mlRawJson);
+    }
+  }
+
   // Replace if exists, otherwise add
   if (cJSON_GetObjectItem(g_cache_root, data->path)) {
     cJSON_ReplaceItemInObject(g_cache_root, data->path, entry);
@@ -191,6 +218,44 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
   node = cJSON_GetObjectItem(entry, "allMetadataJson");
   if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
     out_md->allMetadataJson = cJSON_PrintUnformatted(node);
+  }
+
+  // ML fields
+  node = cJSON_GetObjectItem(entry, "mlPrimaryClass");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlPrimaryClass, node->valuestring,
+            sizeof(out_md->mlPrimaryClass) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlPrimaryClassConfidence");
+  if (node && cJSON_IsNumber(node)) {
+    out_md->mlPrimaryClassConfidence = (float)node->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "mlTextBoxCount");
+  if (node && cJSON_IsNumber(node)) {
+    out_md->mlTextBoxCount = (int)node->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "mlHasText");
+  if (node && cJSON_IsBool(node)) {
+    out_md->mlHasText = cJSON_IsTrue(node);
+  }
+  node = cJSON_GetObjectItem(entry, "mlModelClassification");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlModelClassification, node->valuestring,
+            sizeof(out_md->mlModelClassification) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlModelTextDetection");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlModelTextDetection, node->valuestring,
+            sizeof(out_md->mlModelTextDetection) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlRaw");
+  if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
+    out_md->mlRawJson = cJSON_PrintUnformatted(node);
+  } else {
+    node = cJSON_GetObjectItem(entry, "mlRawString");
+    if (node && cJSON_IsString(node)) {
+      out_md->mlRawJson = strdup(node->valuestring);
+    }
   }
 
   return true;
@@ -270,6 +335,44 @@ bool CacheGetRawEntry(const char *key, ImageMetadata *out_md) {
     out_md->allMetadataJson = cJSON_PrintUnformatted(node);
   }
 
+  // ML fields
+  node = cJSON_GetObjectItem(entry, "mlPrimaryClass");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlPrimaryClass, node->valuestring,
+            sizeof(out_md->mlPrimaryClass) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlPrimaryClassConfidence");
+  if (node && cJSON_IsNumber(node)) {
+    out_md->mlPrimaryClassConfidence = (float)node->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "mlTextBoxCount");
+  if (node && cJSON_IsNumber(node)) {
+    out_md->mlTextBoxCount = (int)node->valuedouble;
+  }
+  node = cJSON_GetObjectItem(entry, "mlHasText");
+  if (node && cJSON_IsBool(node)) {
+    out_md->mlHasText = cJSON_IsTrue(node);
+  }
+  node = cJSON_GetObjectItem(entry, "mlModelClassification");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlModelClassification, node->valuestring,
+            sizeof(out_md->mlModelClassification) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlModelTextDetection");
+  if (node && cJSON_IsString(node)) {
+    strncpy(out_md->mlModelTextDetection, node->valuestring,
+            sizeof(out_md->mlModelTextDetection) - 1);
+  }
+  node = cJSON_GetObjectItem(entry, "mlRaw");
+  if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
+    out_md->mlRawJson = cJSON_PrintUnformatted(node);
+  } else {
+    node = cJSON_GetObjectItem(entry, "mlRawString");
+    if (node && cJSON_IsString(node)) {
+      out_md->mlRawJson = strdup(node->valuestring);
+    }
+  }
+
   return true;
 }
 
@@ -342,5 +445,9 @@ void CacheFreeMetadata(ImageMetadata *md) {
   if (md->allMetadataJson) {
     free(md->allMetadataJson);
     md->allMetadataJson = NULL;
+  }
+  if (md->mlRawJson) {
+    free(md->mlRawJson);
+    md->mlRawJson = NULL;
   }
 }

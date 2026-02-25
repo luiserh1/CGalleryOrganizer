@@ -28,6 +28,15 @@ typedef struct {
   // Dynamic Metadata (exhaustive capture)
   char *
       allMetadataJson; // Stringified JSON of all tags found (owned dynamically)
+
+  // ML inference (v0.3.0)
+  char mlPrimaryClass[128];
+  float mlPrimaryClassConfidence;
+  int mlTextBoxCount;
+  bool mlHasText;
+  char mlModelClassification[64];
+  char mlModelTextDetection[64];
+  char *mlRawJson; // Provider raw payload (owned dynamically)
 } ImageMetadata;
 
 // Caching interface
