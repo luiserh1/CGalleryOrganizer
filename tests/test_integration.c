@@ -3,16 +3,19 @@
 
 #include "duplicate_finder.h"
 #include "fs_utils.h"
+#include "gallery_cache.h"
 #include "hash_utils.h"
 #include "metadata_parser.h"
 #include "test_framework.h"
 
-void test_metadata_png_dimensions(void) {
-  const char *filepath = "tests/assets/png/sample.png";
+void test_metadata_png_support(void) {
+  const char *filepath = "tests/assets/png/sample_no_exif.png";
+  double mod_date;
+  long size;
+  ASSERT_TRUE(ExtractBasicMetadata(filepath, &mod_date, &size));
 
   ImageMetadata metadata = ExtractMetadata(filepath, false);
 
-  ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
 }
@@ -26,8 +29,11 @@ void test_metadata_png_with_exif(void) {
   ASSERT_TRUE(metadata.cameraMake[0] != '\0');
 }
 
-void test_metadata_gif_dimensions(void) {
-  const char *filepath = "tests/assets/gif/sample.gif";
+void test_metadata_gif_support(void) {
+  const char *filepath = "tests/assets/gif/sample_no_exif.gif";
+  double mod_date;
+  long size;
+  ASSERT_TRUE(ExtractBasicMetadata(filepath, &mod_date, &size));
 
   ImageMetadata metadata = ExtractMetadata(filepath, false);
 
@@ -35,8 +41,11 @@ void test_metadata_gif_dimensions(void) {
   ASSERT_TRUE(metadata.height > 0);
 }
 
-void test_metadata_bmp_dimensions(void) {
-  const char *filepath = "tests/assets/bmp/sample.bmp";
+void test_metadata_bmp_support(void) {
+  const char *filepath = "tests/assets/bmp/sample_no_exif.bmp";
+  double mod_date;
+  long size;
+  ASSERT_TRUE(ExtractBasicMetadata(filepath, &mod_date, &size));
 
   ImageMetadata metadata = ExtractMetadata(filepath, false);
 
@@ -44,8 +53,11 @@ void test_metadata_bmp_dimensions(void) {
   ASSERT_TRUE(metadata.height > 0);
 }
 
-void test_metadata_webp_dimensions(void) {
-  const char *filepath = "tests/assets/webp/sample.webp";
+void test_metadata_webp_support(void) {
+  const char *filepath = "tests/assets/webp/sample_no_exif.webp";
+  double mod_date;
+  long size;
+  ASSERT_TRUE(ExtractBasicMetadata(filepath, &mod_date, &size));
 
   ImageMetadata metadata = ExtractMetadata(filepath, false);
 
@@ -63,7 +75,10 @@ void test_metadata_webp_with_exif(void) {
 }
 
 void test_metadata_heic_dimensions(void) {
-  const char *filepath = "tests/assets/heic/sample.heic";
+  const char *filepath = "tests/assets/heic/sample_no_exif.heic";
+  double mod_date;
+  long size;
+  ASSERT_TRUE(ExtractBasicMetadata(filepath, &mod_date, &size));
 
   ImageMetadata metadata = ExtractMetadata(filepath, false);
 
@@ -102,6 +117,10 @@ void test_metadata_jpeg_no_exif(void) {
 
 void test_metadata_png_fake_extension(void) {
   const char *filepath = "tests/assets/png/fake.png";
+  double mod_date;
+  long size;
+  ASSERT_TRUE(ExtractBasicMetadata(filepath, &mod_date, &size));
+
   ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   // Fake extension: Exiv2 uses magic bytes, correctly identifying this as a
@@ -141,9 +160,9 @@ void test_metadata_jpeg_deep_exif(void) {
 }
 
 void test_unified_metadata_dispatcher(void) {
-  const char *png_path = "tests/assets/png/sample.png";
-  const char *gif_path = "tests/assets/gif/sample.gif";
-  const char *bmp_path = "tests/assets/bmp/sample.bmp";
+  const char *png_path = "tests/assets/png/sample_no_exif.png";
+  const char *gif_path = "tests/assets/gif/sample_no_exif.gif";
+  const char *bmp_path = "tests/assets/bmp/sample_no_exif.bmp";
 
   ImageMetadata png = ExtractMetadata(png_path, false);
   ImageMetadata gif = ExtractMetadata(gif_path, false);
@@ -248,13 +267,13 @@ void test_duplicate_integration(void) {
 }
 
 void register_integration_tests(void) {
-  register_test("test_metadata_png_dimensions", test_metadata_png_dimensions,
+  register_test("test_metadata_png_support", test_metadata_png_support,
                 "integration");
-  register_test("test_metadata_gif_dimensions", test_metadata_gif_dimensions,
+  register_test("test_metadata_gif_support", test_metadata_gif_support,
                 "integration");
-  register_test("test_metadata_bmp_dimensions", test_metadata_bmp_dimensions,
+  register_test("test_metadata_bmp_support", test_metadata_bmp_support,
                 "integration");
-  register_test("test_metadata_webp_dimensions", test_metadata_webp_dimensions,
+  register_test("test_metadata_webp_support", test_metadata_webp_support,
                 "integration");
   register_test("test_metadata_webp_with_exif", test_metadata_webp_with_exif,
                 "integration");

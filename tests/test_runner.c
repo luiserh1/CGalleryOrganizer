@@ -8,6 +8,7 @@ extern void register_gallery_cache_tests(void);
 extern void register_integration_tests(void);
 extern void register_hash_utils_tests(void);
 extern void register_duplicate_finder_tests(void);
+extern void register_organizer_tests(void);
 
 int main(int argc, char **argv) {
   printf("=== CGalleryOrganizer Test Suite ===\n\n");
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
   register_gallery_cache_tests();
   register_hash_utils_tests();
   register_duplicate_finder_tests();
+  register_organizer_tests();
   register_integration_tests();
 
   int run_count = 0;
