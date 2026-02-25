@@ -6,7 +6,7 @@ A high-performance, privacy-first tool written in C for analyzing, classifying, 
 
 **CGalleryOrganizer** is designed for users who want to manage massive photo libraries locally, without relying on cloud services. It uses a JSON-backed caching system to ensure that expensive metadata extraction and analysis are only performed once per file.
 
-### Key Features (v0.1.6)
+### Key Features (v0.2.1)
 - **Extreme Performance**: Recursive directory scanning for 10k+ files in seconds.
 - **Rich Metadata Extraction**:
     - **Basic FS Data**: Size, modification timestamps, absolute paths.
