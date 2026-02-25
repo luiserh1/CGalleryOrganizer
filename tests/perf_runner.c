@@ -7,7 +7,9 @@ extern char *strdup(const char *s);
 #include "metadata_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
+#include <time.h>
 
 long long timeInMilliseconds(void) {
   struct timeval tv;
@@ -56,7 +58,8 @@ int main(void) {
 
   FsWalkDirectory(target_dir, ScanCallback, NULL);
   long long end_cold = timeInMilliseconds();
-  printf("    -> Cold run took: %lld ms\n\n", end_cold - start);
+  long long duration_cold = end_cold - start;
+  printf("    -> Cold run took: %lld ms\n\n", duration_cold);
 
   CacheSave();
   CacheShutdown();
@@ -71,7 +74,8 @@ int main(void) {
   }
 
   long long end_warm = timeInMilliseconds();
-  printf("    -> Warm run took: %lld ms\n\n", end_warm - start);
+  long long duration_warm = end_warm - start;
+  printf("    -> Warm run took: %lld ms\n\n", duration_warm);
 
   // 3. Duplicate Grouping (Algorithmic stress)
   printf("[*] ALGORITHMIC STRESS (Finding exact duplicates)...\n");
@@ -79,7 +83,8 @@ int main(void) {
   DuplicateReport report = FindExactDuplicates();
   FreeDuplicateReport(&report);
   long long end_algo = timeInMilliseconds();
-  printf("    -> Duplicate grouping took: %lld ms\n\n", end_algo - start);
+  long long duration_algo = end_algo - start;
+  printf("    -> Duplicate grouping took: %lld ms\n\n", duration_algo);
 
   CacheSave();
   CacheShutdown();
@@ -87,6 +92,22 @@ int main(void) {
   printf("========================================\n");
   printf(" SUCCESS. Performance logs ready.\n");
   printf("========================================\n");
+
+  // Log to history file for long-term tracking
+  FILE *log = fopen("build/benchmark_history.log", "a");
+  if (log) {
+    time_t now = time(NULL);
+    char *date_str = ctime(&now);
+    if (date_str[strlen(date_str) - 1] == '\n')
+      date_str[strlen(date_str) - 1] = '\0';
+
+    fprintf(
+        log,
+        "[%s] Cold: %lld ms | Warm: %lld ms | Algo: %lld ms | Images: 5000\n",
+        date_str, duration_cold, duration_warm, duration_algo);
+    fclose(log);
+    printf("[*] Results appended to build/benchmark_history.log\n");
+  }
 
   return 0;
 }
