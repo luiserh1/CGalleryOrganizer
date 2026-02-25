@@ -42,7 +42,7 @@ Priority order for new integrations:
 - Integration point: `include/exiv2_wrapper.h`, `src/utils/exiv2_wrapper.cpp`
 
 ### 2. ONNX Runtime (C API)
-- Purpose: local ML inference provider backend for 0.3.0 (`classification`, `text_detection`).
+- Purpose: local ML inference provider backend for ML tasks (`classification`, `text_detection`, `embedding`).
 - Installation:
   - macOS: `brew install onnxruntime`
   - Linux: install `onnxruntime` C runtime and headers from distro/vendor package.
@@ -62,6 +62,11 @@ Model binaries are downloaded to `build/models/` and are not tracked in git.
 
 Mandatory model metadata fields (enforced by downloader):
 - `id`, `task`, `url`, `sha256`, `license_name`, `license_url`, `author`, `source_url`, `credit_text`, `version`, `filename`
+
+Supported `task` values:
+- `classification`
+- `text_detection`
+- `embedding`
 
 ## Optional Stress-Test Utilities
 

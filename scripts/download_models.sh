@@ -43,7 +43,7 @@ required = [
     "version",
     "filename",
 ]
-allowed_tasks = {"classification", "text_detection"}
+allowed_tasks = {"classification", "text_detection", "embedding"}
 sha_pattern = re.compile(r"^[a-fA-F0-9]{64}$")
 
 with open(manifest_path, "r", encoding="utf-8") as f:
