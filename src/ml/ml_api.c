@@ -68,7 +68,8 @@ bool MlInferImage(const char *filepath, MlFeature *features, int feature_count,
   if (!HasRequestedFeature(features, feature_count,
                            ML_FEATURE_CLASSIFICATION) &&
       !HasRequestedFeature(features, feature_count,
-                           ML_FEATURE_TEXT_DETECTION)) {
+                           ML_FEATURE_TEXT_DETECTION) &&
+      !HasRequestedFeature(features, feature_count, ML_FEATURE_EMBEDDING)) {
     return false;
   }
 
@@ -92,6 +93,11 @@ void MlFreeResult(MlResult *result) {
   if (result->text_boxes) {
     free(result->text_boxes);
     result->text_boxes = NULL;
+  }
+
+  if (result->embedding) {
+    free(result->embedding);
+    result->embedding = NULL;
   }
 
   if (result->provider_raw_json) {

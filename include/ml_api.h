@@ -9,7 +9,8 @@ extern "C" {
 
 typedef enum {
   ML_FEATURE_CLASSIFICATION = 0,
-  ML_FEATURE_TEXT_DETECTION = 1
+  ML_FEATURE_TEXT_DETECTION = 1,
+  ML_FEATURE_EMBEDDING = 2
 } MlFeature;
 
 typedef struct {
@@ -34,9 +35,14 @@ typedef struct {
   int text_box_count;
   MlTextDetectionBox *text_boxes;
 
+  bool has_embedding;
+  float *embedding;
+  int embedding_dim;
+
   char *provider_raw_json;
   char model_id_classification[64];
   char model_id_text_detection[64];
+  char model_id_embedding[64];
   float provider_latency_ms;
 } MlResult;
 

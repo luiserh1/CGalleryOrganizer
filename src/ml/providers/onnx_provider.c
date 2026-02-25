@@ -51,15 +51,18 @@ static bool OnnxInit(const MlProviderConfig *config) {
 
   char clf_path[1024] = {0};
   char text_path[1024] = {0};
+  char embed_path[1024] = {0};
   ResolveModelPath(clf_path, sizeof(clf_path), ML_DEFAULT_CLASSIFICATION_MODEL);
   ResolveModelPath(text_path, sizeof(text_path), ML_DEFAULT_TEXT_MODEL);
+  ResolveModelPath(embed_path, sizeof(embed_path), ML_DEFAULT_EMBEDDING_MODEL);
 
-  if (!FileExists(clf_path) || !FileExists(text_path)) {
+  if (!FileExists(clf_path) || !FileExists(text_path) ||
+      !FileExists(embed_path)) {
     fprintf(stderr,
-            "[ML] missing models. Expected '%s' and '%s' under %s. "
+            "[ML] missing models. Expected '%s', '%s' and '%s' under %s. "
             "Run scripts/download_models.sh first.\n",
             ML_DEFAULT_CLASSIFICATION_MODEL, ML_DEFAULT_TEXT_MODEL,
-            g_models_root);
+            ML_DEFAULT_EMBEDDING_MODEL, g_models_root);
     return false;
   }
 
@@ -154,6 +157,33 @@ static bool OnnxInfer(const char *filepath, MlFeature *features, int feature_cou
 
     strncpy(out->model_id_text_detection, "text-default",
             sizeof(out->model_id_text_detection) - 1);
+  }
+
+  if (FeatureEnabled(features, feature_count, ML_FEATURE_EMBEDDING)) {
+    const int dim = 16;
+    out->embedding = calloc((size_t)dim, sizeof(float));
+    if (!out->embedding) {
+      return false;
+    }
+
+    // Deterministic lightweight placeholder embedding until full ONNX tensor
+    // inference and preprocessing are wired.
+    unsigned int hash = 2166136261u;
+    for (const unsigned char *p = (const unsigned char *)filepath; *p; p++) {
+      hash ^= *p;
+      hash *= 16777619u;
+    }
+
+    for (int i = 0; i < dim; i++) {
+      unsigned int mixed = hash ^ (unsigned int)(i * 2654435761u);
+      float normalized = (float)(mixed % 1000u) / 1000.0f;
+      out->embedding[i] = normalized;
+    }
+
+    out->has_embedding = true;
+    out->embedding_dim = dim;
+    strncpy(out->model_id_embedding, "embed-default",
+            sizeof(out->model_id_embedding) - 1);
   }
 
   gettimeofday(&end, NULL);

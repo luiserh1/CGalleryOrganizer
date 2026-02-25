@@ -29,6 +29,11 @@ bool MlBuildProviderRawJson(const MlResult *result, char **out_json) {
     cJSON_AddStringToObject(root, "modelTextDetection",
                             result->model_id_text_detection);
   }
+  if (result->model_id_embedding[0] != '\0') {
+    cJSON_AddStringToObject(root, "modelEmbedding", result->model_id_embedding);
+  }
+  cJSON_AddBoolToObject(root, "hasEmbedding", result->has_embedding);
+  cJSON_AddNumberToObject(root, "embeddingDim", result->embedding_dim);
 
   cJSON *classes = cJSON_CreateArray();
   if (!classes) {
@@ -69,6 +74,16 @@ bool MlBuildProviderRawJson(const MlResult *result, char **out_json) {
     cJSON_AddItemToArray(boxes, box);
   }
   cJSON_AddItemToObject(root, "textBoxes", boxes);
+
+  cJSON *embedding = cJSON_CreateArray();
+  if (!embedding) {
+    cJSON_Delete(root);
+    return false;
+  }
+  for (int i = 0; i < result->embedding_dim && result->embedding; i++) {
+    cJSON_AddItemToArray(embedding, cJSON_CreateNumber(result->embedding[i]));
+  }
+  cJSON_AddItemToObject(root, "embedding", embedding);
 
   char *raw = cJSON_PrintUnformatted(root);
   cJSON_Delete(root);
