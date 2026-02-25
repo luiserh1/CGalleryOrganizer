@@ -209,8 +209,9 @@ void test_exhaustive_metadata_capture(void) {
   ASSERT_TRUE(exhaustive.allMetadataJson != NULL);
 
   // 3. Verify it contains expected JSON-like structure
-  ASSERT_TRUE(strstr(exhaustive.allMetadataJson, "Exif.Image.Make") != NULL);
-  ASSERT_TRUE(strstr(exhaustive.allMetadataJson, "\"Apple\"") != NULL);
+  ASSERT_TRUE(strstr(exhaustive.allMetadataJson, "Exif.Image.Artist") != NULL);
+  ASSERT_TRUE(strstr(exhaustive.allMetadataJson, "\"Alexandre Dulaunoy\"") !=
+              NULL);
 
   CacheFreeMetadata(&exhaustive);
 }

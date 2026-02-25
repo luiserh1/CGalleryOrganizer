@@ -39,7 +39,7 @@ Establish the project structure, testing framework, code style, and implement ba
 
 ---
 
-## v0.2.0 Scope: Exact Duplicates & Actions (Working On)
+## v0.2.0 Scope: Exact Duplicates & Actions (Completed)
 
 ### Primary Goal
 Implement file hashing to detect exact duplicates and introduce action routines based on caching results.
@@ -50,6 +50,19 @@ Implement file hashing to detect exact duplicates and introduce action routines 
   - Renaming (e.g., to timestamp pattern).
   - Moving/Reordering into subdirectories based on metadata.
 - Grouping logic for exact hashes.
+
+---
+
+## v0.2.1 Scope: Dynamic Metadata & Dashboard (Completed)
+
+### Primary Goal
+Expand metadata extraction with exhaustive tags and evolve the visualization cache dashboard.
+
+### Features
+- Hybrid C metadata struct supporting dynamic JSON extraction for EXIF, IPTC, and XMP.
+- Exiv2 C++ wrapper iterative parsing controlled via a `--exhaustive` flag.
+- Evolved cache viewer dashboard with row expansion and `tag:value` deep search capabilities.
+- Persistent logging of benchmark results (`build/benchmark_history.log`).
 
 ---
 
