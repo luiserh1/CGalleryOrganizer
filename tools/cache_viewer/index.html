@@ -17,10 +17,16 @@
         </header>
 
         <section class="controls">
-            <div class="file-loader">
-                <button id="btn-load-default" class="primary-btn">Load Default (build/perf_cache.json)</button>
-                <span class="or">OR</span>
-                <input type="file" id="file-input" accept=".json">
+            <div class="file-loader" id="drop-zone">
+                <div class="file-loader-actions">
+                    <button id="btn-load-default" class="primary-btn">Load Default (build/perf_cache.json)</button>
+                    <span class="or">OR</span>
+                    <input type="file" id="file-input" accept=".json">
+                </div>
+                <div class="drop-hint">
+                    <p>Drag & Drop a <code>gallery_cache.json</code> file here.</p>
+                    <p class="small-hint"><em>macOS tip: Press <strong>Cmd + Shift + .</strong> in the file picker to show hidden <code>.cache</code> folders.</em></p>
+                </div>
             </div>
 
             <div class="search-bar">

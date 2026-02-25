@@ -23,6 +23,45 @@ function setupEventListeners() {
 
     document.getElementById('btn-prev').addEventListener('click', () => changePage(-1));
     document.getElementById('btn-next').addEventListener('click', () => changePage(1));
+
+    // Global Drag and Drop Prevention (stops browser from opening the file if dropped outside)
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    // Drag and Drop Zone
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', handleDragOver);
+    dropZone.addEventListener('dragleave', handleDragLeave);
+    dropZone.addEventListener('drop', handleDrop);
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('drop-zone').classList.add('drag-active');
+}
+
+function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('drop-zone').classList.remove('drag-active');
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('drop-zone').classList.remove('drag-active');
+
+    const file = event.dataTransfer.files[0];
+    if (file) {
+        processFile(file);
+    }
 }
 
 function toggleSearchHelp() {
@@ -48,6 +87,15 @@ async function loadDefaultCache() {
 function handleFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
+    processFile(file);
+}
+
+function processFile(file) {
+    // We only strictly want JSON
+    if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+        alert('Please provide a valid .json cache file.');
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
