@@ -66,6 +66,32 @@ Expand metadata extraction with exhaustive tags and evolve the visualization cac
 
 ---
 
+## v0.2.2 Scope: Active Gallery Organization (Completed)
+
+### Primary Goal
+Transition from a passive analyzer to an active organizer. Introduce interactive CLI execution, robust environment management (rollback manifest), and metadata-based folder staging.
+
+### Features
+- Interactive CLI with `--organize`, `--preview`, and `--rollback` arguments.
+- Environment Directory paradigm (hosts caches and manifest).
+- Rollback manifest (`history.json`) for safe reversal of filesystem changes.
+- Virtual tree generation and metadata-based configurable renaming mapping (e.g., Year/Month).
+
+---
+
+## v0.2.3 Scope: Compound Grouping & File Renaming (Working On)
+
+### Primary Goal
+Advance the organization engine horizontally to support complex, multi-level folder hierarchies using sequential metadata keys while guaranteeing filesystem uniqueness via incremental collision-proof renaming.
+
+### Features
+- New CLI argument `--group-by <keys>` (e.g., `camera,date`).
+- Compound path building in the `organizer` (e.g., `_Sony/_2013/_03`).
+- Dynamic renaming engine resolving to `YYYYMMDD_HHMMSS_CameraModel.ext`.
+- Fallback collision safeguards using incremental `_1`, `_2` indexes.
+
+---
+
 ## v0.3.0 Scope: ML Integration & Vision Analyzer
 
 ### Primary Goal

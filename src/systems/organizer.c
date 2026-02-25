@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "cJSON.h"
@@ -159,26 +160,93 @@ int OrganizerRollback(const char *env_dir) {
   return success_count;
 }
 
-static void ExtractYearMonth(const char *dateTaken, char *out_year,
-                             char *out_month) {
-  // Expected format: YYYY:MM:DD HH:MM:SS
-  if (!dateTaken || strlen(dateTaken) < 7) {
-    strcpy(out_year, "Unknown");
-    strcpy(out_month, "Unknown");
-    return;
+static void SanitizeFilename(char *name) {
+  for (int i = 0; name[i]; i++) {
+    if (name[i] == ' ' || name[i] == '/' || name[i] == '\\' || name[i] == ':') {
+      name[i] = '_';
+    }
   }
-
-  // YYYY
-  strncpy(out_year, dateTaken, 4);
-  out_year[4] = '\0';
-
-  // MM
-  strncpy(out_month, dateTaken + 5, 2);
-  out_month[2] = '\0';
 }
 
-OrganizerPlan *OrganizerComputePlan(const char *env_dir) {
-  if (!env_dir)
+static void ResolveGroupCriteria(ImageMetadata *md, const char *key,
+                                 char *out_buffer, size_t out_size) {
+  if (strcmp(key, "date") == 0) {
+    if (md->dateTaken[0] == '\0' || strlen(md->dateTaken) < 7) {
+      snprintf(out_buffer, out_size, "_Unknown");
+    } else {
+      char year[5] = {0};
+      char month[3] = {0};
+      strncpy(year, md->dateTaken, 4);
+      strncpy(month, md->dateTaken + 5, 2);
+      snprintf(out_buffer, out_size, "_%s/_%s", year, month);
+    }
+  } else if (strcmp(key, "camera") == 0) {
+    if (md->cameraMake[0] == '\0' && md->cameraModel[0] == '\0') {
+      snprintf(out_buffer, out_size, "_Unknown_Camera");
+    } else {
+      char combined[256];
+      snprintf(combined, sizeof(combined), "_%s_%s", md->cameraMake,
+               md->cameraModel);
+      SanitizeFilename(combined);
+      snprintf(out_buffer, out_size, "%s", combined);
+    }
+  } else if (strcmp(key, "format") == 0) {
+    const char *ext = strrchr(md->path, '.');
+    snprintf(out_buffer, out_size, "_%s", ext ? ext + 1 : "Unknown_Format");
+    SanitizeFilename(out_buffer);
+  } else if (strcmp(key, "orientation") == 0) {
+    if (md->width > md->height) {
+      snprintf(out_buffer, out_size, "_Landscape");
+    } else if (md->height > md->width) {
+      snprintf(out_buffer, out_size, "_Portrait");
+    } else if (md->width > 0 && md->width == md->height) {
+      snprintf(out_buffer, out_size, "_Square");
+    } else {
+      snprintf(out_buffer, out_size, "_Unknown_Orientation");
+    }
+  } else if (strcmp(key, "resolution") == 0) {
+    int max_dim = md->width > md->height ? md->width : md->height;
+    if (max_dim >= 3840)
+      snprintf(out_buffer, out_size, "_4K_UHD");
+    else if (max_dim >= 1920)
+      snprintf(out_buffer, out_size, "_1080p_FHD");
+    else if (max_dim > 0)
+      snprintf(out_buffer, out_size, "_Web");
+    else
+      snprintf(out_buffer, out_size, "_Unknown_Resolution");
+  } else {
+    // Fallback for unknown valid keys
+    snprintf(out_buffer, out_size, "_%s", key);
+  }
+}
+
+static void BuildNewFilename(ImageMetadata *md, char *out_buffer,
+                             size_t out_size) {
+  // Target: YYYYMMDD_HHMMSS_CameraModel.ext
+  char timestamp[64] = "UnknownDate";
+  if (md->dateTaken[0] != '\0' && strlen(md->dateTaken) >= 19) {
+    // 2024:08:15 14:30:00 -> 20240815_143000
+    snprintf(timestamp, sizeof(timestamp), "%.4s%.2s%.2s_%.2s%.2s%.2s",
+             md->dateTaken, md->dateTaken + 5, md->dateTaken + 8,
+             md->dateTaken + 11, md->dateTaken + 14, md->dateTaken + 17);
+  }
+
+  char camera[128] = "UnknownCamera";
+  if (md->cameraModel[0] != '\0') {
+    strncpy(camera, md->cameraModel, sizeof(camera) - 1);
+    SanitizeFilename(camera);
+  }
+
+  const char *ext = strrchr(md->path, '.');
+  if (!ext)
+    ext = "";
+
+  snprintf(out_buffer, out_size, "%s_%s%s", timestamp, camera, ext);
+}
+
+OrganizerPlan *OrganizerComputePlan(const char *env_dir,
+                                    const char **group_keys, int key_count) {
+  if (!env_dir || !group_keys || key_count <= 0)
     return NULL;
 
   OrganizerPlan *plan = (OrganizerPlan *)malloc(sizeof(OrganizerPlan));
@@ -191,22 +259,52 @@ OrganizerPlan *OrganizerComputePlan(const char *env_dir) {
   plan->capacity = max_keys > 0 ? max_keys : 100;
   plan->moves = (OrganizerMove *)malloc(sizeof(OrganizerMove) * plan->capacity);
 
-  int key_count = 0;
-  char **keys = CacheGetAllKeys(&key_count);
+  int cache_key_count = 0;
+  char **keys = CacheGetAllKeys(&cache_key_count);
 
-  for (int i = 0; i < key_count; i++) {
+  for (int i = 0; i < cache_key_count; i++) {
     ImageMetadata md = {0};
     if (CacheGetRawEntry(keys[i], &md)) {
-      char year[16] = {0};
-      char month[16] = {0};
-      ExtractYearMonth(md.dateTaken, year, month);
-
       char target_dir[MAX_PATH_LENGTH];
-      if (strcmp(year, "Unknown") == 0) {
-        snprintf(target_dir, sizeof(target_dir), "%s/_Unknown", env_dir);
+      strncpy(target_dir, env_dir, sizeof(target_dir) - 1);
+
+      // Build compound path
+      for (int k = 0; k < key_count; k++) {
+        char criteria_buf[256];
+        ResolveGroupCriteria(&md, group_keys[k], criteria_buf,
+                             sizeof(criteria_buf));
+
+        // Append to target_dir if not "date" which might return nested Output
+        // (e.g. "_2022/_10") Ensure no trailing slashes overlap
+        int cur_len = strlen(target_dir);
+        if (target_dir[cur_len - 1] != '/') {
+          strncat(target_dir, "/", sizeof(target_dir) - cur_len - 1);
+        }
+
+        // remove leading slash from criteria_buf if it has one (our builder
+        // functions inject it, but just in case)
+        if (criteria_buf[0] == '/') {
+          strncat(target_dir, criteria_buf + 1,
+                  sizeof(target_dir) - strlen(target_dir) - 1);
+        } else {
+          strncat(target_dir, criteria_buf,
+                  sizeof(target_dir) - strlen(target_dir) - 1);
+        }
+      }
+
+      // Build target File Name
+      char target_filename[256];
+      BuildNewFilename(&md, target_filename, sizeof(target_filename));
+
+      // In the plan "new_path" we store the full absolute path of the new file
+      char full_new_path[MAX_PATH_LENGTH];
+      int cur_len = strlen(target_dir);
+      if (target_dir[cur_len - 1] != '/') {
+        snprintf(full_new_path, sizeof(full_new_path), "%s/%s", target_dir,
+                 target_filename);
       } else {
-        snprintf(target_dir, sizeof(target_dir), "%s/_%s/_%s", env_dir, year,
-                 month);
+        snprintf(full_new_path, sizeof(full_new_path), "%s%s", target_dir,
+                 target_filename);
       }
 
       if (plan->count >= plan->capacity) {
@@ -216,8 +314,7 @@ OrganizerPlan *OrganizerComputePlan(const char *env_dir) {
       }
 
       strncpy(plan->moves[plan->count].original_path, md.path, 1023);
-      strncpy(plan->moves[plan->count].new_path, target_dir,
-              1023); // Storing the target directory here
+      strncpy(plan->moves[plan->count].new_path, full_new_path, 1023);
       plan->count++;
 
       CacheFreeMetadata(&md);
@@ -225,7 +322,7 @@ OrganizerPlan *OrganizerComputePlan(const char *env_dir) {
   }
 
   if (keys) {
-    CacheFreeKeys(keys, key_count);
+    CacheFreeKeys(keys, cache_key_count);
   }
 
   return plan;
@@ -250,37 +347,59 @@ void OrganizerPrintPlan(OrganizerPlan *plan) {
   // map. We will print the unique target directories and their file counts.
 
   // Sort the moves by target directory for grouping
+  // Since new_path is now the full file path, we need to extract the dir
+  char dirs[plan->count][1024];
+  for (int i = 0; i < plan->count; i++) {
+    strncpy(dirs[i], plan->moves[i].new_path, 1023);
+    char *slash = strrchr(dirs[i], '/');
+    if (slash)
+      *slash = '\0';
+  }
+
   for (int i = 0; i < plan->count - 1; i++) {
     for (int j = i + 1; j < plan->count; j++) {
-      if (strcmp(plan->moves[i].new_path, plan->moves[j].new_path) > 0) {
-        OrganizerMove temp = plan->moves[i];
+      if (strcmp(dirs[i], dirs[j]) > 0) {
+        OrganizerMove temp_m = plan->moves[i];
         plan->moves[i] = plan->moves[j];
-        plan->moves[j] = temp;
+        plan->moves[j] = temp_m;
+
+        char temp_d[1024];
+        strcpy(temp_d, dirs[i]);
+        strcpy(dirs[i], dirs[j]);
+        strcpy(dirs[j], temp_d);
       }
     }
   }
 
-  const char *current_dir = plan->moves[0].new_path;
+  const char *current_dir = dirs[0];
   int current_count = 0;
 
   for (int i = 0; i < plan->count; i++) {
-    if (strcmp(plan->moves[i].new_path, current_dir) == 0) {
+    if (strcmp(dirs[i], current_dir) == 0) {
       current_count++;
     } else {
       // Find the relative segment (e.g., _2024/_01 or _Unknown)
+      // Skip extracting leading slash of env_dir, show it relative
       const char *rel_start = strstr(current_dir, "/_");
-      const char *display_path =
-          rel_start ? rel_start + 1 : current_dir; // skip the leading slash
-      printf("  - %-20s [%d files]\n", display_path, current_count);
+      const char *display_path = rel_start ? rel_start + 1 : current_dir;
 
-      current_dir = plan->moves[i].new_path;
+      printf("  - %-40s [%d files]\n", display_path, current_count);
+
+      current_dir = dirs[i];
       current_count = 1;
     }
   }
   // Print the last group
   const char *rel_start = strstr(current_dir, "/_");
   const char *display_path = rel_start ? rel_start + 1 : current_dir;
-  printf("  - %-20s [%d files]\n", display_path, current_count);
+
+  printf("  - %-40s [%d files]\n", display_path, current_count);
+  // Print the last group
+  const char *rel_start_last = strstr(current_dir, "/_");
+  const char *display_path_last =
+      rel_start_last ? rel_start_last + 1 : current_dir;
+
+  printf("  - %-40s [%d files]\n", display_path_last, current_count);
 }
 
 bool OrganizerExecutePlan(OrganizerPlan *plan) {
@@ -290,12 +409,54 @@ bool OrganizerExecutePlan(OrganizerPlan *plan) {
   int success_count = 0;
   printf("\n[*] Executing Plan...\n");
   for (int i = 0; i < plan->count; i++) {
-    char exact_new_path[MAX_PATH_LENGTH] = {0};
+    char exact_new_path[MAX_PATH_LENGTH];
+    strncpy(exact_new_path, plan->moves[i].new_path, sizeof(exact_new_path));
 
-    if (FsMoveFile(plan->moves[i].original_path, plan->moves[i].new_path,
-                   exact_new_path, sizeof(exact_new_path))) {
-      OrganizerRecordMove(plan->moves[i].original_path, exact_new_path);
-      success_count++;
+    // Determine the base filename and extension
+    char *dot = strrchr(exact_new_path, '.');
+    char ext[32] = {0};
+    if (dot) {
+      strncpy(ext, dot, sizeof(ext) - 1);
+      *dot = '\0'; // Temporarily truncate extension
+    }
+
+    // Check for collisions and increment counter (_1, _2, etc)
+    struct stat st;
+    int collision_idx = 1;
+    char probe_path[MAX_PATH_LENGTH];
+
+    // Re-attach extension for initial check
+    snprintf(probe_path, sizeof(probe_path), "%s%s", exact_new_path, ext);
+
+    while (stat(probe_path, &st) == 0) {
+      // File exists, bump the suffix
+      snprintf(probe_path, sizeof(probe_path), "%s_%d%s", exact_new_path,
+               collision_idx, ext);
+      collision_idx++;
+    }
+
+    // Now probe_path holds a collision-free absolute path. We need to create
+    // the parent dir and move.
+    char target_dir[MAX_PATH_LENGTH];
+    strncpy(target_dir, probe_path, sizeof(target_dir) - 1);
+    char *last_slash = strrchr(target_dir, '/');
+    if (last_slash)
+      *last_slash = '\0';
+    FsMakeDirRecursive(target_dir);
+
+    char moved_dir_path[MAX_PATH_LENGTH];
+    if (FsMoveFile(plan->moves[i].original_path, target_dir, moved_dir_path,
+                   sizeof(moved_dir_path))) {
+
+      // Ensure the moved file takes the probe_path (FsMoveFile drops it in the
+      // dir with its current name)
+      if (FsRenameFile(moved_dir_path, probe_path)) {
+        OrganizerRecordMove(plan->moves[i].original_path, probe_path);
+        success_count++;
+      } else {
+        printf("  [!] Failed to finalize structured rename: %s -> %s\n",
+               moved_dir_path, probe_path);
+      }
     } else {
       printf("  [!] Failed to move: %s\n", plan->moves[i].original_path);
     }

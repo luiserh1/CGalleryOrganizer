@@ -25,6 +25,9 @@ bool FsGetAbsolutePath(const char *path, char *out_path, size_t out_size);
 // Deletes a file from the filesystem.
 bool FsDeleteFile(const char *path);
 
+// Creates a directory, including all necessary parent directories.
+bool FsMakeDirRecursive(const char *path);
+
 // Renames a file or moves it within the same filesystem.
 bool FsRenameFile(const char *old_path, const char *new_path);
 

@@ -37,9 +37,10 @@ typedef struct {
 } OrganizerPlan;
 
 // Computes the reorganization plan based on the current cache state.
-// Groups files by _YYYY/_MM/ extracted from DateTaken, or _Unknown.
+// Groups files by dynamic, compound subdirectories based on metadata.
 // The plan must be freed with OrganizerFreePlan.
-OrganizerPlan *OrganizerComputePlan(const char *env_dir);
+OrganizerPlan *OrganizerComputePlan(const char *env_dir,
+                                    const char **group_keys, int key_count);
 
 // Print the computed plan to stdout as a visual tree outline.
 void OrganizerPrintPlan(OrganizerPlan *plan);

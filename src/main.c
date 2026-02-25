@@ -106,6 +106,7 @@ int main(int argc, char **argv) {
   bool rollback = false;
   const char *target_dir = NULL;
   const char *env_dir = NULL;
+  const char *group_by_arg = NULL;
 
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -115,6 +116,9 @@ int main(int argc, char **argv) {
       printf("  -h, --help        Show this help message and exit\n");
       printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
       printf("  --organize        Execute metadata-based restructuring\n");
+      printf("  --organize        Execute metadata-based restructuring\n");
+      printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
+             "Default: date\n");
       printf(
           "  --preview         Print restructuring plan without executing\n");
       printf("  --rollback        Undo a restructuring operation using the "
@@ -122,6 +126,8 @@ int main(int argc, char **argv) {
       return 0;
     } else if (strcmp(argv[i], "--organize") == 0) {
       organize = true;
+    } else if (strcmp(argv[i], "--group-by") == 0 && i + 1 < argc) {
+      group_by_arg = argv[++i];
     } else if (strcmp(argv[i], "--preview") == 0) {
       preview = true;
     } else if (strcmp(argv[i], "--rollback") == 0) {
@@ -201,12 +207,35 @@ int main(int argc, char **argv) {
       CacheShutdown();
       return 1;
     }
+    // Default grouping is just date
+    const char *group_keys[16];
+    int group_key_count = 0;
+
+    if (group_by_arg) {
+      // Create a mutable copy of the argument to tokenize
+      char *group_str = strdup(group_by_arg);
+      char *token = strtok(group_str, ",");
+      while (token && group_key_count < 16) {
+        // Strip leading/trailing spaces if necessary, but assume well-formed
+        // currently
+        group_keys[group_key_count++] = token;
+        token = strtok(NULL, ",");
+      }
+      // Note: We deliberately leak group_str here because it strictly lives
+      // until exit, but ideally we'd free it after computing the plan. Let's
+      // just pass it, compute, and we can free.
+    } else {
+      group_keys[0] = strdup("date");
+      group_key_count = 1;
+    }
+
     printf("\n[*] Calculating Gallery Reorganization Plan...\n");
 
     // We must initialize the Organizer module to reset the manifest array
     OrganizerInit(env_dir);
 
-    OrganizerPlan *plan = OrganizerComputePlan(env_dir);
+    OrganizerPlan *plan =
+        OrganizerComputePlan(env_dir, group_keys, group_key_count);
     if (!plan) {
       printf("[!] Failed to compute reorganization plan.\n");
     } else {
@@ -229,6 +258,14 @@ int main(int argc, char **argv) {
       OrganizerFreePlan(plan);
     }
     OrganizerShutdown();
+
+    // Cleanup allocated grouping strings
+    if (group_by_arg) {
+      free((void *)group_keys[0]); // Safe since strtok modifies the original
+                                   // string in place
+    } else {
+      free((void *)group_keys[0]); // Free the duplicated "date" fallback
+    }
   } else {
     // Legacy Duplicate Handling (v0.2.0 compatibility)
     DuplicateReport rep = FindExactDuplicates();

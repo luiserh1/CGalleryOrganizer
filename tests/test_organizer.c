@@ -31,7 +31,8 @@ void test_organizer_plan_generation(void) {
   md2.modificationDate = 12345.0;
   ASSERT_TRUE(CacheUpdateEntry(&md2));
 
-  OrganizerPlan *plan = OrganizerComputePlan(env_dir);
+  const char *group_keys[] = {"date"};
+  OrganizerPlan *plan = OrganizerComputePlan(env_dir, group_keys, 1);
   ASSERT_TRUE(plan != NULL);
   ASSERT_EQ(2, plan->count);
 
@@ -54,6 +55,45 @@ void test_organizer_plan_generation(void) {
   OrganizerFreePlan(plan);
   CacheFreeMetadata(&md1);
   CacheFreeMetadata(&md2);
+  CacheShutdown();
+}
+
+void test_organizer_compound_grouping(void) {
+  const char *env_dir = "build/test_env_compound";
+  FsMakeDirRecursive(env_dir);
+
+  char cache_path[1024];
+  snprintf(cache_path, sizeof(cache_path), "%s/gallery_cache.json", env_dir);
+
+  FsDeleteFile(cache_path);
+  ASSERT_TRUE(CacheInit(cache_path));
+
+  ImageMetadata md1 = {0};
+  md1.path = strdup("/fake/photo1.jpg");
+  strcpy(md1.dateTaken, "2024:08:15 14:30:00");
+  strcpy(md1.cameraMake, "Sony");
+  strcpy(md1.cameraModel, "ILCE-7RM3");
+  md1.width = 4000;
+  md1.height = 3000;
+  md1.fileSize = 1000;
+  md1.modificationDate = 12345.0;
+  ASSERT_TRUE(CacheUpdateEntry(&md1));
+
+  const char *group_keys[] = {"camera", "date", "resolution", "orientation"};
+  OrganizerPlan *plan = OrganizerComputePlan(env_dir, group_keys, 4);
+  ASSERT_TRUE(plan != NULL);
+  ASSERT_EQ(1, plan->count);
+
+  // Expected Path:
+  // _Sony_ILCE-7RM3/_2024/_08/_4K_UHD/_Landscape/20240815_143000_ILCE-7RM3.jpg
+  // Note: 4000x3000 max_dim=4000, 4000 >= 3840 -> _4K_UHD, 4000 > 3000 ->
+  // _Landscape
+  ASSERT_TRUE(strstr(plan->moves[0].new_path,
+                     "_Sony_ILCE-7RM3/_2024/_08/_4K_UHD/_Landscape/"
+                     "20240815_143000_ILCE-7RM3.jpg") != NULL);
+
+  OrganizerFreePlan(plan);
+  CacheFreeMetadata(&md1);
   CacheShutdown();
 }
 
@@ -105,6 +145,8 @@ void test_organizer_manifest_rw(void) {
 void register_organizer_tests(void) {
   register_test("test_organizer_plan_generation",
                 test_organizer_plan_generation, "organizer");
+  register_test("test_organizer_compound_grouping",
+                test_organizer_compound_grouping, "organizer");
   register_test("test_organizer_manifest_rw", test_organizer_manifest_rw,
                 "organizer");
 }

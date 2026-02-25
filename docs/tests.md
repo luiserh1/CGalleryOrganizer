@@ -90,7 +90,17 @@ Verify the reorganization logic is generating correct targets before moving.
 - Another date directory (e.g., `_2004/_05`) contains `test1.jpg` and `test2.jpg`.
 - Ends with `[*] Preview mode: No files were moved.`
 
-### 4. Interactive Organization Execution
+### 4. Compound Tree Preview
+Verify the multi-level nested grouping behavior using dynamic metadata.
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --preview --group-by format,orientation
+```
+**Expected Outcome**:
+- `_Images_JPEG/_Landscape` or `_Portrait` depending on the dummy EXIFs.
+- `_Images_PNG/_Square` or similar for the unknown images.
+- No files are physical moved.
+
+### 5. Interactive Organization Execution
 Verify the move operations and manifest creation.
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --organize
@@ -103,7 +113,7 @@ Verify the move operations and manifest creation.
 - `build/smoke_source` is now empty.
 - A `manifest.json` tracker file appears in `build/smoke_env`.
 
-### 5. Rollback Recovery
+### 6. Rollback Recovery
 Verify the application can restore the gallery safely.
 ```bash
 ./build/bin/gallery_organizer build/smoke_env build/smoke_env --rollback
