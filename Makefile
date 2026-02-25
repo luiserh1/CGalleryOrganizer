@@ -32,7 +32,7 @@ PERF_BIN = $(TEST_BIN_DIR)/perf_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
 
-.PHONY: all clean test stress help
+.PHONY: all clean clean-all test stress help
 
 all: $(TARGET)
 
@@ -59,11 +59,15 @@ $(PERF_BIN): $(TEST_OBJS) $(PERF_RUNNER_OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(OBJ_DIR)
+	rm -rf $(TEST_OBJ_DIR)
 	rm -rf $(BIN_DIR)
 	rm -rf $(TEST_BIN_DIR)
 	rm -rf .cache
 	@find . -type f -name '*.o' -delete
+
+clean-all: clean
+	rm -rf $(BUILD_DIR)
 
 # Compile C files
 $(OBJ_DIR)/%.o: %.c
@@ -90,6 +94,7 @@ help:
 	@echo "  make        - Build the main executable (alias for make all)"
 	@echo "  make all    - Build the main executable (default)"
 	@echo "  make test   - Build and run the test suite"
-	@echo "  make clean  - Remove built objects and binaries"
-	@echo "  make help   - Show this help message"
-	@echo "  make stress - Run performance and resiliency tests against datasets"
+	@echo "  make clean      - Remove built objects and binaries (preserves datasets)"
+	@echo "  make clean-all  - Recursively remove the entire build directory (including datasets)"
+	@echo "  make help       - Show this help message"
+	@echo "  make stress     - Run performance and resiliency tests against datasets"
