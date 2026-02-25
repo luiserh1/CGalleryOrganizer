@@ -1,8 +1,8 @@
 CC = clang
 CXX = clang++
-CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include")
-CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include")
-LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2")
+CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "")
+CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "")
+LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "")
 
 # Directories
 BUILD_DIR = build
@@ -11,7 +11,7 @@ TEST_OBJ_DIR = $(BUILD_DIR)/tests
 BIN_DIR = $(BUILD_DIR)/bin
 TEST_BIN_DIR = $(BUILD_DIR)/tests/bin
 
-SRC_DIRS = src/core src/systems src/utils
+SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers
 C_SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/main.c vendor/cJSON.c vendor/md5.c vendor/sha256.c src/systems/duplicate_finder.c
 CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
@@ -32,7 +32,7 @@ PERF_BIN = $(TEST_BIN_DIR)/perf_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
 
-.PHONY: all clean clean-all test stress help
+.PHONY: all clean clean-all test stress models help
 
 all: $(TARGET)
 
@@ -49,6 +49,9 @@ stress: $(PERF_BIN)
 		./scripts/download_stress_dataset.sh; \
 	fi
 	@./$(PERF_BIN)
+
+models:
+	@./scripts/download_models.sh
 
 $(TEST_BIN): $(TEST_OBJS) $(TEST_RUNNER_OBJ)
 	@mkdir -p $(TEST_BIN_DIR)
@@ -98,3 +101,4 @@ help:
 	@echo "  make clean-all  - Recursively remove the entire build directory (including datasets)"
 	@echo "  make help       - Show this help message"
 	@echo "  make stress     - Run performance and resiliency tests against datasets"
+	@echo "  make models     - Download and verify ML model artifacts into build/models"
