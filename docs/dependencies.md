@@ -40,3 +40,15 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 - **License**: GPL
 - **Version**: v0.28+ Target
 - **Integration**: The project utilizes a pure C interface facade (`include/exiv2_wrapper.h` & `src/utils/exiv2_wrapper.cpp`) compiled via `clang++` to bridge the C++ Exiv2 objects safely back to the core C metadata structures.
+
+---
+
+## Stress Testing Utilities (Optional)
+
+These tools are **never** required to compile, build, or test the primary CGalleryOrganizer executable. They are exclusively required if developers wish to run `make stress` on the isolated `chore/stress-testing` development branch to automatically download 4GB+ test datasets.
+
+### 1. Kaggle CLI (Python)
+- **Purpose**: Authenticating and downloading the "Low Light Smartphone Images" dataset directly into `build/stress_data/` without browser intervention.
+- **Installation**: `pip install kaggle`
+- **Configuration**: Requires a free Kaggle account and a `kaggle.json` API token installed at `~/.kaggle/kaggle.json`.
+- **Reference**: [Kaggle API Documentation](https://www.kaggle.com/docs/api)
