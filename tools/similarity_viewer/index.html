@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Similarity Viewer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1>Similarity Viewer</h1>
+          <p class="subtitle">Inspect similarity groups and pair scores from `similarity_report.json`.</p>
+        </div>
+        <div class="stats" id="stats">
+          <span>Groups: <strong id="stat-groups">0</strong></span>
+          <span>Threshold: <strong id="stat-threshold">-</strong></span>
+          <span>Model: <strong id="stat-model">-</strong></span>
+        </div>
+      </header>
+
+      <section class="controls">
+        <button id="btn-load-default">Load Default</button>
+        <label class="file-input">
+          Upload JSON
+          <input id="file-input" type="file" accept="application/json,.json" />
+        </label>
+        <label>
+          Search
+          <input id="search" type="text" placeholder="anchor or neighbor path" />
+        </label>
+        <label>
+          Min score
+          <input id="min-score" type="range" min="0" max="1" step="0.01" value="0" />
+          <input id="min-score-value" type="number" min="0" max="1" step="0.01" value="0" />
+        </label>
+        <button id="btn-export">Copy Filtered Pairs JSON</button>
+      </section>
+
+      <section class="layout">
+        <aside class="groups-panel">
+          <div class="panel-title">Groups</div>
+          <ul id="group-list" class="group-list"></ul>
+        </aside>
+        <section class="pairs-panel">
+          <div class="panel-title">Pairs for Selected Group</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Neighbor Path</th>
+                <th id="th-score">Score</th>
+              </tr>
+            </thead>
+            <tbody id="pair-table"></tbody>
+          </table>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

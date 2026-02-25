@@ -1,0 +1,164 @@
+:root {
+  --bg: #0c1020;
+  --card: #131a30;
+  --card-soft: #1d2644;
+  --line: #2d3b68;
+  --text: #e8ecff;
+  --muted: #a8b2d8;
+  --accent: #56f5d2;
+  --accent-2: #89a6ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at top left, #1a2140, var(--bg) 55%);
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: var(--muted);
+}
+
+.controls {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+button,
+input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card-soft);
+  color: var(--text);
+  padding: 0.5rem;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+.file-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.layout {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1rem;
+}
+
+.groups-panel,
+.pairs-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-height: 420px;
+}
+
+.panel-title {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.group-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.group-list li {
+  padding: 0.7rem;
+  border-bottom: 1px solid #1f2847;
+  cursor: pointer;
+}
+
+.group-list li:hover,
+.group-list li.active {
+  background: linear-gradient(90deg, rgba(86, 245, 210, 0.14), rgba(137, 166, 255, 0.12));
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.55rem;
+  border-bottom: 1px solid #1f2847;
+  text-align: left;
+}
+
+#th-score {
+  width: 110px;
+}
+
+.score {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.path {
+  word-break: break-all;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
