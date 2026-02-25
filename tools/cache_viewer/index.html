@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGalleryOrganizer Cache Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CGalleryOrganizer <span>Cache Visualizer</span></h1>
+            <p>Analyze extreme-scale metadata json caches.</p>
+        </header>
+
+        <section class="controls">
+            <div class="file-loader">
+                <button id="btn-load-default" class="primary-btn">Load Default (build/perf_cache.json)</button>
+                <span class="or">OR</span>
+                <input type="file" id="file-input" accept=".json">
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search paths, extensions, camera models...">
+                <span id="result-count">0 items loaded</span>
+            </div>
+        </section>
+
+        <section class="table-container">
+            <table id="metadata-table">
+                <thead>
+                    <tr>
+                        <th data-sort="path">Path</th>
+                        <th data-sort="size">Size</th>
+                        <th data-sort="hash">MD5 Hash</th>
+                        <th data-sort="width">Dimensions</th>
+                        <th data-sort="date">Date Taken</th>
+                        <th data-sort="make">Camera</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Rows injected here via JS -->
+                </tbody>
+            </table>
+        </section>
+
+        <div class="pagination">
+            <button id="btn-prev" disabled>Previous Page</button>
+            <span id="page-info">Page 1 of 1</span>
+            <button id="btn-next" disabled>Next Page</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

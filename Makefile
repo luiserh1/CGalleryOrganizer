@@ -22,13 +22,17 @@ TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256
 TEST_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
 # Generate test object file paths in TEST_OBJ_DIR
-TEST_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(TEST_SRCS)) $(patsubst %.cpp,$(TEST_OBJ_DIR)/%.o,$(TEST_CXX_SRCS))
+TEST_ALL_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(TEST_SRCS)) $(patsubst %.cpp,$(TEST_OBJ_DIR)/%.o,$(TEST_CXX_SRCS))
 TEST_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/test_runner.o
+TEST_OBJS = $(filter-out $(TEST_RUNNER_OBJ), $(TEST_ALL_OBJS))
 TEST_BIN = $(TEST_BIN_DIR)/test_runner
+
+PERF_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/perf_runner.o
+PERF_BIN = $(TEST_BIN_DIR)/perf_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
 
-.PHONY: all clean test help
+.PHONY: all clean test stress help
 
 all: $(TARGET)
 
@@ -39,7 +43,18 @@ $(TARGET): $(OBJS)
 test: $(TEST_BIN)
 	@./$(TEST_BIN)
 
+stress: $(PERF_BIN)
+	@if [ ! -f "build/stress_data/.downloaded" ]; then \
+		echo "[*] Dataset not found via lockfile. Attempting to download..."; \
+		./scripts/download_stress_dataset.sh; \
+	fi
+	@./$(PERF_BIN)
+
 $(TEST_BIN): $(TEST_OBJS) $(TEST_RUNNER_OBJ)
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+$(PERF_BIN): $(TEST_OBJS) $(PERF_RUNNER_OBJ)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -77,3 +92,4 @@ help:
 	@echo "  make test   - Build and run the test suite"
 	@echo "  make clean  - Remove built objects and binaries"
 	@echo "  make help   - Show this help message"
+	@echo "  make stress - Run performance and resiliency tests against datasets"
