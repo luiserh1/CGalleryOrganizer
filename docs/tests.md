@@ -19,7 +19,7 @@ make clean
 
 ## Framework
 
-Available assertions currently used by the suite:
+Assertions currently used by the suite:
 - `ASSERT_TRUE`
 - `ASSERT_FALSE`
 - `ASSERT_EQ`
@@ -27,22 +27,24 @@ Available assertions currently used by the suite:
 
 Tests are registered with `register_test(name, fn, category)` and executed by the runner.
 
-## Current Coverage Focus
+## Coverage Focus
 
 - Filesystem utilities (`src/utils/fs_utils.c`)
-- Cache lifecycle and key enumeration (`src/core/gallery_cache.c`)
+- Cache lifecycle and schema evolution (`src/core/gallery_cache.c`)
 - Hashing helpers (`src/utils/hash_utils.c`)
 - Duplicate grouping (`src/systems/duplicate_finder.c`)
-- Organizer plan, execution primitives, and rollback (`src/systems/organizer.c`)
-- Metadata extraction integration through real sample assets (`tests/assets/**`)
-- CLI flow checks through the built binary (`build/bin/gallery_organizer`):
-  - `--exhaustive` behavior
-  - rollback single-positional and legacy forms
-  - `--group-by` invalid/empty input rejection
+- Organizer plan/rollback behavior (`src/systems/organizer.c`)
+- Metadata extraction integration using real assets (`tests/assets/**`)
+- ML subsystem API/provider behavior (`src/ml/**`)
+- CLI flow checks through the built binary (`build/bin/gallery_organizer`), including:
+  - `--exhaustive`
+  - rollback compatibility forms
+  - `--group-by` validation
+  - `--ml-enrich` success/failure paths
 
 ## Manual Smoke Checklist
 
-### 1. Prepare sample dirs
+### 1. Prepare sample directories
 ```bash
 mkdir -p build/smoke_source build/smoke_env
 cp tests/assets/jpg/sample_exif.jpg build/smoke_source/test1.jpg
@@ -50,25 +52,36 @@ cp tests/assets/jpg/sample_deep_exif.jpg build/smoke_source/test2.jpg
 cp tests/assets/png/sample_no_exif.png build/smoke_source/test3.png
 ```
 
-### 2. Scan
+### 2. Install models
+```bash
+make models
+```
+
+### 3. Scan
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env
 ```
 Expected: scan succeeds, cache stored in `build/smoke_env/.cache/gallery_cache.json`.
 
-### 3. Preview
+### 4. ML enrichment
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --ml-enrich
+```
+Expected: ML summary counters are printed and cache entries include ML fields.
+
+### 5. Preview
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --preview --group-by date
 ```
 Expected: plan printed once per directory group, no file moves.
 
-### 4. Organize
+### 6. Organize
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --organize
 ```
 Expected: confirmation prompt, files moved after `y`, `manifest.json` created.
 
-### 5. Rollback (ergonomic)
+### 7. Rollback (ergonomic)
 ```bash
 ./build/bin/gallery_organizer build/smoke_env --rollback
 ```
@@ -79,8 +92,10 @@ Expected: files restored according to manifest.
 - Some tests invoke shell commands (`system`/`popen`) and use temporary build directories.
 - Keep temp paths scoped under `build/` and clean them in each test to avoid cross-test interference.
 
-## Asset Attribution Requirement
+## Asset and Model Attribution Requirements
 
-When adding or updating any fixture under `tests/assets/**`, update
-`docs/test_assets.md` in the same commit. That file is the canonical attribution
-record (author, source URL, license, and derivative notes).
+When adding or updating fixtures under `tests/assets/**`, update
+`docs/test_assets.md` in the same commit.
+
+When adding or updating model entries in `models/manifest.json`, update
+`docs/model_assets.md` in the same commit.

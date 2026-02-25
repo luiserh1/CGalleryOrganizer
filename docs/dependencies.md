@@ -4,6 +4,13 @@ This document lists third-party and system dependencies used by CGalleryOrganize
 
 **Last consulted:** 2026-02-25
 
+## Dependency Philosophy
+
+Priority order for new integrations:
+1. Ad-hoc implementation in core project code.
+2. Vendored dependency (auditable, minimal footprint).
+3. System dependency (when complexity and maintenance cost justify it).
+
 ## Vendored Dependencies (`vendor/`)
 
 ### 1. cJSON
@@ -25,14 +32,36 @@ This document lists third-party and system dependencies used by CGalleryOrganize
 - License: bundled upstream license.
 - Modifications: none.
 
-## System Dependency
+## System Dependencies
 
-### Exiv2 (C++ library)
+### 1. Exiv2 (C++ library)
 - Purpose: metadata extraction across JPEG/PNG/WebP/GIF/BMP/HEIC and related formats.
 - Installation:
   - macOS: `brew install exiv2`
   - Linux (Debian/Ubuntu): `apt install libexiv2-dev`
 - Integration point: `include/exiv2_wrapper.h`, `src/utils/exiv2_wrapper.cpp`
+
+### 2. ONNX Runtime (C API)
+- Purpose: local ML inference provider backend for 0.3.0 (`classification`, `text_detection`).
+- Installation:
+  - macOS: `brew install onnxruntime`
+  - Linux: install `onnxruntime` C runtime and headers from distro/vendor package.
+- Integration points:
+  - Public API: `include/ml_api.h`
+  - Provider abstraction: `include/ml_provider.h`
+  - ONNX provider: `src/ml/providers/onnx_provider.c`
+
+## Model Assets (Not in Git)
+
+Model binaries are downloaded to `build/models/` and are not tracked in git.
+
+- Manifest: `models/manifest.json`
+- Downloader: `scripts/download_models.sh`
+- Helper target: `make models`
+- Attribution registry: `docs/model_assets.md`
+
+Mandatory model metadata fields (enforced by downloader):
+- `id`, `task`, `url`, `sha256`, `license_name`, `license_url`, `author`, `source_url`, `credit_text`, `version`, `filename`
 
 ## Optional Stress-Test Utilities
 

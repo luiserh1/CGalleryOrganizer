@@ -1,14 +1,17 @@
 # CGalleryOrganizer
 
-CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, and organizing files into metadata-based directory trees.
+CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, organizing files, and enriching metadata with local ML inference.
 
-## Key Features (v0.2.4)
+## Key Features (v0.3.0)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
 - Exact duplicate detection using MD5 with SHA-256 verification.
 - Interactive organization plan/execute flow with `--preview`, `--organize`, and `--group-by`.
-- Rollback via `manifest.json` with backward-compatible and ergonomic invocation.
+- Local ML enrichment with provider-agnostic API (`--ml-enrich`) for:
+  - image classification
+  - text detection
+- Manifest-driven model download and checksum validation (`make models`).
 
 ## Build
 
@@ -16,6 +19,7 @@ CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extract
 - Clang or GCC
 - `make`
 - Exiv2 development package (`brew install exiv2` on macOS)
+- ONNX Runtime development package for ML provider (`brew install onnxruntime` on macOS)
 
 ### Compile
 ```bash
@@ -27,6 +31,16 @@ make
 make test
 ```
 
+## Model Setup (0.3.0)
+
+Download model artifacts locally:
+```bash
+make models
+```
+
+Default install location: `build/models/`.
+Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
+
 ## CLI Usage
 
 ```bash
@@ -36,6 +50,7 @@ make test
 ### Options
 - `-h`, `--help`: show usage.
 - `-e`, `--exhaustive`: include all EXIF/IPTC/XMP tags in cache (`allMetadataJson`).
+- `--ml-enrich`: run local ML enrichment and store ML outputs in cache.
 - `--preview`: build and print organization plan without moving files.
 - `--organize`: execute organization plan after confirmation.
 - `--group-by <keys>`: grouping keys list. Allowed keys: `date,camera,format,orientation,resolution`.
@@ -59,6 +74,11 @@ make test
 ./build/bin/gallery_organizer /path/to/source /path/to/env --exhaustive
 ```
 
+### ML enrichment
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --ml-enrich
+```
+
 ### Preview with compound grouping
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --preview --group-by camera,date,resolution
@@ -72,8 +92,10 @@ make test
 ## Project Layout
 - `src/`: core implementation.
 - `include/`: public headers.
+- `models/`: tracked ML model manifest metadata (not model binaries).
 - `tests/`: test framework and test suites.
 - `docs/test_assets.md`: canonical attribution/license registry for test fixtures.
+- `docs/model_assets.md`: canonical attribution/license registry for model assets.
 - `vendor/`: bundled third-party C dependencies.
 - `tools/cache_viewer/`: static dashboard for cache inspection.
 - `docs/`: project and maintenance documentation.

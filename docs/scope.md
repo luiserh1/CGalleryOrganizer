@@ -109,16 +109,21 @@ Stabilize the CLI and organizer runtime behavior, remove noisy debug output, and
 
 ---
 
-## v0.3.0 Scope: ML Integration & Vision Analyzer
+## v0.3.0 Scope: Local ML Foundation (Completed)
 
 ### Primary Goal
-Integrate Machine Learning capabilities (OCR, Object Detection, Image Classification) to evaluate the heuristic decision tree.
+Introduce a modular local ML foundation with a provider-agnostic API so the core application can consume inference results without coupling to a specific runtime implementation.
 
 ### Features
-- Evaluate and integrate a C-compatible ML runtime (e.g., ONNX Runtime or `ggml`, heavily abstracted).
-- Populate the heuristic fields in the cache:
-  - `textDensity`, `isNature`, `hasPeopleOrAnimals`, `maxFaceArea`, `hasBarcode`, `barcodeArea`.
-- Implement the "Vision Analyzer" Decision Tree to classify images as `KEEP` (Gallery Worthy) or `DISCARD` (Meme, Document, Text Heavy).
+- Added a stable ML API boundary (`include/ml_api.h`) and provider abstraction (`include/ml_provider.h`).
+- Implemented first local provider module (`src/ml/providers/onnx_provider.c`) behind the abstraction layer.
+- Introduced two minimal capabilities in the 0.3.0 API surface:
+  - Image classification
+  - Text detection
+- Added CLI smoke workflow: `--ml-enrich` to enrich cache entries with ML outputs.
+- Extended cache schema with typed ML fields and raw provider payload (`mlRaw`).
+- Added manifest-driven model delivery (`models/manifest.json`) and downloader (`scripts/download_models.sh`) with required metadata fields and SHA256 verification.
+- Added model attribution registry (`docs/model_assets.md`) and documentation guardrails.
 
 ---
 
