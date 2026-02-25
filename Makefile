@@ -48,6 +48,7 @@ clean:
 	rm -rf $(BIN_DIR)
 	rm -rf $(TEST_BIN_DIR)
 	rm -f gallery_cache.json
+	@find . -type f -name '*.o' -delete
 
 # Compile C files
 $(OBJ_DIR)/%.o: %.c
@@ -71,6 +72,7 @@ $(TEST_OBJ_DIR)/%.o: %.cpp
 
 help:
 	@echo "Available commands:"
+	@echo "  make        - Build the main executable (alias for make all)"
 	@echo "  make all    - Build the main executable (default)"
 	@echo "  make test   - Build and run the test suite"
 	@echo "  make clean  - Remove built objects and binaries"
