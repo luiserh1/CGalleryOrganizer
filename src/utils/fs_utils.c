@@ -113,6 +113,28 @@ bool FsDeleteFile(const char *path) {
   return remove(path) == 0;
 }
 
+bool FsMakeDirRecursive(const char *path) {
+  if (!path)
+    return false;
+  char tmp[MAX_PATH_LENGTH];
+  char *p = NULL;
+  size_t len;
+
+  snprintf(tmp, sizeof(tmp), "%s", path);
+  len = strlen(tmp);
+  if (tmp[len - 1] == '/')
+    tmp[len - 1] = '\0';
+  for (p = tmp + 1; *p; p++) {
+    if (*p == '/') {
+      *p = '\0';
+      mkdir(tmp, 0755);
+      *p = '/';
+    }
+  }
+  mkdir(tmp, 0755);
+  return true;
+}
+
 bool FsRenameFile(const char *old_path, const char *new_path) {
   if (!old_path || !new_path)
     return false;
@@ -158,8 +180,8 @@ bool FsMoveFile(const char *source_path, const char *target_dir,
   // mkdir if it doesn't exist
   struct stat st;
   if (stat(target_dir, &st) != 0) {
-    // Simple mkdir. Does not do recursive mkdir -p.
-    mkdir(target_dir, 0755);
+    // Create missing target directory recursively
+    FsMakeDirRecursive(target_dir);
   }
 
   while (1) {

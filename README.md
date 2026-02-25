@@ -6,7 +6,8 @@ A high-performance, privacy-first tool written in C for analyzing, classifying, 
 
 **CGalleryOrganizer** is designed for users who want to manage massive photo libraries locally, without relying on cloud services. It uses a JSON-backed caching system to ensure that expensive metadata extraction and analysis are only performed once per file.
 
-### Key Features (v0.2.1)
+### Key Features (v0.2.2)
+- **Active Organization Engine**: Dynamically reorganize your media library into `_YYYY/_MM` date-based folder structures based on EXIF DateTaken metadata. Safely rollback entire moves with the `--rollback` feature via a tracking manifest.
 - **Extreme Performance**: Recursive directory scanning for 10k+ files in seconds.
 - **Rich Metadata Extraction**:
     - **Basic FS Data**: Size, modification timestamps, absolute paths.
@@ -29,11 +30,31 @@ make
 ```
 
 ### Usage
+
+**1. Standard Passive Scan (Metadata Caching Only):**
 Run the scanner against any directory:
 ```bash
 ./build/bin/gallery_organizer /path/to/your/photos
 ```
-This will generate a `.cache/gallery_cache.json` file inside the project directory containing all extracted metadata.
+
+**2. Preview Reorganization Plan:**
+To see exactly how files will be organized into `_YYYY/_MM` folders without moving anything:
+```bash
+./build/bin/gallery_organizer /path/to/your/photos /path/to/target/env --preview
+```
+
+**3. Execute Organization (Interactive):**
+To move files based on EXIF dates:
+```bash
+./build/bin/gallery_organizer /path/to/your/photos /path/to/target/env --organize
+```
+*Note: This creates a `.cache` array and a `manifest.json` tracker inside the target environment.*
+
+**4. Rollback execution (Undo):**
+If you want to revert a recent organization action back to the original directories:
+```bash
+./build/bin/gallery_organizer /path/to/target/env /path/to/target/env --rollback
+```
 
 ### Run Tests
 ```bash
