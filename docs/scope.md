@@ -127,15 +127,25 @@ Introduce a modular local ML foundation with a provider-agnostic API so the core
 
 ---
 
-## v0.4.0 Scope: Similarity Engine
+## v0.4.0 Scope: Similarity Engine + Dedicated Similarity Tool (Planned)
 
 ### Primary Goal
-Compute visual similarities to find near-duplicates (bursts, crops).
+Deliver a minimal but complete similarity workflow on top of the local ML foundation: embeddings, report generation, and dedicated report exploration UI.
 
 ### Features
-- Extract `featurePrint` (embedding vector) using the ML models.
-- Implement Cosine Similarity math engine.
-- Grouping and threshold logic for near-duplicates.
+- Extend ML API/provider with `ML_FEATURE_EMBEDDING`.
+- Persist canonical embedding fields in cache (`mlModelEmbedding`, `mlEmbeddingDim`, `mlEmbeddingBase64`).
+- Add CLI workflow:
+  - `--similarity-report`
+  - `--sim-threshold <0..1>` (default `0.92`)
+  - `--sim-topk <n>` (default `5`)
+- Generate stable report contract at `<env_dir>/similarity_report.json`:
+  - `generatedAt`, `modelId`, `threshold`, `topK`, `groupCount`, `groups[]`
+- Add dedicated viewer tool at `tools/similarity_viewer/`:
+  - group list + pair table UX
+  - default load from `build/similarity_report.json`
+  - upload/filter/search/sort/export
+- Add embedding model entry in `models/manifest.json` and attribution in `docs/model_assets.md`.
 
 ---
 

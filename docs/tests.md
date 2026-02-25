@@ -36,11 +36,13 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - Organizer plan/rollback behavior (`src/systems/organizer.c`)
 - Metadata extraction integration using real assets (`tests/assets/**`)
 - ML subsystem API/provider behavior (`src/ml/**`)
+- Similarity engine behavior (`src/systems/similarity_engine.c`)
 - CLI flow checks through the built binary (`build/bin/gallery_organizer`), including:
   - `--exhaustive`
   - rollback compatibility forms
   - `--group-by` validation
   - `--ml-enrich` success/failure paths
+  - `--similarity-report` generation path
 
 ## Manual Smoke Checklist
 
@@ -86,6 +88,18 @@ Expected: confirmation prompt, files moved after `y`, `manifest.json` created.
 ./build/bin/gallery_organizer build/smoke_env --rollback
 ```
 Expected: files restored according to manifest.
+
+### 8. Similarity report
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report --sim-threshold 0.92 --sim-topk 5
+```
+Expected: `build/smoke_env/similarity_report.json` exists and includes `groupCount` + `groups`.
+
+### 9. Similarity viewer smoke
+```bash
+python3 -m http.server 8000
+```
+Then open `/tools/similarity_viewer/`, click **Load Default** (after copying report to `build/similarity_report.json`) or upload `build/smoke_env/similarity_report.json`.
 
 ## Notes on Test Fragility
 

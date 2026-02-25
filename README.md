@@ -1,8 +1,8 @@
 # CGalleryOrganizer
 
-CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, organizing files, and enriching metadata with local ML inference.
+CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, organizing files, enriching metadata with local ML inference, and generating similarity reports.
 
-## Key Features (v0.3.0)
+## Key Features (v0.4.0)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -11,6 +11,7 @@ CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extract
 - Local ML enrichment with provider-agnostic API (`--ml-enrich`) for:
   - image classification
   - text detection
+- Similarity workflow (`--similarity-report`) using embedding vectors and cosine similarity grouping.
 - Manifest-driven model download and checksum validation (`make models`).
 
 ## Build
@@ -51,6 +52,9 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 - `-h`, `--help`: show usage.
 - `-e`, `--exhaustive`: include all EXIF/IPTC/XMP tags in cache (`allMetadataJson`).
 - `--ml-enrich`: run local ML enrichment and store ML outputs in cache.
+- `--similarity-report`: generate `<env_dir>/similarity_report.json` using embeddings.
+- `--sim-threshold <0..1>`: minimum cosine similarity (default `0.92`).
+- `--sim-topk <n>`: max neighbors per anchor group (default `5`).
 - `--preview`: build and print organization plan without moving files.
 - `--organize`: execute organization plan after confirmation.
 - `--group-by <keys>`: grouping keys list. Allowed keys: `date,camera,format,orientation,resolution`.
@@ -79,6 +83,11 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 ./build/bin/gallery_organizer /path/to/source /path/to/env --ml-enrich
 ```
 
+### Similarity report
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --similarity-report --sim-threshold 0.92 --sim-topk 5
+```
+
 ### Preview with compound grouping
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --preview --group-by camera,date,resolution
@@ -98,4 +107,5 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 - `docs/model_assets.md`: canonical attribution/license registry for model assets.
 - `vendor/`: bundled third-party C dependencies.
 - `tools/cache_viewer/`: static dashboard for cache inspection.
+- `tools/similarity_viewer/`: static dashboard for similarity report analysis.
 - `docs/`: project and maintenance documentation.
