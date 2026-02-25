@@ -28,6 +28,7 @@ void test_ml_infer_success(void) {
   ASSERT_TRUE(FsMakeDirRecursive("build/test_models_ok"));
   WriteFile("build/test_models_ok/clf-default.onnx", "dummy-clf");
   WriteFile("build/test_models_ok/text-default.onnx", "dummy-text");
+  WriteFile("build/test_models_ok/embed-default.onnx", "dummy-embed");
 
   ASSERT_TRUE(MlInit("build/test_models_ok"));
 
@@ -51,6 +52,7 @@ void test_ml_infer_invalid_feature_set(void) {
   ASSERT_TRUE(FsMakeDirRecursive("build/test_models_invalid"));
   WriteFile("build/test_models_invalid/clf-default.onnx", "dummy-clf");
   WriteFile("build/test_models_invalid/text-default.onnx", "dummy-text");
+  WriteFile("build/test_models_invalid/embed-default.onnx", "dummy-embed");
 
   ASSERT_TRUE(MlInit("build/test_models_invalid"));
 
@@ -61,10 +63,33 @@ void test_ml_infer_invalid_feature_set(void) {
   MlShutdown();
 }
 
+void test_ml_embedding_support(void) {
+  system("rm -rf build/test_models_embed");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_models_embed"));
+  WriteFile("build/test_models_embed/clf-default.onnx", "dummy-clf");
+  WriteFile("build/test_models_embed/text-default.onnx", "dummy-text");
+  WriteFile("build/test_models_embed/embed-default.onnx", "dummy-embed");
+
+  ASSERT_TRUE(MlInit("build/test_models_embed"));
+
+  MlFeature feature = ML_FEATURE_EMBEDDING;
+  MlResult out = {0};
+  ASSERT_TRUE(
+      MlInferImage("tests/assets/png/sample_no_exif.png", &feature, 1, &out));
+  ASSERT_TRUE(out.has_embedding);
+  ASSERT_TRUE(out.embedding_dim > 0);
+  ASSERT_TRUE(out.embedding != NULL);
+  ASSERT_STR_EQ("embed-default", out.model_id_embedding);
+
+  MlFreeResult(&out);
+  MlShutdown();
+}
+
 void register_ml_api_tests(void) {
   register_test("test_ml_init_missing_models", test_ml_init_missing_models,
                 "ml");
   register_test("test_ml_infer_success", test_ml_infer_success, "ml");
   register_test("test_ml_infer_invalid_feature_set",
                 test_ml_infer_invalid_feature_set, "ml");
+  register_test("test_ml_embedding_support", test_ml_embedding_support, "ml");
 }

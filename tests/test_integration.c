@@ -97,8 +97,10 @@ static bool WriteBootstrapModels(const char *models_dir) {
 
   char clf_path[1024];
   char text_path[1024];
+  char embed_path[1024];
   snprintf(clf_path, sizeof(clf_path), "%s/clf-default.onnx", models_dir);
   snprintf(text_path, sizeof(text_path), "%s/text-default.onnx", models_dir);
+  snprintf(embed_path, sizeof(embed_path), "%s/embed-default.onnx", models_dir);
 
   FILE *f = fopen(clf_path, "w");
   if (!f) {
@@ -112,6 +114,13 @@ static bool WriteBootstrapModels(const char *models_dir) {
     return false;
   }
   fputs("dummy-text", f);
+  fclose(f);
+
+  f = fopen(embed_path, "w");
+  if (!f) {
+    return false;
+  }
+  fputs("dummy-embed", f);
   fclose(f);
 
   return true;
@@ -521,6 +530,44 @@ void test_cli_ml_enrich_updates_cache(void) {
   system("rm -rf build/test_cli_ml_src build/test_cli_ml_env build/test_cli_models");
 }
 
+void test_cli_similarity_report_generates_json(void) {
+  system("rm -rf build/test_cli_sim_src build/test_cli_sim_env build/test_cli_sim_models");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_env"));
+  ASSERT_TRUE(WriteBootstrapModels("build/test_cli_sim_models"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png build/test_cli_sim_src/a.png"));
+  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg build/test_cli_sim_src/b.jpg"));
+
+  char output[4096];
+  int code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_sim_models "
+      "./build/bin/gallery_organizer build/test_cli_sim_src "
+      "build/test_cli_sim_env --similarity-report --sim-threshold 0.1 --sim-topk 3 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Similarity report generated:") != NULL);
+
+  FILE *f = fopen("build/test_cli_sim_env/similarity_report.json", "r");
+  ASSERT_TRUE(f != NULL);
+  char report_buf[8192] = {0};
+  size_t bytes = fread(report_buf, 1, sizeof(report_buf) - 1, f);
+  report_buf[bytes] = '\0';
+  fclose(f);
+  ASSERT_TRUE(strstr(report_buf, "\"groupCount\"") != NULL);
+  ASSERT_TRUE(strstr(report_buf, "\"groups\"") != NULL);
+
+  system("rm -rf build/test_cli_sim_src build/test_cli_sim_env build/test_cli_sim_models");
+}
+
+void test_cli_similarity_report_requires_env(void) {
+  char output[2048];
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer tests/assets/png --similarity-report 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "requires an environment directory") != NULL);
+}
+
 void register_integration_tests(void) {
   register_test("test_metadata_png_support", test_metadata_png_support,
                 "integration");
@@ -566,4 +613,8 @@ void register_integration_tests(void) {
                 test_cli_ml_enrich_missing_models, "integration");
   register_test("test_cli_ml_enrich_updates_cache",
                 test_cli_ml_enrich_updates_cache, "integration");
+  register_test("test_cli_similarity_report_generates_json",
+                test_cli_similarity_report_generates_json, "integration");
+  register_test("test_cli_similarity_report_requires_env",
+                test_cli_similarity_report_requires_env, "integration");
 }

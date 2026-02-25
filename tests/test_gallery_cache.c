@@ -33,6 +33,9 @@ void test_cache_flow(void) {
   md.mlTextBoxCount = 1;
   strcpy(md.mlModelClassification, "clf-default");
   strcpy(md.mlModelTextDetection, "text-default");
+  strcpy(md.mlModelEmbedding, "embed-default");
+  md.mlEmbeddingDim = 4;
+  md.mlEmbeddingBase64 = strdup("AACAPwAAAEAAAEBAAACAQA==");
   md.mlRawJson = strdup("{\"demo\":true}");
 
   ASSERT_TRUE(CacheUpdateEntry(&md));
@@ -57,6 +60,9 @@ void test_cache_flow(void) {
   ASSERT_TRUE(loaded_md.mlHasText);
   ASSERT_EQ(1, loaded_md.mlTextBoxCount);
   ASSERT_STR_EQ("clf-default", loaded_md.mlModelClassification);
+  ASSERT_STR_EQ("embed-default", loaded_md.mlModelEmbedding);
+  ASSERT_EQ(4, loaded_md.mlEmbeddingDim);
+  ASSERT_TRUE(loaded_md.mlEmbeddingBase64 != NULL);
   ASSERT_TRUE(loaded_md.mlRawJson != NULL);
   CacheFreeMetadata(&loaded_md);
 
