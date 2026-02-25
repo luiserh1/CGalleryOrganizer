@@ -1,5 +1,6 @@
 .DS_Store
 temp/
+build/
 *.o
 bin/
 tests/bin/
