@@ -73,6 +73,7 @@ make test
 - `src/`: core implementation.
 - `include/`: public headers.
 - `tests/`: test framework and test suites.
+- `docs/test_assets.md`: canonical attribution/license registry for test fixtures.
 - `vendor/`: bundled third-party C dependencies.
 - `tools/cache_viewer/`: static dashboard for cache inspection.
 - `docs/`: project and maintenance documentation.

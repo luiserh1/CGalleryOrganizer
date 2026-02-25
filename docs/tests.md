@@ -78,3 +78,9 @@ Expected: files restored according to manifest.
 
 - Some tests invoke shell commands (`system`/`popen`) and use temporary build directories.
 - Keep temp paths scoped under `build/` and clean them in each test to avoid cross-test interference.
+
+## Asset Attribution Requirement
+
+When adding or updating any fixture under `tests/assets/**`, update
+`docs/test_assets.md` in the same commit. That file is the canonical attribution
+record (author, source URL, license, and derivative notes).
