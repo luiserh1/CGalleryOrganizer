@@ -35,7 +35,7 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 ## System Dependencies
 
 ### 1. Exiv2 (Native C++ Library)
-- **Purpose**: Unified, robust metadata and EXIF extraction for all standard image formats (JPEG, PNG, WebP, GIF, BMP, HEIC, etc.). Replaced the strictly limited legacy hand-written ad-hoc binary parsers.
+- **Purpose**: Unified, robust metadata and EXIF extraction for all standard image formats (JPEG, PNG, WebP, GIF, BMP, HEIC, etc.).
 - **Installation**: `brew install exiv2` (macOS) / `apt install libexiv2-dev` (Linux)
 - **License**: GPL
 - **Version**: v0.28+ Target
