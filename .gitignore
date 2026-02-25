@@ -1,8 +1,13 @@
-.DS_Store
-temp/
+# Caches
+.cache/
 build/
-*.o
 bin/
 tests/bin/
+temp/
+
+# Compiled objects
+*.o
 *.out
-gallery_cache.json
+
+# System files
+.DS_Store
