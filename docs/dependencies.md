@@ -45,10 +45,9 @@ This file documents all third-party code relied upon by the CGalleryOrganizer pr
 
 ## Stress Testing Utilities (Optional)
 
-These tools are **never** required to compile, build, or test the primary CGalleryOrganizer executable. They are exclusively required if developers wish to run `make stress` on the isolated `chore/stress-testing` development branch to automatically download 4GB+ test datasets.
+These tools are **never** required to compile, build, or test the primary CGalleryOrganizer executable. They are only needed to download the 3GB stress dataset.
 
-### 1. Kaggle CLI (Python)
-- **Purpose**: Authenticating and downloading the "Low Light Smartphone Images" dataset directly into `build/stress_data/` without browser intervention.
-- **Installation**: `pip install kaggle`
-- **Configuration**: Requires a free Kaggle account and a `kaggle.json` API token installed at `~/.kaggle/kaggle.json`.
-- **Reference**: [Kaggle API Documentation](https://www.kaggle.com/docs/api)
+### 1. Standard Network Tools
+- **curl**: Used to fetch the dataset ZIP from Leiden University.
+- **unzip**: Used to extract the images into `build/stress_data/`.
+- **Note**: Both are pre-installed on macOS and most Linux distributions. No accounts or API keys are required.

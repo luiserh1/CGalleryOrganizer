@@ -1,4 +1,6 @@
+#define _DEFAULT_SOURCE
 #include "duplicate_finder.h"
+extern char *strdup(const char *s);
 #include "fs_utils.h"
 #include "gallery_cache.h"
 #include "metadata_parser.h"
@@ -15,7 +17,15 @@ long long timeInMilliseconds(void) {
 static bool ScanCallback(const char *absolute_path, void *user_data) {
   (void)user_data;
   if (FsIsSupportedMedia(absolute_path)) {
+    double mod_date = 0;
+    long size = 0;
+    ExtractBasicMetadata(absolute_path, &mod_date, &size);
+
     ImageMetadata meta = ExtractMetadata(absolute_path);
+    meta.path = strdup(absolute_path);
+    meta.modificationDate = mod_date;
+    meta.fileSize = size;
+
     CacheUpdateEntry(&meta);
   }
   return true;
@@ -42,6 +52,7 @@ int main(void) {
   long long end_cold = timeInMilliseconds();
   printf("    -> Cold run took: %lld ms\n\n", end_cold - start);
 
+  CacheSave();
   CacheShutdown();
 
   // 2. Warm Run
@@ -64,6 +75,7 @@ int main(void) {
   long long end_algo = timeInMilliseconds();
   printf("    -> Duplicate grouping took: %lld ms\n\n", end_algo - start);
 
+  CacheSave();
   CacheShutdown();
 
   printf("========================================\n");
