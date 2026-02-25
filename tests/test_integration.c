@@ -90,6 +90,33 @@ static bool WriteRollbackManifest(const char *env_dir) {
   return true;
 }
 
+static bool WriteBootstrapModels(const char *models_dir) {
+  if (!FsMakeDirRecursive(models_dir)) {
+    return false;
+  }
+
+  char clf_path[1024];
+  char text_path[1024];
+  snprintf(clf_path, sizeof(clf_path), "%s/clf-default.onnx", models_dir);
+  snprintf(text_path, sizeof(text_path), "%s/text-default.onnx", models_dir);
+
+  FILE *f = fopen(clf_path, "w");
+  if (!f) {
+    return false;
+  }
+  fputs("dummy-clf", f);
+  fclose(f);
+
+  f = fopen(text_path, "w");
+  if (!f) {
+    return false;
+  }
+  fputs("dummy-text", f);
+  fclose(f);
+
+  return true;
+}
+
 void test_metadata_png_support(void) {
   const char *filepath = "tests/assets/png/sample_no_exif.png";
   double mod_date;
@@ -444,6 +471,56 @@ void test_cli_rollback_legacy_two_positional(void) {
   system("rm -rf build/test_cli_rollback_legacy");
 }
 
+void test_cli_ml_enrich_missing_models(void) {
+  system("rm -rf build/test_cli_ml_missing_src build/test_cli_ml_missing_env "
+         "build/test_cli_ml_missing_models");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_missing_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_missing_env"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
+                      "build/test_cli_ml_missing_src/a.png"));
+
+  char output[4096];
+  int code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_ml_missing_models "
+      "./build/bin/gallery_organizer build/test_cli_ml_missing_src "
+      "build/test_cli_ml_missing_env --ml-enrich 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "Failed to initialize ML runtime") != NULL);
+
+  system("rm -rf build/test_cli_ml_missing_src build/test_cli_ml_missing_env "
+         "build/test_cli_ml_missing_models");
+}
+
+void test_cli_ml_enrich_updates_cache(void) {
+  system("rm -rf build/test_cli_ml_src build/test_cli_ml_env build/test_cli_models");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_env"));
+  ASSERT_TRUE(WriteBootstrapModels("build/test_cli_models"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
+                      "build/test_cli_ml_src/a.png"));
+
+  char output[4096];
+  int code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_models "
+      "./build/bin/gallery_organizer build/test_cli_ml_src "
+      "build/test_cli_ml_env --ml-enrich 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "ML evaluated:") != NULL);
+
+  FILE *f = fopen("build/test_cli_ml_env/.cache/gallery_cache.json", "r");
+  ASSERT_TRUE(f != NULL);
+  char cache_buf[8192] = {0};
+  size_t bytes = fread(cache_buf, 1, sizeof(cache_buf) - 1, f);
+  cache_buf[bytes] = '\0';
+  fclose(f);
+  ASSERT_TRUE(strstr(cache_buf, "\"mlPrimaryClass\"") != NULL);
+  ASSERT_TRUE(strstr(cache_buf, "\"mlModelClassification\"") != NULL);
+
+  system("rm -rf build/test_cli_ml_src build/test_cli_ml_env build/test_cli_models");
+}
+
 void register_integration_tests(void) {
   register_test("test_metadata_png_support", test_metadata_png_support,
                 "integration");
@@ -485,4 +562,8 @@ void register_integration_tests(void) {
                 test_cli_rollback_single_positional, "integration");
   register_test("test_cli_rollback_legacy_two_positional",
                 test_cli_rollback_legacy_two_positional, "integration");
+  register_test("test_cli_ml_enrich_missing_models",
+                test_cli_ml_enrich_missing_models, "integration");
+  register_test("test_cli_ml_enrich_updates_cache",
+                test_cli_ml_enrich_updates_cache, "integration");
 }

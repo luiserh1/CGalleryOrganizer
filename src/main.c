@@ -8,6 +8,7 @@
 #include "gallery_cache.h"
 #include "hash_utils.h"
 #include "metadata_parser.h"
+#include "ml_api.h"
 #include "organizer.h"
 
 static int g_files_scanned = 0;
@@ -16,12 +17,23 @@ static int g_files_cached = 0;
 static const char *k_group_keys[] = {"date", "camera", "format", "orientation",
                                      "resolution"};
 
+typedef struct {
+  bool exhaustive;
+  bool ml_enrich;
+  bool ml_enabled;
+  int ml_files_evaluated;
+  int ml_files_classified;
+  int ml_files_with_text;
+  int ml_failures;
+} AppScanContext;
+
 static void PrintUsage(const char *argv0) {
   printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv0);
   printf("\n");
   printf("Options:\n");
   printf("  -h, --help        Show this help message and exit\n");
   printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
+  printf("  --ml-enrich       Run local ML enrichment (classification + text detection)\n");
   printf("  --organize        Execute metadata-based restructuring\n");
   printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
          "Default: date\n");
@@ -132,7 +144,71 @@ static const char *ResolveRollbackEnvDir(const char *first_positional,
   return NULL;
 }
 
+static void ApplyMlResultToMetadata(ImageMetadata *md, const MlResult *ml) {
+  if (!md || !ml) {
+    return;
+  }
+
+  if (ml->has_classification && ml->topk_count > 0) {
+    strncpy(md->mlPrimaryClass, ml->topk[0].label,
+            sizeof(md->mlPrimaryClass) - 1);
+    md->mlPrimaryClass[sizeof(md->mlPrimaryClass) - 1] = '\0';
+    md->mlPrimaryClassConfidence = ml->topk[0].confidence;
+  }
+
+  md->mlHasText = ml->has_text_detection && ml->text_box_count > 0;
+  md->mlTextBoxCount = ml->text_box_count;
+
+  if (ml->model_id_classification[0] != '\0') {
+    strncpy(md->mlModelClassification, ml->model_id_classification,
+            sizeof(md->mlModelClassification) - 1);
+    md->mlModelClassification[sizeof(md->mlModelClassification) - 1] = '\0';
+  }
+
+  if (ml->model_id_text_detection[0] != '\0') {
+    strncpy(md->mlModelTextDetection, ml->model_id_text_detection,
+            sizeof(md->mlModelTextDetection) - 1);
+    md->mlModelTextDetection[sizeof(md->mlModelTextDetection) - 1] = '\0';
+  }
+
+  if (ml->provider_raw_json) {
+    if (md->mlRawJson) {
+      free(md->mlRawJson);
+    }
+    md->mlRawJson = strdup(ml->provider_raw_json);
+  }
+}
+
+static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *md,
+                                      AppScanContext *ctx) {
+  if (!ctx || !md || !ctx->ml_enrich || !ctx->ml_enabled) {
+    return;
+  }
+
+  ctx->ml_files_evaluated++;
+
+  MlFeature requested[2] = {ML_FEATURE_CLASSIFICATION,
+                            ML_FEATURE_TEXT_DETECTION};
+  MlResult result = {0};
+
+  if (!MlInferImage(absolute_path, requested, 2, &result)) {
+    ctx->ml_failures++;
+    return;
+  }
+
+  ApplyMlResultToMetadata(md, &result);
+  if (result.has_classification && result.topk_count > 0) {
+    ctx->ml_files_classified++;
+  }
+  if (result.has_text_detection && result.text_box_count > 0) {
+    ctx->ml_files_with_text++;
+  }
+
+  MlFreeResult(&result);
+}
+
 static bool ScanCallback(const char *absolute_path, void *user_data) {
+  AppScanContext *ctx = (AppScanContext *)user_data;
   g_files_scanned++;
 
   if (FsIsSupportedMedia(absolute_path)) {
@@ -142,7 +218,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
     if (ExtractBasicMetadata(absolute_path, &mod_date, &size)) {
       ImageMetadata md = {0};
 
-      bool exhaustive = (user_data != NULL) ? *(bool *)user_data : false;
+      bool exhaustive = (ctx != NULL) ? ctx->exhaustive : false;
 
       if (CacheGetValidEntry(absolute_path, mod_date, size, &md)) {
         if (md.exactHashMd5[0] == '\0' ||
@@ -169,9 +245,12 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
           if (md.exactHashMd5[0] == '\0') {
             ComputeFileMd5(absolute_path, md.exactHashMd5);
           }
-          CacheUpdateEntry(&md);
           CacheFreeMetadata(&full);
         }
+
+        RunMlInferenceIfRequested(absolute_path, &md, ctx);
+        CacheUpdateEntry(&md);
+
         g_files_cached++;
         CacheFreeMetadata(&md);
         return true;
@@ -214,6 +293,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       }
 
       ComputeFileMd5(absolute_path, md.exactHashMd5);
+      RunMlInferenceIfRequested(absolute_path, &md, ctx);
 
       if (CacheUpdateEntry(&md)) {
         g_files_cached++;
@@ -227,9 +307,10 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.2.4\n");
+  printf("CGalleryOrganizer v0.3.0\n");
 
   bool exhaustive = false;
+  bool ml_enrich = false;
   bool organize = false;
   bool preview = false;
   bool rollback = false;
@@ -237,6 +318,7 @@ int main(int argc, char **argv) {
   const char *env_dir = NULL;
   const char *group_by_arg = NULL;
   bool cache_initialized = false;
+  bool ml_initialized = false;
 
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -245,6 +327,8 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[i], "-e") == 0 ||
                strcmp(argv[i], "--exhaustive") == 0) {
       exhaustive = true;
+    } else if (strcmp(argv[i], "--ml-enrich") == 0) {
+      ml_enrich = true;
     } else if (strcmp(argv[i], "--organize") == 0) {
       organize = true;
     } else if (strcmp(argv[i], "--group-by") == 0) {
@@ -323,11 +407,40 @@ int main(int argc, char **argv) {
   }
   cache_initialized = true;
 
+  char models_root[1024] = {0};
+  const char *models_override = getenv("CGO_MODELS_ROOT");
+  if (models_override && models_override[0] != '\0') {
+    strncpy(models_root, models_override, sizeof(models_root) - 1);
+  } else {
+    strncpy(models_root, "build/models", sizeof(models_root) - 1);
+  }
+
+  if (ml_enrich) {
+    if (!MlInit(models_root)) {
+      printf("Error: Failed to initialize ML runtime from %s.\n", models_root);
+      printf("Hint: run scripts/download_models.sh first or set CGO_MODELS_ROOT.\n");
+      CacheShutdown();
+      return 1;
+    }
+    ml_initialized = true;
+  }
+
   printf("Scanning directory: %s (Exhaustive: %s)\n", target_dir,
          exhaustive ? "ON" : "OFF");
 
-  if (!FsWalkDirectory(target_dir, ScanCallback, &exhaustive)) {
+  AppScanContext scan_ctx = {.exhaustive = exhaustive,
+                             .ml_enrich = ml_enrich,
+                             .ml_enabled = ml_initialized,
+                             .ml_files_evaluated = 0,
+                             .ml_files_classified = 0,
+                             .ml_files_with_text = 0,
+                             .ml_failures = 0};
+
+  if (!FsWalkDirectory(target_dir, ScanCallback, &scan_ctx)) {
     printf("Error: Failed to walk directory '%s'.\n", target_dir);
+    if (ml_initialized) {
+      MlShutdown();
+    }
     CacheShutdown();
     return 1;
   }
@@ -338,12 +451,22 @@ int main(int argc, char **argv) {
 
   printf("Scan complete.\n");
   printf("Files scanned: %d\n", g_files_scanned);
-  printf("Media files cached: %d\n\n", g_files_cached);
+  printf("Media files cached: %d\n", g_files_cached);
+  if (ml_enrich) {
+    printf("ML evaluated: %d\n", scan_ctx.ml_files_evaluated);
+    printf("ML classified: %d\n", scan_ctx.ml_files_classified);
+    printf("ML with text: %d\n", scan_ctx.ml_files_with_text);
+    printf("ML failures/skips: %d\n", scan_ctx.ml_failures);
+  }
+  printf("\n");
 
   if (preview || organize) {
     if (!env_dir) {
       printf("Error: --organize and --preview require an environment "
              "directory.\n");
+      if (ml_initialized) {
+        MlShutdown();
+      }
       CacheShutdown();
       return 1;
     }
@@ -353,6 +476,9 @@ int main(int argc, char **argv) {
     char *group_keys_owned = NULL;
     if (!ParseGroupByKeys(group_by_arg, group_keys, 16, &group_key_count,
                           &group_keys_owned)) {
+      if (ml_initialized) {
+        MlShutdown();
+      }
       CacheShutdown();
       return 1;
     }
@@ -362,6 +488,9 @@ int main(int argc, char **argv) {
     if (!OrganizerInit(env_dir)) {
       printf("[!] Failed to initialize organizer state.\n");
       free(group_keys_owned);
+      if (ml_initialized) {
+        MlShutdown();
+      }
       CacheShutdown();
       return 1;
     }
@@ -433,6 +562,10 @@ int main(int argc, char **argv) {
       printf("No exact duplicates found.\n");
     }
     FreeDuplicateReport(&rep);
+  }
+
+  if (ml_initialized) {
+    MlShutdown();
   }
 
   if (cache_initialized) {
