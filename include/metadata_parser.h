@@ -5,6 +5,6 @@
 
 #include "gallery_cache.h"
 
-ImageMetadata ExtractMetadata(const char *filepath);
+ImageMetadata ExtractMetadata(const char *filepath, bool exhaustive);
 
 #endif

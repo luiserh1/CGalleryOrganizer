@@ -10,7 +10,7 @@
 void test_metadata_png_dimensions(void) {
   const char *filepath = "tests/assets/png/sample.png";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.width > 0);
@@ -19,7 +19,7 @@ void test_metadata_png_dimensions(void) {
 
 void test_metadata_png_with_exif(void) {
   const char *filepath = "tests/assets/png/sample_exif.png";
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -29,7 +29,7 @@ void test_metadata_png_with_exif(void) {
 void test_metadata_gif_dimensions(void) {
   const char *filepath = "tests/assets/gif/sample.gif";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -38,7 +38,7 @@ void test_metadata_gif_dimensions(void) {
 void test_metadata_bmp_dimensions(void) {
   const char *filepath = "tests/assets/bmp/sample.bmp";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -47,7 +47,7 @@ void test_metadata_bmp_dimensions(void) {
 void test_metadata_webp_dimensions(void) {
   const char *filepath = "tests/assets/webp/sample.webp";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -55,7 +55,7 @@ void test_metadata_webp_dimensions(void) {
 
 void test_metadata_webp_with_exif(void) {
   const char *filepath = "tests/assets/webp/sample_exif.webp";
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -65,7 +65,7 @@ void test_metadata_webp_with_exif(void) {
 void test_metadata_heic_dimensions(void) {
   const char *filepath = "tests/assets/heic/sample.heic";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -73,7 +73,7 @@ void test_metadata_heic_dimensions(void) {
 
 void test_metadata_heic_with_exif(void) {
   const char *filepath = "tests/assets/heic/sample_exif.heic";
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -85,7 +85,7 @@ void test_metadata_heic_with_exif(void) {
 void test_metadata_jpeg_with_exif(void) {
   const char *filepath = "tests/assets/jpg/sample_exif.jpg";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -94,7 +94,7 @@ void test_metadata_jpeg_with_exif(void) {
 void test_metadata_jpeg_no_exif(void) {
   const char *filepath = "tests/assets/jpg/sample_no_exif.jpg";
 
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -102,7 +102,7 @@ void test_metadata_jpeg_no_exif(void) {
 
 void test_metadata_png_fake_extension(void) {
   const char *filepath = "tests/assets/png/fake.png";
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   // Fake extension: Exiv2 uses magic bytes, correctly identifying this as a
   // 240x160 JPEG despite the .png extension.
@@ -112,7 +112,7 @@ void test_metadata_png_fake_extension(void) {
 
 void test_metadata_bmp_truncated(void) {
   const char *filepath = "tests/assets/bmp/truncated.bmp";
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   // Truncated file: Exiv2 robustly reads the header without crashing and
   // returns the intended dimensions.
@@ -122,7 +122,7 @@ void test_metadata_bmp_truncated(void) {
 
 void test_metadata_jpeg_deep_exif(void) {
   const char *filepath = "tests/assets/jpg/sample_deep_exif.jpg";
-  ImageMetadata metadata = ExtractMetadata(filepath);
+  ImageMetadata metadata = ExtractMetadata(filepath, false);
 
   ASSERT_TRUE(metadata.width > 0);
   ASSERT_TRUE(metadata.height > 0);
@@ -145,9 +145,9 @@ void test_unified_metadata_dispatcher(void) {
   const char *gif_path = "tests/assets/gif/sample.gif";
   const char *bmp_path = "tests/assets/bmp/sample.bmp";
 
-  ImageMetadata png = ExtractMetadata(png_path);
-  ImageMetadata gif = ExtractMetadata(gif_path);
-  ImageMetadata bmp = ExtractMetadata(bmp_path);
+  ImageMetadata png = ExtractMetadata(png_path, false);
+  ImageMetadata gif = ExtractMetadata(gif_path, false);
+  ImageMetadata bmp = ExtractMetadata(bmp_path, false);
 
   ASSERT_TRUE(png.width > 0);
   ASSERT_TRUE(gif.width > 0);
@@ -176,7 +176,7 @@ static bool ScanCallbackIntegrations(const char *absolute_path,
     md.fileSize = size;
 
     if (FsIsSupportedMedia(absolute_path)) {
-      ImageMetadata parsed = ExtractMetadata(absolute_path);
+      ImageMetadata parsed = ExtractMetadata(absolute_path, false);
       md.width = parsed.width;
       md.height = parsed.height;
       strncpy(md.dateTaken, parsed.dateTaken, METADATA_MAX_STRING - 1);
@@ -186,13 +186,33 @@ static bool ScanCallbackIntegrations(const char *absolute_path,
       md.hasGps = parsed.hasGps;
       md.gpsLatitude = parsed.gpsLatitude;
       md.gpsLongitude = parsed.gpsLongitude;
+      CacheFreeMetadata(&parsed);
     }
 
     ComputeFileMd5(absolute_path, md.exactHashMd5);
     CacheUpdateEntry(&md);
-    free(md.path);
+    CacheFreeMetadata(&md);
   }
   return true;
+}
+
+void test_exhaustive_metadata_capture(void) {
+  const char *filepath = "tests/assets/jpg/sample_exif.jpg";
+
+  // 1. Regular extraction should have NULL allMetadataJson
+  ImageMetadata regular = ExtractMetadata(filepath, false);
+  ASSERT_TRUE(regular.allMetadataJson == NULL);
+  CacheFreeMetadata(&regular);
+
+  // 2. Exhaustive extraction should NOT be NULL
+  ImageMetadata exhaustive = ExtractMetadata(filepath, true);
+  ASSERT_TRUE(exhaustive.allMetadataJson != NULL);
+
+  // 3. Verify it contains expected JSON-like structure
+  ASSERT_TRUE(strstr(exhaustive.allMetadataJson, "Exif.Image.Make") != NULL);
+  ASSERT_TRUE(strstr(exhaustive.allMetadataJson, "\"Apple\"") != NULL);
+
+  CacheFreeMetadata(&exhaustive);
 }
 
 void test_duplicate_integration(void) {
@@ -253,6 +273,8 @@ void register_integration_tests(void) {
                 "integration");
   register_test("test_unified_metadata_dispatcher",
                 test_unified_metadata_dispatcher, "integration");
+  register_test("test_exhaustive_metadata_capture",
+                test_exhaustive_metadata_capture, "integration");
   register_test("test_duplicate_integration", test_duplicate_integration,
                 "integration");
 }

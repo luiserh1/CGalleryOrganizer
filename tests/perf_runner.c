@@ -22,7 +22,8 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
     long size = 0;
     ExtractBasicMetadata(absolute_path, &mod_date, &size);
 
-    ImageMetadata meta = ExtractMetadata(absolute_path);
+    // In stress tests, we always run exhaustive extraction as per user request
+    ImageMetadata meta = ExtractMetadata(absolute_path, true);
     meta.path = strdup(absolute_path);
     meta.modificationDate = mod_date;
     meta.fileSize = size;
@@ -31,6 +32,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
     ComputeFileMd5(absolute_path, meta.exactHashMd5);
 
     CacheUpdateEntry(&meta);
+    CacheFreeMetadata(&meta);
   }
   return true;
 }

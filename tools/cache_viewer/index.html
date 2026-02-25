@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -20,10 +22,22 @@
                 <span class="or">OR</span>
                 <input type="file" id="file-input" accept=".json">
             </div>
-            
+
             <div class="search-bar">
                 <input type="text" id="search-input" placeholder="Search paths, extensions, camera models...">
+                <button id="btn-search-help" class="icon-btn" title="Search Help">?</button>
                 <span id="result-count">0 items loaded</span>
+            </div>
+
+            <div id="search-help" class="help-box hidden">
+                <h4>Advanced Filtering</h4>
+                <ul>
+                    <li><strong>tag:value</strong> - Search inside specific metadata tags (e.g. <code>iso:100</code>,
+                        <code>lens:35mm</code>)</li>
+                    <li><strong>.extension</strong> - Filter by file type (e.g. <code>.jpg</code>, <code>.png</code>)
+                    </li>
+                    <li><strong>Plain text</strong> - General search in path, hash, and camera info.</li>
+                </ul>
             </div>
         </section>
 
@@ -31,6 +45,7 @@
             <table id="metadata-table">
                 <thead>
                     <tr>
+                        <th class="expand-col"></th>
                         <th data-sort="path">Path</th>
                         <th data-sort="size">Size</th>
                         <th data-sort="hash">MD5 Hash</th>
@@ -54,4 +69,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

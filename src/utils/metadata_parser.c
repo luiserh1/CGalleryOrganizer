@@ -6,14 +6,14 @@
 #include "gallery_cache.h"
 #include "metadata_parser.h"
 
-ImageMetadata ExtractMetadata(const char *filepath) {
+ImageMetadata ExtractMetadata(const char *filepath, bool exhaustive) {
   ImageMetadata metadata = {0};
 
   if (!filepath)
     return metadata;
 
   if (FsIsSupportedMedia(filepath)) {
-    ExtractMetadataExiv2(filepath, &metadata);
+    ExtractMetadataExiv2(filepath, &metadata, exhaustive);
   }
 
   return metadata;

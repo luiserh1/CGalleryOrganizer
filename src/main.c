@@ -23,12 +23,34 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
     if (ExtractBasicMetadata(absolute_path, &mod_date, &size)) {
       ImageMetadata md = {0};
 
+      bool exhaustive = (user_data != NULL) ? *(bool *)user_data : false;
+
       if (CacheGetValidEntry(absolute_path, mod_date, size, &md)) {
-        if (md.exactHashMd5[0] == '\0') {
-          ComputeFileMd5(absolute_path, md.exactHashMd5);
+        if (md.exactHashMd5[0] == '\0' ||
+            (exhaustive && md.allMetadataJson == NULL)) {
+          // If hash is missing OR we want exhaustive but don't have it, re-scan
+          ImageMetadata full = ExtractMetadata(absolute_path, exhaustive);
+          md.width = full.width;
+          md.height = full.height;
+          strncpy(md.dateTaken, full.dateTaken, METADATA_MAX_STRING - 1);
+          strncpy(md.cameraMake, full.cameraMake, METADATA_MAX_STRING - 1);
+          strncpy(md.cameraModel, full.cameraModel, METADATA_MAX_STRING - 1);
+          md.orientation = full.orientation;
+          md.hasGps = full.hasGps;
+          md.gpsLatitude = full.gpsLatitude;
+          md.gpsLongitude = full.gpsLongitude;
+          if (full.allMetadataJson) {
+            if (md.allMetadataJson)
+              free(md.allMetadataJson);
+            md.allMetadataJson = strdup(full.allMetadataJson);
+          }
+          if (md.exactHashMd5[0] == '\0')
+            ComputeFileMd5(absolute_path, md.exactHashMd5);
           CacheUpdateEntry(&md);
+          CacheFreeMetadata(&full);
         }
         g_files_cached++;
+        CacheFreeMetadata(&md);
         return true;
       }
 
@@ -36,7 +58,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       md.modificationDate = mod_date;
       md.fileSize = size;
 
-      ImageMetadata extracted = ExtractMetadata(absolute_path);
+      ImageMetadata extracted = ExtractMetadata(absolute_path, exhaustive);
       if (extracted.width > 0) {
         md.width = extracted.width;
       }
@@ -57,11 +79,17 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       md.gpsLatitude = extracted.gpsLatitude;
       md.gpsLongitude = extracted.gpsLongitude;
 
+      if (extracted.allMetadataJson) {
+        md.allMetadataJson = strdup(extracted.allMetadataJson);
+      }
+
       ComputeFileMd5(absolute_path, md.exactHashMd5);
 
       if (CacheUpdateEntry(&md)) {
         g_files_cached++;
       }
+      CacheFreeMetadata(&md);
+      CacheFreeMetadata(&extracted);
     }
   }
 
@@ -71,21 +99,35 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 int main(int argc, char **argv) {
   printf("CGalleryOrganizer v0.1.6-dev\n");
 
-  if (argc < 2) {
-    printf("Usage: %s <directory_to_scan> [duplicates_target_dir]\n", argv[0]);
+  bool exhaustive = false;
+  const char *target_dir = NULL;
+  const char *duplicates_target_dir = NULL;
+
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+      printf(
+          "Usage: %s <directory_to_scan> [duplicates_target_dir] [options]\n",
+          argv[0]);
+      printf("\n");
+      printf("Options:\n");
+      printf("  -h, --help        Show this help message and exit\n");
+      printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
+      return 0;
+    } else if (strcmp(argv[i], "-e") == 0 ||
+               strcmp(argv[i], "--exhaustive") == 0) {
+      exhaustive = true;
+    } else if (target_dir == NULL) {
+      target_dir = argv[i];
+    } else if (duplicates_target_dir == NULL) {
+      duplicates_target_dir = argv[i];
+    }
+  }
+
+  if (target_dir == NULL) {
+    printf("Usage: %s <directory_to_scan> [duplicates_target_dir] [options]\n",
+           argv[0]);
     return 1;
   }
-
-  if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
-    printf("Usage: %s <directory_to_scan> [duplicates_target_dir]\n", argv[0]);
-    printf("\n");
-    printf("Options:\n");
-    printf("  -h, --help    Show this help message and exit\n");
-    return 0;
-  }
-
-  const char *target_dir = argv[1];
-  const char *duplicates_target_dir = (argc >= 3) ? argv[2] : NULL;
 
   mkdir(".cache", 0755);
   if (!CacheInit(".cache/gallery_cache.json")) {
@@ -93,9 +135,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  printf("Scanning directory: %s\n", target_dir);
+  printf("Scanning directory: %s (Exhaustive: %s)\n", target_dir,
+         exhaustive ? "ON" : "OFF");
 
-  if (!FsWalkDirectory(target_dir, ScanCallback, NULL)) {
+  if (!FsWalkDirectory(target_dir, ScanCallback, &exhaustive)) {
     printf("Error: Failed to walk directory '%s'.\n", target_dir);
     CacheShutdown();
     return 1;

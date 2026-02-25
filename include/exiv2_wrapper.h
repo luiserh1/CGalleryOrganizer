@@ -8,7 +8,8 @@
 extern "C" {
 #endif
 
-bool ExtractMetadataExiv2(const char *filepath, ImageMetadata *out_metadata);
+bool ExtractMetadataExiv2(const char *filepath, ImageMetadata *out_metadata,
+                          bool exhaustive);
 
 #ifdef __cplusplus
 }

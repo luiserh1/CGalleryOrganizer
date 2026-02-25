@@ -24,6 +24,10 @@ typedef struct {
 
   // Exact duplicate detection
   char exactHashMd5[33];
+
+  // Dynamic Metadata (exhaustive capture)
+  char *
+      allMetadataJson; // Stringified JSON of all tags found (owned dynamically)
 } ImageMetadata;
 
 // Caching interface
@@ -56,5 +60,8 @@ bool ExtractBasicMetadata(const char *absolute_path, double *out_mod_date,
 // Gets a list of all raw cache keys (allocated array of allocated strings)
 char **CacheGetAllKeys(int *out_count);
 void CacheFreeKeys(char **keys, int count);
+
+// Frees dynamically allocated members of ImageMetadata
+void CacheFreeMetadata(ImageMetadata *md);
 
 #endif // GALLERY_CACHE_H

@@ -99,6 +99,12 @@ bool CacheUpdateEntry(const ImageMetadata *data) {
   if (data->exactHashMd5[0] != '\0') {
     cJSON_AddStringToObject(entry, "exactHashMd5", data->exactHashMd5);
   }
+  if (data->allMetadataJson) {
+    cJSON *extra = cJSON_Parse(data->allMetadataJson);
+    if (extra) {
+      cJSON_AddItemToObject(entry, "allMetadataJson", extra);
+    }
+  }
 
   // Replace if exists, otherwise add
   if (cJSON_GetObjectItem(g_cache_root, data->path)) {
@@ -167,6 +173,11 @@ bool CacheGetValidEntry(const char *absolute_path, double current_mod_date,
   node = cJSON_GetObjectItem(entry, "exactHashMd5");
   if (node && cJSON_IsString(node))
     strncpy(out_md->exactHashMd5, node->valuestring, 32);
+
+  node = cJSON_GetObjectItem(entry, "allMetadataJson");
+  if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
+    out_md->allMetadataJson = cJSON_PrintUnformatted(node);
+  }
 
   return true;
 }
@@ -240,6 +251,11 @@ bool CacheGetRawEntry(const char *key, ImageMetadata *out_md) {
   if (node && cJSON_IsString(node))
     strncpy(out_md->exactHashMd5, node->valuestring, 32);
 
+  node = cJSON_GetObjectItem(entry, "allMetadataJson");
+  if (node && (cJSON_IsObject(node) || cJSON_IsArray(node))) {
+    out_md->allMetadataJson = cJSON_PrintUnformatted(node);
+  }
+
   return true;
 }
 
@@ -289,4 +305,17 @@ void CacheFreeKeys(char **keys, int count) {
     free(keys[i]);
   }
   free(keys);
+}
+
+void CacheFreeMetadata(ImageMetadata *md) {
+  if (!md)
+    return;
+  if (md->path) {
+    free(md->path);
+    md->path = NULL;
+  }
+  if (md->allMetadataJson) {
+    free(md->allMetadataJson);
+    md->allMetadataJson = NULL;
+  }
 }

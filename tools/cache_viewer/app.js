@@ -1,162 +1,245 @@
-let cacheData = [];
-let filteredData = [];
-let currentPage = 1;
-const ITEMS_PER_PAGE = 50;
+const state = {
+    allData: [],
+    filteredData: [],
+    currentPage: 1,
+    rowsPerPage: 50,
+    currentSort: { key: 'path', direction: 'asc' }
+};
 
-// DOM Elements
-const btnLoadDefault = document.getElementById('btn-load-default');
-const fileInput = document.getElementById('file-input');
-const searchInput = document.getElementById('search-input');
-const resultCount = document.getElementById('result-count');
-const tableBody = document.getElementById('table-body');
-const btnPrev = document.getElementById('btn-prev');
-const btnNext = document.getElementById('btn-next');
-const pageInfo = document.getElementById('page-info');
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+});
 
-// Event Listeners
-btnLoadDefault.addEventListener('click', loadDefaultCache);
-fileInput.addEventListener('change', handleFileUpload);
-searchInput.addEventListener('input', handleSearch);
-btnPrev.addEventListener('click', () => changePage(-1));
-btnNext.addEventListener('click', () => changePage(1));
+function setupEventListeners() {
+    document.getElementById('file-input').addEventListener('change', handleFileSelect);
+    document.getElementById('btn-load-default').addEventListener('click', loadDefaultCache);
+    document.getElementById('search-input').addEventListener('input', debounce(handleSearch, 300));
+    document.getElementById('btn-search-help').addEventListener('click', toggleSearchHelp);
 
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => handleSort(th.dataset.sort));
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => changePage(-1));
+    document.getElementById('btn-next').addEventListener('click', () => changePage(1));
+}
+
+function toggleSearchHelp() {
+    document.getElementById('search-help').classList.toggle('hidden');
+}
+
+// --- Data Loading ---
 async function loadDefaultCache() {
     try {
-        btnLoadDefault.textContent = "Loading...";
-        btnLoadDefault.disabled = true;
-
-        // Relative path assuming running from tools/cache_viewer/ via local server
+        const btn = document.getElementById('btn-load-default');
+        btn.textContent = "Loading...";
         const response = await fetch('../../build/perf_cache.json');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
         const data = await response.json();
         processData(data);
-
-        btnLoadDefault.textContent = "Loaded!";
-        setTimeout(() => {
-            btnLoadDefault.textContent = "Load Default (build/perf_cache.json)";
-            btnLoadDefault.disabled = false;
-        }, 2000);
-
+        btn.textContent = "Load Default (build/perf_cache.json)";
     } catch (error) {
-        console.error("Failed to load default cache:", error);
-        btnLoadDefault.textContent = "Error (Are you running a server?)";
-        btnLoadDefault.style.backgroundColor = "var(--danger)";
-        setTimeout(() => {
-            btnLoadDefault.textContent = "Load Default (build/perf_cache.json)";
-            btnLoadDefault.style.backgroundColor = "";
-            btnLoadDefault.disabled = false;
-        }, 3000);
+        console.error('Error loading default cache:', error);
+        alert('Could not load default cache. Ensure you run from project root and have run "make stress".');
     }
 }
 
-function handleFileUpload(event) {
+function handleFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
             processData(data);
         } catch (error) {
-            console.error("Error parsing JSON:", error);
-            alert("Invalid JSON file uploaded.");
+            alert('Error parsing JSON file.');
         }
     };
     reader.readAsText(file);
 }
 
-function processData(data) {
-    // The cache mapping is an object of { "filepath": {metadataObject} }
-    // We want to flatten it to an array for easier sorting/filtering
-    cacheData = Object.entries(data).map(([path, meta]) => ({
-        path: path,
-        ...meta
-    }));
-
-    filteredData = [...cacheData];
-    currentPage = 1;
-    updateTable();
+function processData(rawData) {
+    // Handle both array and object formats
+    state.allData = Array.isArray(rawData) ? rawData :
+        Object.entries(rawData).map(([path, meta]) => ({ path, ...meta }));
+    state.filteredData = [...state.allData];
+    state.currentPage = 1;
+    updateUI();
 }
 
-function handleSearch(event) {
-    const query = event.target.value.toLowerCase();
+// --- Search / Filtering ---
+function handleSearch() {
+    const query = document.getElementById('search-input').value.toLowerCase().trim();
 
     if (!query) {
-        filteredData = [...cacheData];
+        state.filteredData = [...state.allData];
     } else {
-        filteredData = cacheData.filter(item => {
-            const pathMatch = item.path && item.path.toLowerCase().includes(query);
-            const cameraMatch = item.cameraModel && item.cameraModel.toLowerCase().includes(query);
-            const makeMatch = item.cameraMake && item.cameraMake.toLowerCase().includes(query);
-            const hashMatch = item.exactHashMd5 && item.exactHashMd5.toLowerCase().includes(query);
+        const parts = query.split(' ');
 
-            return pathMatch || cameraMatch || makeMatch || hashMatch;
+        state.filteredData = state.allData.filter(item => {
+            return parts.every(part => {
+                // Special check for tag:value
+                if (part.includes(':')) {
+                    const [key, val] = part.split(':');
+                    if (item.allMetadataJson) {
+                        return Object.entries(item.allMetadataJson).some(([mKey, mVal]) =>
+                            mKey.toLowerCase().includes(key) && String(mVal).toLowerCase().includes(val)
+                        );
+                    }
+                    return false;
+                }
+
+                // Special check for .extension
+                if (part.startsWith('.')) {
+                    return item.path.toLowerCase().endsWith(part);
+                }
+
+                // General search
+                const pathMatch = item.path && item.path.toLowerCase().includes(part);
+                const cameraMatch = item.cameraModel && item.cameraModel.toLowerCase().includes(part);
+                const makeMatch = item.cameraMake && item.cameraMake.toLowerCase().includes(part);
+                const hashMatch = item.exactHashMd5 && item.exactHashMd5.toLowerCase().includes(part);
+
+                return pathMatch || cameraMatch || makeMatch || hashMatch;
+            });
         });
     }
 
-    currentPage = 1;
-    updateTable();
+    state.currentPage = 1;
+    updateUI();
 }
 
-function formatBytes(bytes, decimals = 2) {
-    if (!+bytes) return '0 Bytes';
+// --- Rendering ---
+function updateUI() {
+    renderTable();
+    updatePagination();
+    document.getElementById('result-count').textContent = `${state.filteredData.length} items found`;
+}
+
+function renderTable() {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+
+    const start = (state.currentPage - 1) * state.rowsPerPage;
+    const end = Math.min(start + state.rowsPerPage, state.filteredData.length);
+    const pageData = state.filteredData.slice(start, end);
+
+    pageData.forEach((item, index) => {
+        const globalIndex = start + index;
+        const tr = document.createElement('tr');
+        const dim = (item.width && item.height) ? `${item.width} x ${item.height}` : '-';
+        const size = item.fileSize ? formatBytes(item.fileSize) : '-';
+        const date = item.dateTaken || (item.modificationDate ? new Date(item.modificationDate * 1000).toLocaleString() : '-');
+        const cam = [item.cameraMake, item.cameraModel].filter(Boolean).join(' ') || '-';
+        const hash = item.exactHashMd5 ? item.exactHashMd5.substring(0, 8) + '...' : 'Pending';
+
+        tr.innerHTML = `
+            <td class="expand-col"><button class="btn-expand" onclick="toggleDetails(${globalIndex})">▶</button></td>
+            <td class="path-cell" title="${item.path}">${item.path.split('/').pop()}</td>
+            <td>${size}</td>
+            <td class="hash-cell" title="${item.exactHashMd5}">${hash}</td>
+            <td>${dim}</td>
+            <td>${date}</td>
+            <td>${cam}</td>
+        `;
+        tbody.appendChild(tr);
+
+        // Details Row
+        const detailsTr = document.createElement('tr');
+        detailsTr.id = `details-${globalIndex}`;
+        detailsTr.className = 'details-row hidden';
+
+        let extraHtml = '<div class="details-container"><div class="metadata-grid">';
+        if (item.allMetadataJson && Object.keys(item.allMetadataJson).length > 0) {
+            Object.entries(item.allMetadataJson).forEach(([k, v]) => {
+                extraHtml += `
+                    <div class="meta-item">
+                        <span class="meta-key">${k}</span>
+                        <span class="meta-val">${v}</span>
+                    </div>
+                `;
+            });
+        } else {
+            extraHtml += '<p style="grid-column: 1/-1; color: #8b949e; padding: 1rem;">No exhaustive metadata available for this entry. Run with --exhaustive to capture all tags.</p>';
+        }
+        extraHtml += '</div></div>';
+
+        detailsTr.innerHTML = `
+            <td colspan="7">
+                ${extraHtml}
+            </td>
+        `;
+        tbody.appendChild(detailsTr);
+    });
+}
+
+window.toggleDetails = function (index) {
+    const detailsRow = document.getElementById(`details-${index}`);
+    const btn = detailsRow.previousElementSibling.querySelector('.btn-expand');
+
+    detailsRow.classList.toggle('hidden');
+    // Allow a small delay for the hidden class removal before animating
+    setTimeout(() => {
+        detailsRow.classList.toggle('active');
+        btn.classList.toggle('active');
+    }, 10);
+};
+
+// --- Utilities ---
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function formatDate(timestamp) {
-    if (!timestamp) return 'N/A';
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleString();
-}
-
-function renderRow(item) {
-    const tr = document.createElement('tr');
-
-    const dim = (item.width && item.height) ? `${item.width} x ${item.height}` : 'N/A';
-    const makeModel = (item.cameraMake || item.cameraModel) ? `${item.cameraMake || ''} ${item.cameraModel || ''}`.trim() : 'N/A';
-
-    tr.innerHTML = `
-        <td class="path-cell" title="${item.path}">${item.path}</td>
-        <td>${formatBytes(item.fileSize)}</td>
-        <td class="hash-cell">${item.exactHashMd5 || 'Pending'}</td>
-        <td>${dim}</td>
-        <td>${formatDate(item.dateTaken || item.modificationDate)}</td>
-        <td>${makeModel}</td>
-    `;
-    return tr;
-}
-
-function updateTable() {
-    resultCount.textContent = `${filteredData.length} items found`;
-
-    const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
-    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-
-    btnPrev.disabled = currentPage === 1;
-    btnNext.disabled = currentPage === totalPages;
-
-    tableBody.innerHTML = '';
-
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredData.length);
-
-    for (let i = startIndex; i < endIndex; i++) {
-        tableBody.appendChild(renderRow(filteredData[i]));
+function handleSort(key) {
+    if (state.currentSort.key === key) {
+        state.currentSort.direction = state.currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        state.currentSort.key = key;
+        state.currentSort.direction = 'asc';
     }
+
+    state.filteredData.sort((a, b) => {
+        let valA = a[key] || '';
+        let valB = b[key] || '';
+
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+
+        if (valA < valB) return state.currentSort.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return state.currentSort.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    renderTable();
 }
 
 function changePage(delta) {
-    const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
-    currentPage += delta;
+    state.currentPage += delta;
+    updateUI();
+}
 
-    if (currentPage < 1) currentPage = 1;
-    if (currentPage > totalPages) currentPage = totalPages;
+function updatePagination() {
+    const totalPages = Math.ceil(state.filteredData.length / state.rowsPerPage) || 1;
+    document.getElementById('page-info').textContent = `Page ${state.currentPage} of ${totalPages}`;
+    document.getElementById('btn-prev').disabled = state.currentPage === 1;
+    document.getElementById('btn-next').disabled = state.currentPage === totalPages;
+}
 
-    updateTable();
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

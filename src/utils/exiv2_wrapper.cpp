@@ -2,7 +2,9 @@
 
 #include <cstring>
 #include <exiv2/exiv2.hpp>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 extern "C" {
@@ -18,7 +20,8 @@ static double parse_gps_coordinate(const Exiv2::Value &value) {
   return d + (m / 60.0) + (s / 3600.0);
 }
 
-bool ExtractMetadataExiv2(const char *filepath, ImageMetadata *out_metadata) {
+bool ExtractMetadataExiv2(const char *filepath, ImageMetadata *out_metadata,
+                          bool exhaustive) {
   if (!filepath || !out_metadata)
     return false;
 
@@ -98,6 +101,47 @@ bool ExtractMetadataExiv2(const char *filepath, ImageMetadata *out_metadata) {
       out_metadata->hasGps = true;
       out_metadata->gpsLatitude = lat;
       out_metadata->gpsLongitude = lon;
+    }
+
+    if (exhaustive) {
+      // Build a simple JSON object string using stringstream
+      std::ostringstream oss;
+      oss << "{";
+      bool first = true;
+
+      auto add_tags = [&](const auto &data) {
+        for (auto it = data.begin(); it != data.end(); ++it) {
+          if (!first)
+            oss << ",";
+          oss << "\"" << it->key() << "\":\"";
+          // Escape quotes in value
+          std::string val = it->toString();
+          for (char c : val) {
+            if (c == '"')
+              oss << "\\\"";
+            else if (c == '\\')
+              oss << "\\\\";
+            else if (c == '\n')
+              oss << "\\n";
+            else if (c == '\r')
+              oss << "\\r";
+            else if (c == '\t')
+              oss << "\\t";
+            else
+              oss << c;
+          }
+          oss << "\"";
+          first = false;
+        }
+      };
+
+      add_tags(image->exifData());
+      add_tags(image->iptcData());
+      add_tags(image->xmpData());
+
+      oss << "}";
+      std::string json = oss.str();
+      out_metadata->allMetadataJson = strdup(json.c_str());
     }
 
     return true;
