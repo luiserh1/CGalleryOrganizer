@@ -1,0 +1,30 @@
+{
+  "models": [
+    {
+      "id": "clf-default",
+      "task": "classification",
+      "url": "data:application/octet-stream;base64,b25ueC1wbGFjZWhvbGRlci1jbGYtdjEK",
+      "sha256": "59f2723d7445b89a523ed98a386ffe18f0a5cd0b481376dbb49269a788a3c036",
+      "license_name": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "author": "CGalleryOrganizer maintainers",
+      "source_url": "https://github.com/luiserh1/CGalleryOrganizer",
+      "credit_text": "Bootstrap placeholder classification model artifact for local wiring.",
+      "version": "0.3.0-bootstrap",
+      "filename": "clf-default.onnx"
+    },
+    {
+      "id": "text-default",
+      "task": "text_detection",
+      "url": "data:application/octet-stream;base64,b25ueC1wbGFjZWhvbGRlci10ZXh0LXYxCg==",
+      "sha256": "c23369c4fe0df8a5b17fb44ad8c323440bee9dd1efa9ae5c606365b6d670482b",
+      "license_name": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "author": "CGalleryOrganizer maintainers",
+      "source_url": "https://github.com/luiserh1/CGalleryOrganizer",
+      "credit_text": "Bootstrap placeholder text-detection model artifact for local wiring.",
+      "version": "0.3.0-bootstrap",
+      "filename": "text-default.onnx"
+    }
+  ]
+}
