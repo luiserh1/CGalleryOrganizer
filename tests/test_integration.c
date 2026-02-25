@@ -196,8 +196,8 @@ static bool ScanCallbackIntegrations(const char *absolute_path,
 }
 
 void test_duplicate_integration(void) {
-  system("rm -f test_dup_integ_cache.json");
-  ASSERT_TRUE(CacheInit("test_dup_integ_cache.json"));
+  system("rm -f build/test_dup_integ_cache.json");
+  ASSERT_TRUE(CacheInit("build/test_dup_integ_cache.json"));
 
   // 1. Scan the whole duplicate asset tree
   ASSERT_TRUE(FsWalkDirectory("./tests/assets/duplicates",
@@ -223,7 +223,7 @@ void test_duplicate_integration(void) {
 
   FreeDuplicateReport(&rep);
   CacheShutdown();
-  system("rm -f test_dup_integ_cache.json");
+  system("rm -f build/test_dup_integ_cache.json");
 }
 
 void register_integration_tests(void) {

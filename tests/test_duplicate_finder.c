@@ -21,7 +21,7 @@ void test_find_exact_duplicates_success(void) {
   create_file("dup_test_3.txt", "unique content!");
 
   // 2. Init cache and populate it
-  CacheInit("test_dup_cache.json");
+  CacheInit("build/test_dup_cache.json");
 
   ImageMetadata md1 = {0};
   md1.path = strdup("dup_test_1.txt");
@@ -55,7 +55,7 @@ void test_find_exact_duplicates_success(void) {
 
   FreeDuplicateReport(&rep);
   CacheShutdown();
-  remove("test_dup_cache.json");
+  remove("build/test_dup_cache.json");
   remove("dup_test_1.txt");
   remove("dup_test_2.txt");
   remove("dup_test_3.txt");

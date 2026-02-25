@@ -36,9 +36,9 @@ make
 ### Usage
 Run the scanner against any directory:
 ```bash
-./bin/gallery_organizer /path/to/your/photos
+./build/bin/gallery_organizer /path/to/your/photos
 ```
-This will generate a `gallery_cache.json` file in the current directory containing all extracted metadata.
+This will generate a `.cache/gallery_cache.json` file inside the project directory containing all extracted metadata.
 
 ### Run Tests
 ```bash

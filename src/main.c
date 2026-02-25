@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "duplicate_finder.h"
 #include "fs_utils.h"
@@ -86,7 +87,8 @@ int main(int argc, char **argv) {
   const char *target_dir = argv[1];
   const char *duplicates_target_dir = (argc >= 3) ? argv[2] : NULL;
 
-  if (!CacheInit("gallery_cache.json")) {
+  mkdir(".cache", 0755);
+  if (!CacheInit(".cache/gallery_cache.json")) {
     printf("Error: Failed to initialize cache.\n");
     return 1;
   }

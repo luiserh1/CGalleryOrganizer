@@ -8,8 +8,8 @@ LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/l
 BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 TEST_OBJ_DIR = $(BUILD_DIR)/tests
-BIN_DIR = bin
-TEST_BIN_DIR = tests/bin
+BIN_DIR = $(BUILD_DIR)/bin
+TEST_BIN_DIR = $(BUILD_DIR)/tests/bin
 
 SRC_DIRS = src/core src/systems src/utils
 C_SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/main.c vendor/cJSON.c vendor/md5.c vendor/sha256.c src/systems/duplicate_finder.c
@@ -26,7 +26,7 @@ TEST_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(TEST_SRCS)) $(patsubst %.cpp,$(
 TEST_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/test_runner.o
 TEST_BIN = $(TEST_BIN_DIR)/test_runner
 
-TARGET = bin/gallery_organizer
+TARGET = $(BIN_DIR)/gallery_organizer
 
 .PHONY: all clean test help
 
@@ -47,7 +47,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf $(BIN_DIR)
 	rm -rf $(TEST_BIN_DIR)
-	rm -f gallery_cache.json
+	rm -rf .cache
 	@find . -type f -name '*.o' -delete
 
 # Compile C files

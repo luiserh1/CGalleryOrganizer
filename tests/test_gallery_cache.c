@@ -20,7 +20,7 @@ void test_cache_extract_basic_metadata(void) {
 
 void test_cache_flow(void) {
   // 1. Init cache
-  ASSERT_TRUE(CacheInit("temp_cache.json"));
+  ASSERT_TRUE(CacheInit("build/temp_cache.json"));
 
   // 2. Create entry
   ImageMetadata md = {0};
@@ -35,7 +35,7 @@ void test_cache_flow(void) {
 
   // 4. Shutdown and re-init to test loading
   CacheShutdown();
-  ASSERT_TRUE(CacheInit("temp_cache.json"));
+  ASSERT_TRUE(CacheInit("build/temp_cache.json"));
 
   // 5. Get entry (simulate file exists with same size and date)
   ImageMetadata loaded_md = {0};
@@ -57,7 +57,7 @@ void test_cache_flow(void) {
   ASSERT_FALSE(CacheGetValidEntry("/missing/path.jpg", 0, 0, &loaded_md));
 
   CacheShutdown();
-  system("rm temp_cache.json");
+  system("rm -f build/temp_cache.json");
 }
 
 void register_gallery_cache_tests(void) {

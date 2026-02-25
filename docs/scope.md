@@ -14,7 +14,7 @@ CGalleryOrganizer is a local, privacy-first application designed to analyze, cla
 
 - **Zero-to-Minimal Vendor Dependencies**: Third-party C header packages (JSON parsers, ML frameworks) are heavily isolated in `vendor/`. Heavy system-level libraries (like `exiv2` for robust format parsing) are integrated natively via the host OS package manager and securely abstracted behind pure C wrappers. All dependencies are documented in `docs/dependencies.md`.
 - **Granular Evolution**: Features are strictly bounded by minor version bumps (0.1.0 -> 0.2.0, etc.).
-- **Strict Data Contract**: The application revolves around a JSON-backed cache (`gallery_cache.json`) to avoid re-computing expensive heuristics.
+- **Strict Data Contract**: The application revolves around a JSON-backed cache (`.cache/gallery_cache.json`) to avoid re-computing expensive heuristics.
 - **TDD Driven**: All logic (FS parsing, caching, hashing, math) is tested via a custom, lightweight framework without relying on external testing libraries.
 
 ---
@@ -34,7 +34,7 @@ Establish the project structure, testing framework, code style, and implement ba
   - Absolute Path
   - File Size (bytes)
   - Modification Date (Unix Timestamp)
-- JSON Cache integration (`gallery_cache.json`) using a lightweight vendor library (e.g., `cJSON`).
+- JSON Cache integration (`.cache/gallery_cache.json`) using a lightweight vendor library (e.g., `cJSON`).
   - Cache invalidation logic based on file size and timestamp.
 
 ---
