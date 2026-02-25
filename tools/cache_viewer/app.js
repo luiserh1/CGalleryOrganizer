@@ -245,6 +245,43 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+function parseExifDateToTimestamp(exifDate) {
+    if (!exifDate || typeof exifDate !== 'string') return 0;
+    const match = exifDate.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+    if (!match) return 0;
+    const [, year, month, day, hour, minute, second] = match;
+    return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+    ).getTime();
+}
+
+function getSortValue(item, key) {
+    switch (key) {
+        case 'path':
+            return (item.path || '').toLowerCase();
+        case 'size':
+            return Number(item.fileSize || 0);
+        case 'hash':
+            return (item.exactHashMd5 || '').toLowerCase();
+        case 'width':
+            return Number(item.width || 0) * Number(item.height || 0);
+        case 'date': {
+            const exifTs = parseExifDateToTimestamp(item.dateTaken);
+            if (exifTs > 0) return exifTs;
+            return Number(item.modificationDate || 0);
+        }
+        case 'make':
+            return `${item.cameraMake || ''} ${item.cameraModel || ''}`.trim().toLowerCase();
+        default:
+            return '';
+    }
+}
+
 function handleSort(key) {
     if (state.currentSort.key === key) {
         state.currentSort.direction = state.currentSort.direction === 'asc' ? 'desc' : 'asc';
@@ -254,11 +291,8 @@ function handleSort(key) {
     }
 
     state.filteredData.sort((a, b) => {
-        let valA = a[key] || '';
-        let valB = b[key] || '';
-
-        if (typeof valA === 'string') valA = valA.toLowerCase();
-        if (typeof valB === 'string') valB = valB.toLowerCase();
+        const valA = getSortValue(a, key);
+        const valB = getSortValue(b, key);
 
         if (valA < valB) return state.currentSort.direction === 'asc' ? -1 : 1;
         if (valA > valB) return state.currentSort.direction === 'asc' ? 1 : -1;

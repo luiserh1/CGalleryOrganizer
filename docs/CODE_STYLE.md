@@ -2,146 +2,56 @@
 
 ## Overview
 
-This document establishes the coding conventions for the CGalleryOrganizer project.
+This document defines practical coding conventions used in CGalleryOrganizer.
 
----
+## 1. Includes
 
-## 1. Include Paths
+- Use project headers by name (e.g., `"gallery_cache.h"`) with include paths from `Makefile`.
+- Prefer include ordering:
+  1. System headers
+  2. Project headers
+  3. Vendor headers
 
-### Rule
-Use header filename only (e.g., `"config.h"`), never relative paths (e.g., `"../core/config.h"`).
+## 2. Header and Definition Rules
 
-### Implementation
-- Add `-Isrc` and `-Iinclude` to CFLAGS in Makefile
-- Include order: system headers, project headers, local headers, vendor headers
+- Declarations in `.h`, implementations in `.c`/`.cpp`.
+- No global variable definitions in headers.
+- Every header must use include guards.
 
-### Tests Exception
-Tests may use relative paths to include source headers (e.g., `"../src/core/config.h"`) to avoid complicating the source code.
+## 3. Formatting
 
----
+- Indentation: 2 spaces (current repository convention).
+- Braces: K&R style.
+- Keep lines readable (target near 100 chars where practical).
+- Avoid unnecessary comments; document only non-obvious behavior.
 
-## 2. Include Ordering
+## 4. Naming
 
-**Order (top to bottom):**
+- Structs/types: PascalCase (e.g., `ImageMetadata`).
+- Functions: PascalCase with module context (e.g., `CacheInit`, `FsWalkDirectory`).
+- Variables: snake_case.
+- Macros/constants/enums: SCREAMING_SNAKE.
 
-1. **System headers** (alphabetical): `<stdio.h>`, `<stdlib.h>`, `<string.h>`
-2. **Project headers** (alphabetical): `"config.h"`
-3. **Local headers**: `"fs_utils.h"`
-4. **Vendor headers**: `"cJSON.h"`
+## 5. File Organization
 
-### Example
-```c
-#include <stdio.h>
-#include <stdlib.h>
+- `src/core`: cache/core model logic.
+- `src/systems`: organizer/duplicate workflows.
+- `src/utils`: filesystem, hashing, metadata wrappers.
+- `include`: public headers.
+- `vendor`: bundled third-party code only.
 
-#include "config.h"
+## 6. Size and Modularity Guidance
 
-#include "fs_utils.h"
+- Prefer small focused helpers (`static` unless shared).
+- Consider splitting files that grow significantly beyond ~500 lines.
 
-#include "cJSON.h"
-```
+## 7. Testing Guidelines
 
----
+- Add unit tests for module-level behavior.
+- Add integration tests for end-to-end or cross-module flows.
+- Run all tests with `make test`.
 
-## 3. One Definition Rule
+## 8. Build Strictness
 
-- Declare in `.h`, implement in `.c` only
-- No function definitions in header files (except `inline` functions)
-- No variable definitions in headers (use `extern`)
-- Guards against double inclusion (`#ifndef HEADER_H`)
-
----
-
-## 4. Comment Style
-
-- **Single-line:** `// Comment` (C99)
-- **Multi-line:** `/* Multi-line comment */`
-- **Avoid:** Inline comments explaining obvious code
-- **Exception:** Complex algorithms, non-obvious logic
-- If behavior is intentionally temporary, mark it with a clear `TODO` and owner/context.
-
----
-
-## 5. Formatting
-
-| Aspect | Rule |
-|--------|------|
-| **Indentation** | 4 spaces, no tabs |
-| **Line length** | Max 100 characters |
-| **Braces** | K&R style (`if () {\n`) |
-| **PascalCase** | Public function names (module-prefixed) |
-| **SCREAMING_SNAKE** | Macros and constants |
-| **PascalCase** | Struct types (e.g., `GalleryCache`) |
-| **Booleans** | Use `true`/`false` from `<stdbool.h>` |
-
----
-
-## 6. File Organization
-
-```
-src/
-├── core/           # Core models, cache management
-├── systems/        # Similarity engine, Vision integration (lazy)
-├── utils/          # FS utilities, hashing, generic helpers
-└── main.c          # Entry point
-
-tests/
-├── bin/            # Test executables
-├── test_*.c        # Test files
-└── test_*.h        # Test framework
-
-include/            # Public project headers
-
-vendor/             # Third-party dependencies (strictly isolated)
-```
-
-### Helper Extraction Rule
-
-- Keep helpers `static` in their `.c` module by default.
-- Extract a helper only when all are true:
-  - It has at least two real consumers in different modules.
-  - Semantics are stable and domain-agnostic.
-  - The extracted module has a focused responsibility.
-
-### File Size Targets
-
-- Soft target: keep `.c` files around `<= 350` lines.
-- Hard warning threshold: review splitting any file over `500` lines.
-
----
-
-## 7. Naming Conventions
-
-| Type | Convention | Example |
-|------|------------|---------|
-| Structs | PascalCase | `ImageMetadata`, `GalleryCache` |
-| Functions | PascalCase (module-prefixed) | `FsWalkDirectory`, `CacheLoad` |
-| Variables | snake_case | `file_path`, `text_density` |
-| Constants | SCREAMING_SNAKE | `MAX_PATH_LENGTH`, `CACHE_VERSION` |
-| Enums | SCREAMING_SNAKE | `MD_FILE_TYPE_IMAGE` |
-| Enum values | SCREAMING_SNAKE | `CACHE_STATUS_OK` |
-
----
-
-## 8. Testing Guidelines
-
-- Unit tests for each module
-- Integration tests for multi-component flows
-- Tests use actual source files with `TESTING` preprocessor flag
-- Run tests with `make test`
-
----
-
-## 9. Dependency Management
-
-- Third-party code belongs strictly in `vendor/`.
-- All dependencies must be documented in `docs/dependencies.md`.
-- Prefer single-file or header-only C libraries.
-
----
-
-## 10. Compilation and Warnings
-
-- All code must compile cleanly without any warnings.
-- The `Makefile` must enforce strict compilation by including `-Wall -Wextra -Werror -pedantic` in `CFLAGS`.
-- Any warnings treated as errors must be addressed properly by fixing the underlying code rather than bypassed.
+- Keep clean builds under strict flags in `Makefile`:
+  - `-Wall -Wextra -Werror -pedantic`

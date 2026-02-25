@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "fs_utils.h"
 #include "gallery_cache.h"
@@ -142,6 +143,62 @@ void test_organizer_manifest_rw(void) {
   ASSERT_TRUE(f_check == NULL);
 }
 
+void test_organizer_print_plan_no_duplicate_last_group(void) {
+  const char *env_dir = "build/test_env_print";
+  FsMakeDirRecursive(env_dir);
+
+  char cache_path[1024];
+  snprintf(cache_path, sizeof(cache_path), "%s/gallery_cache.json", env_dir);
+
+  FsDeleteFile(cache_path);
+  ASSERT_TRUE(CacheInit(cache_path));
+
+  ImageMetadata md = {0};
+  md.path = strdup("/fake/only_photo.jpg");
+  md.fileSize = 100;
+  md.modificationDate = 12345.0;
+  ASSERT_TRUE(CacheUpdateEntry(&md));
+  CacheFreeMetadata(&md);
+
+  const char *group_keys[] = {"date"};
+  OrganizerPlan *plan = OrganizerComputePlan(env_dir, group_keys, 1);
+  ASSERT_TRUE(plan != NULL);
+  ASSERT_EQ(1, plan->count);
+
+  const char *capture_file = "build/test_plan_output.txt";
+  fflush(stdout);
+  int saved_stdout = dup(fileno(stdout));
+  ASSERT_TRUE(saved_stdout >= 0);
+  FILE *redirect = freopen(capture_file, "w", stdout);
+  ASSERT_TRUE(redirect != NULL);
+
+  OrganizerPrintPlan(plan);
+  fflush(stdout);
+
+  ASSERT_TRUE(dup2(saved_stdout, fileno(stdout)) >= 0);
+  close(saved_stdout);
+
+  FILE *f = fopen(capture_file, "r");
+  ASSERT_TRUE(f != NULL);
+  char buffer[2048] = {0};
+  size_t bytes = fread(buffer, 1, sizeof(buffer) - 1, f);
+  buffer[bytes] = '\0';
+  fclose(f);
+
+  int unknown_lines = 0;
+  const char *needle = "_Unknown";
+  const char *p = buffer;
+  while ((p = strstr(p, needle)) != NULL) {
+    unknown_lines++;
+    p += strlen(needle);
+  }
+  ASSERT_EQ(1, unknown_lines);
+
+  OrganizerFreePlan(plan);
+  CacheShutdown();
+  FsDeleteFile(capture_file);
+}
+
 void register_organizer_tests(void) {
   register_test("test_organizer_plan_generation",
                 test_organizer_plan_generation, "organizer");
@@ -149,4 +206,6 @@ void register_organizer_tests(void) {
                 test_organizer_compound_grouping, "organizer");
   register_test("test_organizer_manifest_rw", test_organizer_manifest_rw,
                 "organizer");
+  register_test("test_organizer_print_plan_no_duplicate_last_group",
+                test_organizer_print_plan_no_duplicate_last_group, "organizer");
 }

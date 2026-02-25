@@ -1,7 +1,7 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #include "duplicate_finder.h"
 #include "fs_utils.h"
@@ -13,8 +13,126 @@
 static int g_files_scanned = 0;
 static int g_files_cached = 0;
 
+static const char *k_group_keys[] = {"date", "camera", "format", "orientation",
+                                     "resolution"};
+
+static void PrintUsage(const char *argv0) {
+  printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv0);
+  printf("\n");
+  printf("Options:\n");
+  printf("  -h, --help        Show this help message and exit\n");
+  printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
+  printf("  --organize        Execute metadata-based restructuring\n");
+  printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
+         "Default: date\n");
+  printf("  --preview         Print restructuring plan without executing\n");
+  printf("  --rollback        Undo a restructuring operation using the manifest\n");
+  printf("\nRollback usage:\n");
+  printf("  %s <scan_dir> <env_dir> --rollback\n", argv0);
+  printf("  %s <env_dir> --rollback\n", argv0);
+}
+
+static bool IsValidGroupKey(const char *key) {
+  for (size_t i = 0; i < sizeof(k_group_keys) / sizeof(k_group_keys[0]); i++) {
+    if (strcmp(key, k_group_keys[i]) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static char *TrimInPlace(char *s) {
+  while (*s != '\0' && isspace((unsigned char)*s)) {
+    s++;
+  }
+
+  if (*s == '\0') {
+    return s;
+  }
+
+  char *end = s + strlen(s) - 1;
+  while (end > s && isspace((unsigned char)*end)) {
+    *end = '\0';
+    end--;
+  }
+  return s;
+}
+
+static bool ParseGroupByKeys(const char *group_by_arg, const char **out_keys,
+                             int max_keys, int *out_count,
+                             char **out_owned_buffer) {
+  if (!out_keys || !out_count || !out_owned_buffer || max_keys <= 0) {
+    return false;
+  }
+
+  *out_count = 0;
+  *out_owned_buffer = NULL;
+
+  if (!group_by_arg) {
+    out_keys[0] = "date";
+    *out_count = 1;
+    return true;
+  }
+
+  char *owned = strdup(group_by_arg);
+  if (!owned) {
+    return false;
+  }
+
+  char *cursor = owned;
+  while (true) {
+    char *comma = strchr(cursor, ',');
+    if (comma) {
+      *comma = '\0';
+    }
+
+    char *trimmed = TrimInPlace(cursor);
+    if (*trimmed == '\0') {
+      printf("Error: --group-by cannot include empty keys. "
+             "Allowed keys: date,camera,format,orientation,resolution\n");
+      free(owned);
+      return false;
+    }
+
+    if (!IsValidGroupKey(trimmed)) {
+      printf("Error: Invalid --group-by key '%s'. "
+             "Allowed keys: date,camera,format,orientation,resolution\n",
+             trimmed);
+      free(owned);
+      return false;
+    }
+
+    if (*out_count >= max_keys) {
+      printf("Error: Too many --group-by keys (max %d).\n", max_keys);
+      free(owned);
+      return false;
+    }
+
+    out_keys[*out_count] = trimmed;
+    (*out_count)++;
+
+    if (!comma) {
+      break;
+    }
+    cursor = comma + 1;
+  }
+
+  *out_owned_buffer = owned;
+  return true;
+}
+
+static const char *ResolveRollbackEnvDir(const char *first_positional,
+                                         const char *second_positional) {
+  if (second_positional && second_positional[0] != '\0') {
+    return second_positional;
+  }
+  if (first_positional && first_positional[0] != '\0') {
+    return first_positional;
+  }
+  return NULL;
+}
+
 static bool ScanCallback(const char *absolute_path, void *user_data) {
-  (void)user_data;
   g_files_scanned++;
 
   if (FsIsSupportedMedia(absolute_path)) {
@@ -29,24 +147,28 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       if (CacheGetValidEntry(absolute_path, mod_date, size, &md)) {
         if (md.exactHashMd5[0] == '\0' ||
             (exhaustive && md.allMetadataJson == NULL)) {
-          // If hash is missing OR we want exhaustive but don't have it, re-scan
           ImageMetadata full = ExtractMetadata(absolute_path, exhaustive);
           md.width = full.width;
           md.height = full.height;
           strncpy(md.dateTaken, full.dateTaken, METADATA_MAX_STRING - 1);
+          md.dateTaken[METADATA_MAX_STRING - 1] = '\0';
           strncpy(md.cameraMake, full.cameraMake, METADATA_MAX_STRING - 1);
+          md.cameraMake[METADATA_MAX_STRING - 1] = '\0';
           strncpy(md.cameraModel, full.cameraModel, METADATA_MAX_STRING - 1);
+          md.cameraModel[METADATA_MAX_STRING - 1] = '\0';
           md.orientation = full.orientation;
           md.hasGps = full.hasGps;
           md.gpsLatitude = full.gpsLatitude;
           md.gpsLongitude = full.gpsLongitude;
           if (full.allMetadataJson) {
-            if (md.allMetadataJson)
+            if (md.allMetadataJson) {
               free(md.allMetadataJson);
+            }
             md.allMetadataJson = strdup(full.allMetadataJson);
           }
-          if (md.exactHashMd5[0] == '\0')
+          if (md.exactHashMd5[0] == '\0') {
             ComputeFileMd5(absolute_path, md.exactHashMd5);
+          }
           CacheUpdateEntry(&md);
           CacheFreeMetadata(&full);
         }
@@ -56,6 +178,10 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       }
 
       md.path = strdup(absolute_path);
+      if (!md.path) {
+        return true;
+      }
+
       md.modificationDate = mod_date;
       md.fileSize = size;
 
@@ -68,12 +194,15 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       }
       if (extracted.dateTaken[0] != '\0') {
         strncpy(md.dateTaken, extracted.dateTaken, METADATA_MAX_STRING - 1);
+        md.dateTaken[METADATA_MAX_STRING - 1] = '\0';
       }
       if (extracted.cameraMake[0] != '\0') {
         strncpy(md.cameraMake, extracted.cameraMake, METADATA_MAX_STRING - 1);
+        md.cameraMake[METADATA_MAX_STRING - 1] = '\0';
       }
       if (extracted.cameraModel[0] != '\0') {
         strncpy(md.cameraModel, extracted.cameraModel, METADATA_MAX_STRING - 1);
+        md.cameraModel[METADATA_MAX_STRING - 1] = '\0';
       }
       md.orientation = extracted.orientation;
       md.hasGps = extracted.hasGps;
@@ -98,7 +227,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.1.6-dev\n");
+  printf("CGalleryOrganizer v0.2.4\n");
 
   bool exhaustive = false;
   bool organize = false;
@@ -107,40 +236,72 @@ int main(int argc, char **argv) {
   const char *target_dir = NULL;
   const char *env_dir = NULL;
   const char *group_by_arg = NULL;
+  bool cache_initialized = false;
 
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-      printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv[0]);
-      printf("\n");
-      printf("Options:\n");
-      printf("  -h, --help        Show this help message and exit\n");
-      printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
-      printf("  --organize        Execute metadata-based restructuring\n");
-      printf("  --organize        Execute metadata-based restructuring\n");
-      printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
-             "Default: date\n");
-      printf(
-          "  --preview         Print restructuring plan without executing\n");
-      printf("  --rollback        Undo a restructuring operation using the "
-             "manifest\n");
+      PrintUsage(argv[0]);
       return 0;
+    } else if (strcmp(argv[i], "-e") == 0 ||
+               strcmp(argv[i], "--exhaustive") == 0) {
+      exhaustive = true;
     } else if (strcmp(argv[i], "--organize") == 0) {
       organize = true;
-    } else if (strcmp(argv[i], "--group-by") == 0 && i + 1 < argc) {
+    } else if (strcmp(argv[i], "--group-by") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --group-by requires a comma-separated key list.\n");
+        return 1;
+      }
       group_by_arg = argv[++i];
     } else if (strcmp(argv[i], "--preview") == 0) {
       preview = true;
     } else if (strcmp(argv[i], "--rollback") == 0) {
       rollback = true;
+    } else if (argv[i][0] == '-') {
+      printf("Error: Unknown option '%s'.\n", argv[i]);
+      PrintUsage(argv[0]);
+      return 1;
     } else if (target_dir == NULL) {
       target_dir = argv[i];
     } else if (env_dir == NULL) {
       env_dir = argv[i];
+    } else {
+      printf("Error: Unexpected positional argument '%s'.\n", argv[i]);
+      PrintUsage(argv[0]);
+      return 1;
     }
   }
 
+  if (rollback && (organize || preview)) {
+    printf("Error: Cannot specify --rollback with --organize or --preview.\n");
+    return 1;
+  }
+  if (organize && preview) {
+    printf("Error: Cannot specify --organize and --preview together.\n");
+    return 1;
+  }
+
+  if (rollback) {
+    const char *rollback_env = ResolveRollbackEnvDir(target_dir, env_dir);
+    if (!rollback_env) {
+      printf("Error: --rollback requires an environment directory.\n");
+      PrintUsage(argv[0]);
+      return 1;
+    }
+
+    printf("\n[*] Initiating Rollback from %s...\n", rollback_env);
+    int restored = OrganizerRollback(rollback_env);
+    if (restored >= 0) {
+      printf("[*] Rollback complete. Restored %d files.\n", restored);
+      return 0;
+    }
+
+    printf("[!] Rollback failed to execute properly.\n");
+    return 1;
+  }
+
   if (target_dir == NULL) {
-    printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv[0]);
+    PrintUsage(argv[0]);
     return 1;
   }
 
@@ -155,20 +316,12 @@ int main(int argc, char **argv) {
     snprintf(cache_path, sizeof(cache_path), ".cache/gallery_cache.json");
   }
 
-  if (rollback && (organize || preview)) {
-    printf("Error: Cannot specify --rollback with --organize or --preview.\n");
-    return 1;
-  }
-  if (organize && preview) {
-    printf("Error: Cannot specify --organize and --preview together.\n");
-    return 1;
-  }
-
   FsMakeDirRecursive(cache_dir);
   if (!CacheInit(cache_path)) {
     printf("Error: Failed to initialize cache.\n");
     return 1;
   }
+  cache_initialized = true;
 
   printf("Scanning directory: %s (Exhaustive: %s)\n", target_dir,
          exhaustive ? "ON" : "OFF");
@@ -187,52 +340,31 @@ int main(int argc, char **argv) {
   printf("Files scanned: %d\n", g_files_scanned);
   printf("Media files cached: %d\n\n", g_files_cached);
 
-  if (rollback) {
-    if (!env_dir) {
-      printf("Error: --rollback requires an environment directory.\n");
-      CacheShutdown();
-      return 1;
-    }
-    printf("\n[*] Initiating Rollback from %s...\n", env_dir);
-    int restored = OrganizerRollback(env_dir);
-    if (restored >= 0) {
-      printf("[*] Rollback complete. Restored %d files.\n", restored);
-    } else {
-      printf("[!] Rollback failed to execute properly.\n");
-    }
-  } else if (preview || organize) {
+  if (preview || organize) {
     if (!env_dir) {
       printf("Error: --organize and --preview require an environment "
              "directory.\n");
       CacheShutdown();
       return 1;
     }
-    // Default grouping is just date
-    const char *group_keys[16];
-    int group_key_count = 0;
 
-    if (group_by_arg) {
-      // Create a mutable copy of the argument to tokenize
-      char *group_str = strdup(group_by_arg);
-      char *token = strtok(group_str, ",");
-      while (token && group_key_count < 16) {
-        // Strip leading/trailing spaces if necessary, but assume well-formed
-        // currently
-        group_keys[group_key_count++] = token;
-        token = strtok(NULL, ",");
-      }
-      // Note: We deliberately leak group_str here because it strictly lives
-      // until exit, but ideally we'd free it after computing the plan. Let's
-      // just pass it, compute, and we can free.
-    } else {
-      group_keys[0] = strdup("date");
-      group_key_count = 1;
+    const char *group_keys[16] = {0};
+    int group_key_count = 0;
+    char *group_keys_owned = NULL;
+    if (!ParseGroupByKeys(group_by_arg, group_keys, 16, &group_key_count,
+                          &group_keys_owned)) {
+      CacheShutdown();
+      return 1;
     }
 
     printf("\n[*] Calculating Gallery Reorganization Plan...\n");
 
-    // We must initialize the Organizer module to reset the manifest array
-    OrganizerInit(env_dir);
+    if (!OrganizerInit(env_dir)) {
+      printf("[!] Failed to initialize organizer state.\n");
+      free(group_keys_owned);
+      CacheShutdown();
+      return 1;
+    }
 
     OrganizerPlan *plan =
         OrganizerComputePlan(env_dir, group_keys, group_key_count);
@@ -257,17 +389,10 @@ int main(int argc, char **argv) {
       }
       OrganizerFreePlan(plan);
     }
-    OrganizerShutdown();
 
-    // Cleanup allocated grouping strings
-    if (group_by_arg) {
-      free((void *)group_keys[0]); // Safe since strtok modifies the original
-                                   // string in place
-    } else {
-      free((void *)group_keys[0]); // Free the duplicated "date" fallback
-    }
+    OrganizerShutdown();
+    free(group_keys_owned);
   } else {
-    // Legacy Duplicate Handling (v0.2.0 compatibility)
     DuplicateReport rep = FindExactDuplicates();
     int moved_count = 0;
 
@@ -310,7 +435,9 @@ int main(int argc, char **argv) {
     FreeDuplicateReport(&rep);
   }
 
-  CacheShutdown();
+  if (cache_initialized) {
+    CacheShutdown();
+  }
 
   return 0;
 }

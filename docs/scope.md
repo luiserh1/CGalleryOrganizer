@@ -79,7 +79,7 @@ Transition from a passive analyzer to an active organizer. Introduce interactive
 
 ---
 
-## v0.2.3 Scope: Compound Grouping & File Renaming (Working On)
+## v0.2.3 Scope: Compound Grouping & File Renaming (Completed)
 
 ### Primary Goal
 Advance the organization engine horizontally to support complex, multi-level folder hierarchies using sequential metadata keys while guaranteeing filesystem uniqueness via incremental collision-proof renaming.
@@ -89,6 +89,23 @@ Advance the organization engine horizontally to support complex, multi-level fol
 - Compound path building in the `organizer` (e.g., `_Sony/_2013/_03`).
 - Dynamic renaming engine resolving to `YYYYMMDD_HHMMSS_CameraModel.ext`.
 - Fallback collision safeguards using incremental `_1`, `_2` indexes.
+
+---
+
+## v0.2.4 Scope: Stability Remediation (Completed)
+
+### Primary Goal
+Stabilize the CLI and organizer runtime behavior, remove noisy debug output, and align documentation and tests with implemented behavior.
+
+### Features
+- Fixed `--exhaustive` parsing and validation paths.
+- Added backward-compatible ergonomic rollback invocation (`<env_dir> --rollback`).
+- Hardened `--group-by` validation for empty/invalid keys.
+- Fixed organizer preview duplicate-line bug and improved defensive memory/path handling.
+- Removed unconditional debug logs from cache/duplicate flows.
+- Replaced fragile cache object-size assumptions with deterministic key counting.
+- Corrected cache viewer column sorting mappings.
+- Expanded tests for CLI flows, rollback compatibility, and cache key counting.
 
 ---
 

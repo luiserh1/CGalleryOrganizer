@@ -60,8 +60,40 @@ void test_cache_flow(void) {
   system("rm -f build/temp_cache.json");
 }
 
+void test_cache_entry_count_and_keys(void) {
+  ASSERT_TRUE(CacheInit("build/temp_cache_count.json"));
+
+  ImageMetadata md1 = {0};
+  md1.path = strdup("/fake/a.jpg");
+  ASSERT_TRUE(CacheUpdateEntry(&md1));
+  CacheFreeMetadata(&md1);
+
+  ImageMetadata md2 = {0};
+  md2.path = strdup("/fake/b.jpg");
+  ASSERT_TRUE(CacheUpdateEntry(&md2));
+  CacheFreeMetadata(&md2);
+
+  ImageMetadata md3 = {0};
+  md3.path = strdup("/fake/c.jpg");
+  ASSERT_TRUE(CacheUpdateEntry(&md3));
+  CacheFreeMetadata(&md3);
+
+  ASSERT_EQ(3, CacheGetEntryCount());
+
+  int key_count = 0;
+  char **keys = CacheGetAllKeys(&key_count);
+  ASSERT_EQ(3, key_count);
+  ASSERT_TRUE(keys != NULL);
+  CacheFreeKeys(keys, key_count);
+
+  CacheShutdown();
+  system("rm -f build/temp_cache_count.json");
+}
+
 void register_gallery_cache_tests(void) {
   register_test("test_cache_extract_basic_metadata",
                 test_cache_extract_basic_metadata, "cache");
   register_test("test_cache_flow", test_cache_flow, "cache");
+  register_test("test_cache_entry_count_and_keys",
+                test_cache_entry_count_and_keys, "cache");
 }

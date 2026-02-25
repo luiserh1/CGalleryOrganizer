@@ -40,7 +40,7 @@ $(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-test: $(TEST_BIN)
+test: $(TARGET) $(TEST_BIN)
 	@./$(TEST_BIN)
 
 stress: $(PERF_BIN)

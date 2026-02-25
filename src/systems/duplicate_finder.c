@@ -16,17 +16,23 @@ DuplicateReport FindExactDuplicates(void) {
 
   int key_count = 0;
   char **keys = CacheGetAllKeys(&key_count);
-  printf("[DEBUG] CacheGetAllKeys returned %d keys\n", key_count);
   if (!keys || key_count == 0) {
     return report;
   }
 
   // 1. Load all elements with valid MD5s
   ImageMetadata **entries = malloc(key_count * sizeof(ImageMetadata *));
+  if (!entries) {
+    CacheFreeKeys(keys, key_count);
+    return report;
+  }
   int valid_entries = 0;
 
   for (int i = 0; i < key_count; i++) {
     ImageMetadata *md = malloc(sizeof(ImageMetadata));
+    if (!md) {
+      continue;
+    }
     if (CacheGetRawEntry(keys[i], md)) {
       if (md->exactHashMd5[0] != '\0') {
         entries[valid_entries++] = md;
@@ -39,9 +45,6 @@ DuplicateReport FindExactDuplicates(void) {
     }
   }
   CacheFreeKeys(keys, key_count);
-  printf(
-      "[DEBUG] Found %d valid entries with MD5 out of %d total cache keys.\n",
-      valid_entries, key_count);
 
   if (valid_entries < 2) {
     for (int i = 0; i < valid_entries; i++) {
@@ -70,9 +73,6 @@ DuplicateReport FindExactDuplicates(void) {
 
     int group_size = j - i;
     if (group_size > 1) {
-      printf("[DEBUG] Found MD5 collision group of size %d starting at index "
-             "%d (MD5: %s)\n",
-             group_size, i, entries[i]->exactHashMd5);
       // We have an MD5 collision group. Now we must verify with SHA-256.
       // In theory, there could be an MD5 collision that is NOT a SHA-256
       // collision. For simplicity, we compute SHA-256 for the group base.
@@ -81,6 +81,10 @@ DuplicateReport FindExactDuplicates(void) {
 
         int dup_capacity = group_size;
         char **dup_paths = malloc(dup_capacity * sizeof(char *));
+        if (!dup_paths) {
+          i = j;
+          continue;
+        }
         int dup_count = 0;
 
         // The first valid file is our original
@@ -99,11 +103,20 @@ DuplicateReport FindExactDuplicates(void) {
         if (dup_count > 0) {
           if (report.group_count >= capacity) {
             capacity *= 2;
-            report.groups =
+            DuplicateGroup *new_groups =
                 realloc(report.groups, capacity * sizeof(DuplicateGroup));
+            if (!new_groups) {
+              for (int x = 0; x < dup_count; x++) {
+                free(dup_paths[x]);
+              }
+              free(dup_paths);
+              continue;
+            }
+            report.groups = new_groups;
           }
           strncpy(report.groups[report.group_count].original_path,
                   entries[original_idx]->path, 1023);
+          report.groups[report.group_count].original_path[1023] = '\0';
           report.groups[report.group_count].duplicate_paths = dup_paths;
           report.groups[report.group_count].duplicate_count = dup_count;
           report.group_count++;

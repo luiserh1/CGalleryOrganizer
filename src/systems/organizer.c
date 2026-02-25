@@ -12,6 +12,18 @@
 static cJSON *g_manifest_array = NULL;
 static char g_manifest_path[MAX_PATH_LENGTH] = {0};
 
+static void CopyStringBounded(char *dst, size_t dst_size, const char *src) {
+  if (!dst || dst_size == 0) {
+    return;
+  }
+  if (!src) {
+    dst[0] = '\0';
+    return;
+  }
+  strncpy(dst, src, dst_size - 1);
+  dst[dst_size - 1] = '\0';
+}
+
 bool OrganizerInit(const char *env_dir) {
   if (!env_dir)
     return false;
@@ -67,14 +79,17 @@ void OrganizerShutdown(void) {
 
 static void RemoveEmptyParents(const char *file_path, const char *stop_dir) {
   char dir[1024];
-  strncpy(dir, file_path, sizeof(dir) - 1);
-  dir[sizeof(dir) - 1] = '\0';
+  CopyStringBounded(dir, sizeof(dir), file_path);
 
   while (true) {
     char *slash = strrchr(dir, '/');
     if (!slash)
       break;
     *slash = '\0';
+
+    if (strncmp(dir, stop_dir, strlen(stop_dir)) != 0) {
+      break;
+    }
 
     // Don't traverse up past the stop_dir (env_dir)
     if (strlen(dir) <= strlen(stop_dir))
@@ -126,9 +141,31 @@ int OrganizerRollback(const char *env_dir) {
     printf("Error: Failed to parse %s.\n", path);
     return -1;
   }
+  if (!cJSON_IsArray(json)) {
+    printf("Error: Invalid manifest format in %s. Expected JSON array.\n", path);
+    cJSON_Delete(json);
+    return -1;
+  }
 
   int success_count = 0;
   int array_size = cJSON_GetArraySize(json);
+
+  // Validate the full manifest before applying any move.
+  for (int i = 0; i < array_size; i++) {
+    cJSON *item = cJSON_GetArrayItem(json, i);
+    if (!cJSON_IsObject(item)) {
+      printf("Error: Invalid manifest entry at index %d.\n", i);
+      cJSON_Delete(json);
+      return -1;
+    }
+    cJSON *orig = cJSON_GetObjectItem(item, "original");
+    cJSON *new_p = cJSON_GetObjectItem(item, "new");
+    if (!cJSON_IsString(orig) || !cJSON_IsString(new_p)) {
+      printf("Error: Malformed manifest entry at index %d.\n", i);
+      cJSON_Delete(json);
+      return -1;
+    }
+  }
 
   // We should ideally rollback in reverse order if directories were created,
   // but since we are just moving files back to their absolute original paths,
@@ -258,15 +295,23 @@ OrganizerPlan *OrganizerComputePlan(const char *env_dir,
   int max_keys = CacheGetEntryCount();
   plan->capacity = max_keys > 0 ? max_keys : 100;
   plan->moves = (OrganizerMove *)malloc(sizeof(OrganizerMove) * plan->capacity);
+  if (!plan->moves) {
+    free(plan);
+    return NULL;
+  }
 
   int cache_key_count = 0;
   char **keys = CacheGetAllKeys(&cache_key_count);
+  if (!keys || cache_key_count <= 0) {
+    plan->count = 0;
+    return plan;
+  }
 
   for (int i = 0; i < cache_key_count; i++) {
     ImageMetadata md = {0};
     if (CacheGetRawEntry(keys[i], &md)) {
       char target_dir[MAX_PATH_LENGTH];
-      strncpy(target_dir, env_dir, sizeof(target_dir) - 1);
+      CopyStringBounded(target_dir, sizeof(target_dir), env_dir);
 
       // Build compound path
       for (int k = 0; k < key_count; k++) {
@@ -309,12 +354,23 @@ OrganizerPlan *OrganizerComputePlan(const char *env_dir,
 
       if (plan->count >= plan->capacity) {
         plan->capacity *= 2;
-        plan->moves = (OrganizerMove *)realloc(
-            plan->moves, sizeof(OrganizerMove) * plan->capacity);
+        OrganizerMove *new_moves =
+            (OrganizerMove *)realloc(plan->moves,
+                                     sizeof(OrganizerMove) * plan->capacity);
+        if (!new_moves) {
+          CacheFreeMetadata(&md);
+          CacheFreeKeys(keys, cache_key_count);
+          free(plan->moves);
+          free(plan);
+          return NULL;
+        }
+        plan->moves = new_moves;
       }
 
-      strncpy(plan->moves[plan->count].original_path, md.path, 1023);
-      strncpy(plan->moves[plan->count].new_path, full_new_path, 1023);
+      CopyStringBounded(plan->moves[plan->count].original_path,
+                        sizeof(plan->moves[plan->count].original_path), md.path);
+      CopyStringBounded(plan->moves[plan->count].new_path,
+                        sizeof(plan->moves[plan->count].new_path), full_new_path);
       plan->count++;
 
       CacheFreeMetadata(&md);
@@ -394,12 +450,6 @@ void OrganizerPrintPlan(OrganizerPlan *plan) {
   const char *display_path = rel_start ? rel_start + 1 : current_dir;
 
   printf("  - %-40s [%d files]\n", display_path, current_count);
-  // Print the last group
-  const char *rel_start_last = strstr(current_dir, "/_");
-  const char *display_path_last =
-      rel_start_last ? rel_start_last + 1 : current_dir;
-
-  printf("  - %-40s [%d files]\n", display_path_last, current_count);
 }
 
 bool OrganizerExecutePlan(OrganizerPlan *plan) {
@@ -410,7 +460,8 @@ bool OrganizerExecutePlan(OrganizerPlan *plan) {
   printf("\n[*] Executing Plan...\n");
   for (int i = 0; i < plan->count; i++) {
     char exact_new_path[MAX_PATH_LENGTH];
-    strncpy(exact_new_path, plan->moves[i].new_path, sizeof(exact_new_path));
+    CopyStringBounded(exact_new_path, sizeof(exact_new_path),
+                      plan->moves[i].new_path);
 
     // Determine the base filename and extension
     char *dot = strrchr(exact_new_path, '.');
@@ -438,7 +489,7 @@ bool OrganizerExecutePlan(OrganizerPlan *plan) {
     // Now probe_path holds a collision-free absolute path. We need to create
     // the parent dir and move.
     char target_dir[MAX_PATH_LENGTH];
-    strncpy(target_dir, probe_path, sizeof(target_dir) - 1);
+    CopyStringBounded(target_dir, sizeof(target_dir), probe_path);
     char *last_slash = strrchr(target_dir, '/');
     if (last_slash)
       *last_slash = '\0';

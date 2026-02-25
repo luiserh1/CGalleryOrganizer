@@ -10,6 +10,20 @@
 static cJSON *g_cache_root = NULL;
 static char g_cache_path[1024] = {0};
 
+static int CacheObjectSize(const cJSON *obj) {
+  if (!obj) {
+    return 0;
+  }
+
+  int count = 0;
+  const cJSON *child = obj->child;
+  while (child) {
+    count++;
+    child = child->next;
+  }
+  return count;
+}
+
 bool CacheInit(const char *cache_path) {
   if (!cache_path)
     return false;
@@ -262,35 +276,46 @@ bool CacheGetRawEntry(const char *key, ImageMetadata *out_md) {
 int CacheGetEntryCount(void) {
   if (!g_cache_root)
     return 0;
-  int c = cJSON_GetArraySize(g_cache_root);
-  printf("[DEBUG CacheGetEntryCount] cJSON_GetArraySize returned %d\n", c);
-  return c;
+  return CacheObjectSize(g_cache_root);
 }
 
 char **CacheGetAllKeys(int *out_count) {
   if (!g_cache_root) {
-    printf("[DEBUG CacheGetAllKeys] g_cache_root is NULL!\n");
     if (out_count)
       *out_count = 0;
     return NULL;
   }
   if (!out_count) {
-    printf("[DEBUG CacheGetAllKeys] out_count is NULL!\n");
     return NULL;
   }
 
-  int count = cJSON_GetArraySize(g_cache_root);
-  printf("[DEBUG CacheGetAllKeys] cJSON_GetArraySize returned %d\n", count);
+  int count = CacheObjectSize(g_cache_root);
   if (count == 0) {
     *out_count = 0;
     return NULL;
   }
 
   char **keys = malloc(count * sizeof(char *));
+  if (!keys) {
+    *out_count = 0;
+    return NULL;
+  }
   int i = 0;
   cJSON *child = g_cache_root->child;
   while (child && i < count) {
+    if (!child->string) {
+      child = child->next;
+      continue;
+    }
     keys[i] = strdup(child->string);
+    if (!keys[i]) {
+      for (int j = 0; j < i; j++) {
+        free(keys[j]);
+      }
+      free(keys);
+      *out_count = 0;
+      return NULL;
+    }
     child = child->next;
     i++;
   }

@@ -2,66 +2,47 @@
 
 ## Overview
 
-This document describes the test infrastructure and coverage for the CGalleryOrganizer project.
+The repository uses a custom lightweight test framework in `tests/test_framework.h` and a single runner in `tests/test_runner.c`.
 
 ## Running Tests
 
 ```bash
-# Run all tests
+# Build main binary + test runner and execute all tests
 make test
 
-# Build runner only
-make tests/bin/test_runner
+# Build binaries only
+make
 
-# Clean build + test artifacts
+# Clean binaries and generated build artifacts
 make clean
 ```
 
-## Test Infrastructure
+## Framework
 
-### Framework
+Available assertions currently used by the suite:
+- `ASSERT_TRUE`
+- `ASSERT_FALSE`
+- `ASSERT_EQ`
+- `ASSERT_STR_EQ`
 
-Custom lightweight test framework located in `tests/test_framework.h` (adapted from Project Carrera):
+Tests are registered with `register_test(name, fn, category)` and executed by the runner.
 
-- **Simple registration**: Tests are registered via `register_test()` function
-- **Assertions**: `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_FLOAT_EQ`, `ASSERT_STR_EQ`
-- **Zero dependencies**: Works entirely in standard C.
+## Current Coverage Focus
 
-### How It Works
+- Filesystem utilities (`src/utils/fs_utils.c`)
+- Cache lifecycle and key enumeration (`src/core/gallery_cache.c`)
+- Hashing helpers (`src/utils/hash_utils.c`)
+- Duplicate grouping (`src/systems/duplicate_finder.c`)
+- Organizer plan, execution primitives, and rollback (`src/systems/organizer.c`)
+- Metadata extraction integration through real sample assets (`tests/assets/**`)
+- CLI flow checks through the built binary (`build/bin/gallery_organizer`):
+  - `--exhaustive` behavior
+  - rollback single-positional and legacy forms
+  - `--group-by` invalid/empty input rejection
 
-Tests use the **actual source files** from `src/` with the `TESTING` preprocessor flag:
+## Manual Smoke Checklist
 
-1. **TESTING flag** triggers conditional compilation in source files if necessary to mock OS interactions or slow IO.
-2. **Makefile** compiles source files separately for tests:
-   - `make test` compiles `src/**/*.c` and `tests/*.c` defining `-DTESTING`.
-
-### Adding New Tests
-
-1. Add test function to appropriate file:
-   ```c
-   void test_new_feature(void) {
-       // Setup
-       int result = 2 + 2;
-       // Assert
-       ASSERT_EQ(result, 4);
-   }
-   ```
-
-2. Register the test:
-   ```c
-   void register_new_tests(void) {
-       register_test("test_new_feature", test_new_feature, "category");
-   }
-   ```
-
-3. Call registration in `tests/test_runner.c` main().
-
-## Manual Smoke Testing Guide
-
-While unit tests protect the core logic, you should manually verify the user experience against a dummy directory whenever modifying CLI arguments, prompts, or execution systems.
-
-### 1. Preparation
-Create a dummy directory with several test images (copies of real images to ensure EXIF data exists).
+### 1. Prepare sample dirs
 ```bash
 mkdir -p build/smoke_source build/smoke_env
 cp tests/assets/jpg/sample_exif.jpg build/smoke_source/test1.jpg
@@ -69,57 +50,31 @@ cp tests/assets/jpg/sample_deep_exif.jpg build/smoke_source/test2.jpg
 cp tests/assets/png/sample_no_exif.png build/smoke_source/test3.png
 ```
 
-### 2. Standard Passive Scan
-Verify the command runs without moving files, but writes a cache correctly.
+### 2. Scan
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env
 ```
-**Expected Outcome**: 
-- `Files scanned: 3`, `Media files cached: 3`
-- A file `.cache/gallery_cache.json` is generated inside `build/smoke_env`.
-- No image files are moved.
+Expected: scan succeeds, cache stored in `build/smoke_env/.cache/gallery_cache.json`.
 
-### 3. Tree Preview Check
-Verify the reorganization logic is generating correct targets before moving.
+### 3. Preview
 ```bash
-./build/bin/gallery_organizer build/smoke_source build/smoke_env --preview
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --preview --group-by date
 ```
-**Expected Outcome**:
-- Prints a visual tree to stdout.
-- `_Unknown` group contains `test3.png` (since it lacks DateTaken).
-- Another date directory (e.g., `_2004/_05`) contains `test1.jpg` and `test2.jpg`.
-- Ends with `[*] Preview mode: No files were moved.`
+Expected: plan printed once per directory group, no file moves.
 
-### 4. Compound Tree Preview
-Verify the multi-level nested grouping behavior using dynamic metadata.
-```bash
-./build/bin/gallery_organizer build/smoke_source build/smoke_env --preview --group-by format,orientation
-```
-**Expected Outcome**:
-- `_Images_JPEG/_Landscape` or `_Portrait` depending on the dummy EXIFs.
-- `_Images_PNG/_Square` or similar for the unknown images.
-- No files are physical moved.
-
-### 5. Interactive Organization Execution
-Verify the move operations and manifest creation.
+### 4. Organize
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --organize
 ```
-**Expected Outcome**:
-- Prints the tree again.
-- Prompts `Execute plan? [y/N]:`.
-- Entering `n` cancels the operation.
-- Entering `y` moves the files physically to `build/smoke_env/_...`.
-- `build/smoke_source` is now empty.
-- A `manifest.json` tracker file appears in `build/smoke_env`.
+Expected: confirmation prompt, files moved after `y`, `manifest.json` created.
 
-### 6. Rollback Recovery
-Verify the application can restore the gallery safely.
+### 5. Rollback (ergonomic)
 ```bash
-./build/bin/gallery_organizer build/smoke_env build/smoke_env --rollback
+./build/bin/gallery_organizer build/smoke_env --rollback
 ```
-**Expected Outcome**:
-- Reads the manifest.
-- Re-moves the files precisely back to `build/smoke_source`.
-- Prints `[*] Rollback complete. Restored 3 files.`
-- `build/smoke_env` is empty again (or only contains `.cache`).
+Expected: files restored according to manifest.
+
+## Notes on Test Fragility
+
+- Some tests invoke shell commands (`system`/`popen`) and use temporary build directories.
+- Keep temp paths scoped under `build/` and clean them in each test to avoid cross-test interference.

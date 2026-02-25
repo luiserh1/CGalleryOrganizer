@@ -1,53 +1,49 @@
 # Dependencies
 
-This file documents all third-party code relied upon by the CGalleryOrganizer project, as well as the self-contained internally developed functionality that is not part of the core of the project.
+This document lists third-party and system dependencies used by CGalleryOrganizer.
 
 **Last consulted:** 2026-02-25
 
----
-
-## External Dependencies
-
-**Rule:** All lightweight external C dependencies MUST be stored in the `/vendor/` directory and must not be mixed with the core `src/` code. System-level heavy libraries (like `exiv2`) are exempted and should be installed via the hosting OS package manager natively.
+## Vendored Dependencies (`vendor/`)
 
 ### 1. cJSON
-- **Purpose**: Parsing and writing the `.cache/gallery_cache.json` file.
-- **Location**: `vendor/cJSON.c`, `vendor/cJSON.h`
-- **License**: MIT License
-- **Source**: [https://github.com/DaveGamble/cJSON](https://github.com/DaveGamble/cJSON)
-- **Version**: TBD
-- **Modifications**: None. Included as-is.
+- Purpose: cache JSON parsing/writing (`gallery_cache.json`).
+- Location: `vendor/cJSON.c`, `vendor/cJSON.h`
+- License: MIT
+- Source: <https://github.com/DaveGamble/cJSON>
+- Modifications: none.
 
-### 2. MD5 Hashing Utility
-- **Purpose**: Fast cryptographic hashing for exact file duplication detection.
-- **Location**: `vendor/md5.c`, `vendor/md5.h`
-- **License**: Public Domain / Standard Open Source
-- **Modifications**: None. Included as-is.
+### 2. MD5 utility
+- Purpose: fast content hashing for duplicate grouping.
+- Location: `vendor/md5.c`, `vendor/md5.h`
+- License: bundled upstream license.
+- Modifications: none.
 
-### 3. SHA-256 Hashing Utility
-- **Purpose**: Secure cryptographic hashing as a fallback for MD5 duplicates verification.
-- **Location**: `vendor/sha256.c`, `vendor/sha256.h`
-- **License**: Public Domain / Standard Open Source
-- **Modifications**: None. Included as-is.
+### 3. SHA-256 utility
+- Purpose: secondary hash verification for exact duplicate confirmation.
+- Location: `vendor/sha256.c`, `vendor/sha256.h`
+- License: bundled upstream license.
+- Modifications: none.
 
----
+## System Dependency
 
-## System Dependencies
+### Exiv2 (C++ library)
+- Purpose: metadata extraction across JPEG/PNG/WebP/GIF/BMP/HEIC and related formats.
+- Installation:
+  - macOS: `brew install exiv2`
+  - Linux (Debian/Ubuntu): `apt install libexiv2-dev`
+- Integration point: `include/exiv2_wrapper.h`, `src/utils/exiv2_wrapper.cpp`
 
-### 1. Exiv2 (Native C++ Library)
-- **Purpose**: Unified, robust metadata and EXIF extraction for all standard image formats (JPEG, PNG, WebP, GIF, BMP, HEIC, etc.).
-- **Installation**: `brew install exiv2` (macOS) / `apt install libexiv2-dev` (Linux)
-- **License**: GPL
-- **Version**: v0.28+ Target
-- **Integration**: The project utilizes a pure C interface facade (`include/exiv2_wrapper.h` & `src/utils/exiv2_wrapper.cpp`) compiled via `clang++` to bridge the C++ Exiv2 objects safely back to the core C metadata structures.
+## Optional Stress-Test Utilities
 
----
+These are only needed for `make stress` dataset acquisition and benchmark runs.
 
-## Stress Testing Utilities (Optional)
+### Tools
+- `curl`
+- `unzip`
 
-These tools are **never** required to compile, build, or test the primary CGalleryOrganizer executable. They are only needed to download the 3GB stress dataset.
-
-### 1. Standard Network Tools
-- **curl**: Used to fetch the dataset ZIP from Leiden University.
-- **unzip**: Used to extract the images into `build/stress_data/`.
-- **Note**: Both are pre-installed on macOS and most Linux distributions. No accounts or API keys are required.
+### Dataset source used by script
+- URL host: `images.cocodataset.org`
+- Default dataset: COCO 2017 validation zip (`val2017.zip`, ~815MB compressed, ~5k images)
+- Heavy option: COCO 2017 training zip (`train2017.zip`, ~19GB compressed)
+- Script: `scripts/download_stress_dataset.sh`
