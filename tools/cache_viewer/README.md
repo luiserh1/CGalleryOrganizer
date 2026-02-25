@@ -10,21 +10,19 @@ You must serve it via a local web server.
 
 ### Option A: Using Python (Recommended)
 Python is pre-installed on most systems.
-1. Open your terminal.
-2. Navigate to the tool directory:
-   ```bash
-   cd tools/cache_viewer
-   ```
-3. Start the server:
+1. Open your terminal in the **PROJECT ROOT**.
+2. Start the server:
    ```bash
    python3 -m http.server 8000
    ```
+3. Open: [http://localhost:8000/tools/cache_viewer/](http://localhost:8000/tools/cache_viewer/)
 
 ### Option B: Using Node.js (npx)
-If you have Node.js installed:
+Run from the **PROJECT ROOT**:
 ```bash
 npx serve .
 ```
+And navigate to `/tools/cache_viewer/`.
 
 ## 2. Accessing the GUI
 

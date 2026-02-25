@@ -88,9 +88,9 @@ function handleSearch(event) {
     } else {
         filteredData = cacheData.filter(item => {
             const pathMatch = item.path && item.path.toLowerCase().includes(query);
-            const cameraMatch = item.camera_model && item.camera_model.toLowerCase().includes(query);
-            const makeMatch = item.camera_make && item.camera_make.toLowerCase().includes(query);
-            const hashMatch = item.md5_hash && item.md5_hash.toLowerCase().includes(query);
+            const cameraMatch = item.cameraModel && item.cameraModel.toLowerCase().includes(query);
+            const makeMatch = item.cameraMake && item.cameraMake.toLowerCase().includes(query);
+            const hashMatch = item.exactHashMd5 && item.exactHashMd5.toLowerCase().includes(query);
 
             return pathMatch || cameraMatch || makeMatch || hashMatch;
         });
@@ -119,14 +119,14 @@ function renderRow(item) {
     const tr = document.createElement('tr');
 
     const dim = (item.width && item.height) ? `${item.width} x ${item.height}` : 'N/A';
-    const makeModel = (item.camera_make || item.camera_model) ? `${item.camera_make || ''} ${item.camera_model || ''}`.trim() : 'N/A';
+    const makeModel = (item.cameraMake || item.cameraModel) ? `${item.cameraMake || ''} ${item.cameraModel || ''}`.trim() : 'N/A';
 
     tr.innerHTML = `
         <td class="path-cell" title="${item.path}">${item.path}</td>
-        <td>${formatBytes(item.size)}</td>
-        <td class="hash-cell">${item.md5_hash || 'Pending'}</td>
+        <td>${formatBytes(item.fileSize)}</td>
+        <td class="hash-cell">${item.exactHashMd5 || 'Pending'}</td>
         <td>${dim}</td>
-        <td>${formatDate(item.date_taken || item.modified_date)}</td>
+        <td>${formatDate(item.dateTaken || item.modificationDate)}</td>
         <td>${makeModel}</td>
     `;
     return tr;

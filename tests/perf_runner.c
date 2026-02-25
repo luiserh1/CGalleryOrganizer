@@ -3,6 +3,7 @@
 extern char *strdup(const char *s);
 #include "fs_utils.h"
 #include "gallery_cache.h"
+#include "hash_utils.h"
 #include "metadata_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,9 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
     meta.path = strdup(absolute_path);
     meta.modificationDate = mod_date;
     meta.fileSize = size;
+
+    // Compute hashes for stress testing duplicate detection
+    ComputeFileMd5(absolute_path, meta.exactHashMd5);
 
     CacheUpdateEntry(&meta);
   }
