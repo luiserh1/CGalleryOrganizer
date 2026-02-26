@@ -39,7 +39,6 @@ typedef struct {
   GuiRect cache_label;
   GuiRect cache_none;
   GuiRect cache_zstd;
-  GuiRect cache_auto;
   GuiRect level_label;
   GuiRect level_input;
   GuiRect actions_divider;

@@ -126,7 +126,7 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
 
   GuiLabel(ToRayRect(layout.cache_label), "Cache compression");
   GuiHelpRegister(ToRayRect(layout.cache_label),
-                  "none: fastest writes, zstd: smaller files, auto: threshold-based");
+                  "none: fastest writes, zstd: smaller files");
   if (GuiButtonStyled(ToRayRect(layout.cache_none), "none", true,
                       state->cache_mode == APP_CACHE_COMPRESSION_NONE)) {
     state->cache_mode = APP_CACHE_COMPRESSION_NONE;
@@ -139,42 +139,47 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
   }
   GuiHelpRegister(ToRayRect(layout.cache_zstd),
                   "Force zstd-compressed cache");
-  if (GuiButtonStyled(ToRayRect(layout.cache_auto), "auto", true,
-                      state->cache_mode == APP_CACHE_COMPRESSION_AUTO)) {
-    state->cache_mode = APP_CACHE_COMPRESSION_AUTO;
-  }
-  GuiHelpRegister(ToRayRect(layout.cache_auto),
-                  "Auto-select compression based on cache size threshold");
 
   GuiLabel(ToRayRect(layout.level_label), "Level");
-  GuiHelpRegister(ToRayRect(layout.level_label), "zstd compression level (1..19)");
-  if (GuiTextBox(ToRayRect(layout.level_input), state->cache_level_input,
-                 (int)sizeof(state->cache_level_input), true)) {
-    int parsed = 0;
-    if (!TryParseIntStrict(state->cache_level_input, &parsed)) {
-      strncpy(state->banner_message,
-              "Compression level must be an integer between 1 and 19",
-              sizeof(state->banner_message) - 1);
-      snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
-               state->cache_level);
-    } else {
-      int clamped = parsed;
-      if (clamped < 1) {
-        clamped = 1;
-      } else if (clamped > 19) {
-        clamped = 19;
+  bool level_enabled = state->cache_mode == APP_CACHE_COMPRESSION_ZSTD;
+  GuiHelpRegister(ToRayRect(layout.level_label),
+                  level_enabled
+                      ? "zstd compression level (1..19)"
+                      : "Compression level applies only when zstd is selected");
+  if (level_enabled) {
+    if (GuiTextBox(ToRayRect(layout.level_input), state->cache_level_input,
+                   (int)sizeof(state->cache_level_input), true)) {
+      int parsed = 0;
+      if (!TryParseIntStrict(state->cache_level_input, &parsed)) {
+        strncpy(state->banner_message,
+                "Compression level must be an integer between 1 and 19",
+                sizeof(state->banner_message) - 1);
+        snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
+                 state->cache_level);
+      } else {
+        int clamped = parsed;
+        if (clamped < 1) {
+          clamped = 1;
+        } else if (clamped > 19) {
+          clamped = 19;
+        }
+        if (clamped != parsed) {
+          snprintf(state->banner_message, sizeof(state->banner_message),
+                   "Compression level clamped to %d (allowed range: 1..19)",
+                   clamped);
+        }
+        state->cache_level = clamped;
+        snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
+                 state->cache_level);
       }
-      if (clamped != parsed) {
-        snprintf(state->banner_message, sizeof(state->banner_message),
-                 "Compression level clamped to %d (allowed range: 1..19)",
-                 clamped);
-      }
-      state->cache_level = clamped;
-      snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
-               state->cache_level);
     }
+  } else {
+    GuiTextBox(ToRayRect(layout.level_input), state->cache_level_input,
+               (int)sizeof(state->cache_level_input), false);
   }
-  GuiHelpRegister(ToRayRect(layout.level_input), "Valid compression level: 1..19");
+  GuiHelpRegister(ToRayRect(layout.level_input),
+                  level_enabled ? "Valid compression level: 1..19"
+                                : "Select zstd compression to edit this field");
 
   DrawLineEx((Vector2){layout.actions_divider.x, layout.actions_divider.y},
              (Vector2){layout.actions_divider.x + layout.actions_divider.width,

@@ -41,7 +41,7 @@ void test_gui_fixed_scan_layout_no_overlap(void) {
       scan.gallery_label,      scan.gallery_input,  scan.env_label,
       scan.env_input,          scan.exhaustive,     scan.jobs_label,
       scan.jobs_input,         scan.cache_label,    scan.cache_none,
-      scan.cache_zstd,         scan.cache_auto,     scan.level_label,
+      scan.cache_zstd,         scan.level_label,
       scan.level_input,        scan.scan_button,    scan.ml_button,
       scan.download_models_button, scan.save_paths_button,
       scan.reset_paths_button, scan.info_label,

@@ -105,10 +105,9 @@ void GuiBuildScanPanelLayout(GuiRect panel_bounds, GuiScanPanelLayout *out_layou
   out_layout->cache_label = MakeRect(x + 160.0f, y, 180.0f, 30.0f);
   out_layout->cache_none = MakeRect(x + 345.0f, y, 95.0f, 38.0f);
   out_layout->cache_zstd = MakeRect(x + 450.0f, y, 95.0f, 38.0f);
-  out_layout->cache_auto = MakeRect(x + 555.0f, y, 95.0f, 38.0f);
 
-  out_layout->level_label = MakeRect(x + 665.0f, y, 60.0f, 30.0f);
-  out_layout->level_input = MakeRect(x + 730.0f, y, 90.0f, 34.0f);
+  out_layout->level_label = MakeRect(x + 560.0f, y, 60.0f, 30.0f);
+  out_layout->level_input = MakeRect(x + 625.0f, y, 90.0f, 34.0f);
 
   y += 56.0f;
   out_layout->actions_divider = MakeRect(x, y - 8.0f, panel_right - x, 1.0f);
