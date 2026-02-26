@@ -15,6 +15,7 @@ extern void register_cache_codec_tests(void);
 extern void register_benchmark_output_tests(void);
 extern void register_memory_metrics_tests(void);
 extern void register_app_api_tests(void);
+extern void register_app_cache_profile_tests(void);
 extern void register_app_models_tests(void);
 extern void register_app_runtime_state_tests(void);
 extern void register_gui_state_tests(void);
@@ -46,6 +47,7 @@ int main(int argc, char **argv) {
   register_benchmark_output_tests();
   register_memory_metrics_tests();
   register_app_api_tests();
+  register_app_cache_profile_tests();
   register_app_models_tests();
   register_app_runtime_state_tests();
   register_gui_state_tests();
