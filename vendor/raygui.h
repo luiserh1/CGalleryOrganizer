@@ -152,6 +152,12 @@ static inline bool GuiTextBox(Rectangle bounds, char *text, int text_size,
     }
   }
 
+  if (!edit_mode && active) {
+    active_text = NULL;
+    active_cursor_pos = 0;
+    active = false;
+  }
+
   if (clicked && edit_mode) {
     active_text = text;
     active_cursor_pos = text_len;
@@ -184,14 +190,23 @@ static inline bool GuiTextBox(Rectangle bounds, char *text, int text_size,
     active = false;
   }
 
-  DrawRectangleRec(bounds, WHITE);
-  DrawRectangleLinesEx(bounds, 1, active ? BLUE : GRAY);
+  Color fill = WHITE;
+  Color border = active ? BLUE : GRAY;
+  Color text_color = BLACK;
+  if (!edit_mode) {
+    fill = (Color){232, 232, 232, 255};
+    border = (Color){178, 178, 178, 255};
+    text_color = (Color){145, 145, 145, 255};
+  }
+
+  DrawRectangleRec(bounds, fill);
+  DrawRectangleLinesEx(bounds, 1, border);
 
   Font font = GuiFontResolved();
   float font_size = GuiFontSizeResolved();
   if (text) {
     DrawTextEx(font, text, (Vector2){bounds.x + 6, bounds.y + 6}, font_size,
-               1.0f, BLACK);
+               1.0f, text_color);
   }
 
   if (active && edit_mode) {

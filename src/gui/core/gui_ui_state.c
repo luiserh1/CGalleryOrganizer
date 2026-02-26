@@ -1,8 +1,113 @@
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include "gui/core/gui_action_rules.h"
 #include "gui/gui_common.h"
+
+static bool TryParseIntStrict(const char *text, int *out_value) {
+  if (!text || !out_value) {
+    return false;
+  }
+
+  char *endptr = NULL;
+  long parsed = strtol(text, &endptr, 10);
+  if (!endptr || *endptr != '\0') {
+    return false;
+  }
+  if (parsed < INT_MIN || parsed > INT_MAX) {
+    return false;
+  }
+  *out_value = (int)parsed;
+  return true;
+}
+
+static bool TryParseFloatStrict(const char *text, float *out_value) {
+  if (!text || !out_value) {
+    return false;
+  }
+
+  char *endptr = NULL;
+  float parsed = strtof(text, &endptr);
+  if (!endptr || *endptr != '\0') {
+    return false;
+  }
+  *out_value = parsed;
+  return true;
+}
+
+static bool TaskUsesCacheCompressionSettings(GuiTaskType task_type) {
+  switch (task_type) {
+  case GUI_TASK_SCAN:
+  case GUI_TASK_ML_ENRICH:
+  case GUI_TASK_SIMILARITY:
+  case GUI_TASK_PREVIEW_ORGANIZE:
+  case GUI_TASK_EXECUTE_ORGANIZE:
+  case GUI_TASK_FIND_DUPLICATES:
+    return true;
+  default:
+    return false;
+  }
+}
+
+static bool TaskUsesScanJobsSetting(GuiTaskType task_type) {
+  return task_type == GUI_TASK_SCAN || task_type == GUI_TASK_ML_ENRICH ||
+         task_type == GUI_TASK_SIMILARITY;
+}
+
+static bool GuiUiValidateNumericTaskInputs(GuiUiState *state,
+                                           GuiTaskType task_type) {
+  if (!state) {
+    return false;
+  }
+
+  if (TaskUsesScanJobsSetting(task_type)) {
+    int jobs = 0;
+    if (!TryParseIntStrict(state->jobs_input, &jobs) || jobs < 1 || jobs > 256) {
+      strncpy(state->banner_message, "Jobs must be an integer between 1 and 256",
+              sizeof(state->banner_message) - 1);
+      return false;
+    }
+    state->jobs = jobs;
+  }
+
+  if (TaskUsesCacheCompressionSettings(task_type) &&
+      state->cache_mode == APP_CACHE_COMPRESSION_ZSTD) {
+    int level = 0;
+    if (!TryParseIntStrict(state->cache_level_input, &level) || level < 1 ||
+        level > 19) {
+      strncpy(state->banner_message,
+              "Compression level must be an integer between 1 and 19",
+              sizeof(state->banner_message) - 1);
+      return false;
+    }
+    state->cache_level = level;
+  }
+
+  if (task_type == GUI_TASK_SIMILARITY) {
+    float threshold = 0.0f;
+    if (!TryParseFloatStrict(state->sim_threshold_input, &threshold) ||
+        threshold < 0.0f || threshold > 1.0f) {
+      strncpy(state->banner_message,
+              "Similarity threshold must be a number between 0.000 and 1.000",
+              sizeof(state->banner_message) - 1);
+      return false;
+    }
+    state->sim_threshold = threshold;
+
+    int topk = 0;
+    if (!TryParseIntStrict(state->sim_topk_input, &topk) || topk < 1 ||
+        topk > 1000) {
+      strncpy(state->banner_message, "TopK must be an integer between 1 and 1000",
+              sizeof(state->banner_message) - 1);
+      return false;
+    }
+    state->sim_topk = topk;
+  }
+
+  return true;
+}
 
 static void SyncNumericInputBuffers(GuiUiState *state) {
   if (!state) {
@@ -122,6 +227,10 @@ bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
   if (state->worker_snapshot.busy) {
     strncpy(state->banner_message, "Another task is currently running",
             sizeof(state->banner_message) - 1);
+    return false;
+  }
+
+  if (!GuiUiValidateNumericTaskInputs(state, task_type)) {
     return false;
   }
 
