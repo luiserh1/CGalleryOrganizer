@@ -9,5 +9,6 @@ bool ReportsEquivalentIgnoringTimestamp(const char *left_path,
                                         const char *right_path);
 bool WriteRollbackManifest(const char *env_dir);
 bool WriteBootstrapModels(const char *models_dir);
+bool CopyFileForTest(const char *source_path, const char *target_path);
 
 #endif

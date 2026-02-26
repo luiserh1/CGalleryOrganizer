@@ -7,12 +7,21 @@
 
 #include "integration_test_helpers.h"
 
+static bool FileExists(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    return false;
+  }
+  fclose(f);
+  return true;
+}
+
 void test_cli_exhaustive_flag_and_cache_enrichment(void) {
   system("rm -rf build/test_cli_exhaustive_src build/test_cli_exhaustive_env");
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_exhaustive_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_exhaustive_env"));
-  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg "
-                      "build/test_cli_exhaustive_src/a.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
+                              "build/test_cli_exhaustive_src/a.jpg"));
 
   char output[4096];
   int code = RunCommandCapture(
@@ -119,8 +128,8 @@ void test_cli_jobs_env_and_override(void) {
   system("rm -rf build/test_cli_jobs_src build/test_cli_jobs_env");
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_env"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_jobs_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_jobs_src/a.png"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
@@ -151,6 +160,96 @@ void test_cli_similarity_memory_mode_validation(void) {
   ASSERT_TRUE(strstr(output, "--sim-memory-mode must be eager|chunked") != NULL);
 }
 
+void test_cli_scan_does_not_move_duplicates_without_flag(void) {
+  system("rm -rf build/test_cli_dup_scan_src build/test_cli_dup_scan_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_scan_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_scan_env"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
+                              "build/test_cli_dup_scan_src/bird.JPG"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird_duplicate.JPG",
+                              "build/test_cli_dup_scan_src/bird_duplicate.JPG"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_dup_scan_src "
+      "build/test_cli_dup_scan_env 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Moving copies") == NULL);
+  ASSERT_TRUE(FileExists("build/test_cli_dup_scan_src/bird_duplicate.JPG"));
+  ASSERT_FALSE(FileExists("build/test_cli_dup_scan_env/bird_duplicate.JPG"));
+
+  system("rm -rf build/test_cli_dup_scan_src build/test_cli_dup_scan_env");
+}
+
+void test_cli_duplicates_report_is_non_mutating(void) {
+  system("rm -rf build/test_cli_dup_report_src build/test_cli_dup_report_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_report_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_report_env"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
+                              "build/test_cli_dup_report_src/bird.JPG"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird_duplicate.JPG",
+                              "build/test_cli_dup_report_src/bird_duplicate.JPG"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_dup_report_src "
+      "build/test_cli_dup_report_env --duplicates-report 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "(dry-run)") != NULL);
+  ASSERT_TRUE(FileExists("build/test_cli_dup_report_src/bird_duplicate.JPG"));
+  ASSERT_FALSE(FileExists("build/test_cli_dup_report_env/bird_duplicate.JPG"));
+
+  system("rm -rf build/test_cli_dup_report_src build/test_cli_dup_report_env");
+}
+
+void test_cli_duplicates_move_requires_env(void) {
+  system("rm -rf build/test_cli_dup_move_req_src");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_move_req_src"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
+                              "build/test_cli_dup_move_req_src/bird.JPG"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird_duplicate.JPG",
+                              "build/test_cli_dup_move_req_src/bird_duplicate.JPG"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_dup_move_req_src "
+      "--duplicates-move 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "--duplicates-move requires an environment directory") !=
+              NULL);
+
+  system("rm -rf build/test_cli_dup_move_req_src");
+}
+
+void test_cli_duplicates_move_executes(void) {
+  system("rm -rf build/test_cli_dup_move_src build/test_cli_dup_move_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_move_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_move_env"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
+                              "build/test_cli_dup_move_src/bird.JPG"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird_duplicate.JPG",
+                              "build/test_cli_dup_move_src/bird_duplicate.JPG"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_dup_move_src "
+      "build/test_cli_dup_move_env --duplicates-move 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Successfully moved") != NULL);
+  bool source_bird_exists = FileExists("build/test_cli_dup_move_src/bird.JPG");
+  bool source_dup_exists =
+      FileExists("build/test_cli_dup_move_src/bird_duplicate.JPG");
+  ASSERT_FALSE(source_bird_exists && source_dup_exists);
+  ASSERT_TRUE(FileExists("build/test_cli_dup_move_env/bird.JPG") ||
+              FileExists("build/test_cli_dup_move_env/bird_duplicate.JPG"));
+
+  system("rm -rf build/test_cli_dup_move_src build/test_cli_dup_move_env");
+}
+
 void register_cli_core_tests(void) {
   register_test("test_cli_exhaustive_flag_and_cache_enrichment",
                 test_cli_exhaustive_flag_and_cache_enrichment, "integration");
@@ -168,4 +267,13 @@ void register_cli_core_tests(void) {
                 test_cli_jobs_env_and_override, "integration");
   register_test("test_cli_similarity_memory_mode_validation",
                 test_cli_similarity_memory_mode_validation, "integration");
+  register_test("test_cli_scan_does_not_move_duplicates_without_flag",
+                test_cli_scan_does_not_move_duplicates_without_flag,
+                "integration");
+  register_test("test_cli_duplicates_report_is_non_mutating",
+                test_cli_duplicates_report_is_non_mutating, "integration");
+  register_test("test_cli_duplicates_move_requires_env",
+                test_cli_duplicates_move_requires_env, "integration");
+  register_test("test_cli_duplicates_move_executes",
+                test_cli_duplicates_move_executes, "integration");
 }

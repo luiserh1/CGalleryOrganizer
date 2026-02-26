@@ -29,6 +29,8 @@ void CliPrintUsage(const char *argv0) {
   printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
          "Default: date\n");
   printf("  --preview         Print restructuring plan without executing\n");
+  printf("  --duplicates-report Analyze duplicate groups without moving files\n");
+  printf("  --duplicates-move Move duplicates into env_dir after scan\n");
   printf("  --rollback        Undo a restructuring operation using the manifest\n");
   printf("\nRollback usage:\n");
   printf("  %s <scan_dir> <env_dir> --rollback\n", argv0);

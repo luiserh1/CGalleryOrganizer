@@ -111,7 +111,13 @@ Scan tab.
 - `--preview`: build and print organization plan without moving files.
 - `--organize`: execute organization plan after confirmation.
 - `--group-by <keys>`: grouping keys list. Allowed keys: `date,camera,format,orientation,resolution`.
+- `--duplicates-report`: analyze duplicate groups without moving files.
+- `--duplicates-move`: move duplicate copies into `<env_dir>`.
 - `--rollback`: restore moved files from `manifest.json`.
+
+Notes:
+- plain scan/cache runs do not move duplicate files automatically.
+- duplicate moves are explicit-only via `--duplicates-move`.
 
 ### Rollback invocation (both supported)
 ```bash
@@ -188,6 +194,16 @@ Cache profile behavior:
 ### Similarity report
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --similarity-report --sim-threshold 0.92 --sim-topk 5
+```
+
+### Duplicate analysis (non-mutating)
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --duplicates-report
+```
+
+### Duplicate move (explicit)
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --duplicates-move
 ```
 
 ### Compressed cache

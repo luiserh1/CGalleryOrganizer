@@ -198,3 +198,41 @@ bool WriteBootstrapModels(const char *models_dir) {
 
   return true;
 }
+
+bool CopyFileForTest(const char *source_path, const char *target_path) {
+  if (!source_path || !target_path) {
+    return false;
+  }
+
+  FILE *src = fopen(source_path, "rb");
+  if (!src) {
+    return false;
+  }
+
+  FILE *dst = fopen(target_path, "wb");
+  if (!dst) {
+    fclose(src);
+    return false;
+  }
+
+  unsigned char buffer[4096];
+  bool ok = true;
+  while (!feof(src)) {
+    size_t read_bytes = fread(buffer, 1, sizeof(buffer), src);
+    if (ferror(src)) {
+      ok = false;
+      break;
+    }
+    if (read_bytes == 0) {
+      continue;
+    }
+    if (fwrite(buffer, 1, read_bytes, dst) != read_bytes) {
+      ok = false;
+      break;
+    }
+  }
+
+  fclose(src);
+  fclose(dst);
+  return ok;
+}

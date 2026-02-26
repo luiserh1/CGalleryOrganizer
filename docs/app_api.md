@@ -152,6 +152,9 @@ The API remains synchronous. Frontends can run calls in worker threads.
 
 ### `AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request, AppScanResult *out_result)`
 - Scans media, updates cache, and optionally runs ML/similarity preparation.
+- Does not execute duplicate moves or organize actions implicitly; those remain
+  explicit operations (`AppFindDuplicates`/`AppMoveDuplicates`,
+  `AppPreviewOrganize`/`AppExecuteOrganize`).
 - Required request fields: `target_dir`, `env_dir`.
 - `out_result` returns scan/cache/ML counters and cache profile status:
   - `cache_profile_matched`

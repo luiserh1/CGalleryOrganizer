@@ -18,6 +18,7 @@ extern void register_app_api_tests(void);
 extern void register_app_cache_profile_tests(void);
 extern void register_app_models_tests(void);
 extern void register_app_runtime_state_tests(void);
+extern void register_app_workflow_tests(void);
 extern void register_gui_state_tests(void);
 extern void register_gui_layout_tests(void);
 extern void register_gui_action_rules_tests(void);
@@ -50,6 +51,7 @@ int main(int argc, char **argv) {
   register_app_cache_profile_tests();
   register_app_models_tests();
   register_app_runtime_state_tests();
+  register_app_workflow_tests();
   register_gui_state_tests();
   register_gui_layout_tests();
   register_gui_action_rules_tests();
