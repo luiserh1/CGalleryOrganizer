@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "raygui.h"
 #include "raylib.h"
@@ -138,9 +139,12 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
   GuiLayoutContext ctx = {0};
   GuiLayoutInit(&ctx, panel_bounds, metrics);
 
+  float path_label_width = fmaxf(LabelWidth("Gallery Directory", metrics),
+                                 LabelWidth("Environment Dir", metrics));
+  float group_gap = (float)(metrics->gap * 2);
+
   GuiLayoutRect label_gallery =
-      GuiLayoutPlaceFixed(&ctx, LabelWidth("Gallery Directory", metrics),
-                          (float)metrics->label_h);
+      GuiLayoutPlaceFixed(&ctx, path_label_width, (float)metrics->label_h);
   GuiLabel(ToRayRect(label_gallery), "Gallery Directory");
   GuiLayoutRect input_gallery =
       GuiLayoutPlaceFlex(&ctx, (float)metrics->min_text_input_w, (float)metrics->input_h);
@@ -150,8 +154,7 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
   GuiLayoutNextLine(&ctx);
 
   GuiLayoutRect label_env =
-      GuiLayoutPlaceFixed(&ctx, LabelWidth("Environment Dir", metrics),
-                          (float)metrics->label_h);
+      GuiLayoutPlaceFixed(&ctx, path_label_width, (float)metrics->label_h);
   GuiLabel(ToRayRect(label_env), "Environment Dir");
   GuiLayoutRect input_env =
       GuiLayoutPlaceFlex(&ctx, (float)metrics->min_text_input_w, (float)metrics->input_h);
@@ -159,10 +162,13 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
 
   GuiLayoutNextLine(&ctx);
 
-  GuiLayoutRect exhaustive_rect =
-      GuiLayoutPlaceFixed(&ctx, GuiLayoutButtonWidth("Exhaustive metadata", metrics,
-                                                     210.0f * metrics->effective_scale),
-                          (float)metrics->label_h);
+  GuiLayoutRect exhaustive_spacer =
+      GuiLayoutPlaceFixed(&ctx, path_label_width, (float)metrics->label_h);
+  (void)exhaustive_spacer;
+  GuiLayoutRect exhaustive_rect = GuiLayoutPlaceFixed(
+      &ctx, GuiLayoutButtonWidth("Exhaustive metadata", metrics,
+                                 220.0f * metrics->effective_scale),
+      (float)metrics->label_h);
   if (GuiCheckBox(ToRayRect(exhaustive_rect), "Exhaustive metadata",
                   state->exhaustive)) {
     state->exhaustive = !state->exhaustive;
@@ -185,6 +191,10 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
       }
     }
   }
+
+  GuiLayoutRect settings_gap =
+      GuiLayoutPlaceFixed(&ctx, group_gap, (float)metrics->label_h);
+  (void)settings_gap;
 
   GuiLayoutRect cache_label =
       GuiLayoutPlaceFixed(&ctx, LabelWidth("Cache compression", metrics),
@@ -214,6 +224,10 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
     state->cache_mode = APP_CACHE_COMPRESSION_AUTO;
   }
 
+  GuiLayoutRect level_gap =
+      GuiLayoutPlaceFixed(&ctx, group_gap, (float)metrics->label_h);
+  (void)level_gap;
+
   GuiLayoutRect level_label =
       GuiLayoutPlaceFixed(&ctx, LabelWidth("Level", metrics), (float)metrics->label_h);
   GuiLabel(ToRayRect(level_label), "Level");
@@ -231,6 +245,11 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
   }
 
   GuiLayoutNextLine(&ctx);
+  float divider_y = ctx.cursor_y - (float)metrics->gap * 0.5f;
+  DrawLineEx((Vector2){ctx.row_start_x, divider_y},
+             (Vector2){ctx.row_right_x, divider_y}, 1.0f,
+             (Color){192, 192, 192, 255});
+  ctx.cursor_y += (float)metrics->gap;
 
   if (ActionButton(
           state,
