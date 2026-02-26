@@ -57,6 +57,7 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 - `--ml-enrich`: run local ML enrichment and store ML outputs in cache.
 - `--similarity-report`: generate `<env_dir>/similarity_report.json` using embeddings.
 - `--sim-incremental <on|off>`: reuse valid embeddings on similarity runs (default `on`).
+- `--sim-memory-mode <eager|chunked>`: embedding decode strategy for similarity (default `chunked`).
 - `--sim-threshold <0..1>`: minimum cosine similarity (default `0.92`).
 - `--sim-topk <n>`: max neighbors per anchor group (default `5`).
 - `--cache-compress <mode>`: cache encoding mode (`none`, `zstd`, or `auto`).

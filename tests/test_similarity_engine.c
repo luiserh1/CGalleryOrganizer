@@ -71,6 +71,56 @@ void test_similarity_report_generation(void) {
   CacheFreeMetadata(&items[1]);
 }
 
+void test_similarity_memory_mode_parity(void) {
+  ImageMetadata items[4] = {0};
+  const char *paths[4] = {"/tmp/a.jpg", "/tmp/b.jpg", "/tmp/c.jpg", "/tmp/d.jpg"};
+  const float emb[4][4] = {
+      {1.0f, 0.0f, 0.0f, 0.0f},
+      {0.95f, 0.1f, 0.0f, 0.0f},
+      {0.2f, 0.9f, 0.0f, 0.0f},
+      {0.96f, 0.05f, 0.0f, 0.0f},
+  };
+
+  for (int i = 0; i < 4; i++) {
+    items[i].path = strdup(paths[i]);
+    items[i].mlEmbeddingDim = 4;
+    strncpy(items[i].mlModelEmbedding, "embed-default",
+            sizeof(items[i].mlModelEmbedding) - 1);
+    ASSERT_TRUE(
+        SimilarityEncodeEmbeddingBase64(emb[i], 4, &items[i].mlEmbeddingBase64));
+  }
+
+  SimilarityReport eager = {0};
+  SimilarityReport chunked = {0};
+  SimilaritySetMemoryMode(SIM_MEMORY_MODE_EAGER);
+  ASSERT_TRUE(SimilarityBuildReport("embed-default", 0.8f, 3, items, 4, &eager));
+  SimilaritySetMemoryMode(SIM_MEMORY_MODE_CHUNKED);
+  ASSERT_TRUE(
+      SimilarityBuildReport("embed-default", 0.8f, 3, items, 4, &chunked));
+
+  ASSERT_EQ(eager.groupCount, chunked.groupCount);
+  for (int i = 0; i < eager.groupCount; i++) {
+    ASSERT_STR_EQ(eager.groups[i].anchorPath, chunked.groups[i].anchorPath);
+    ASSERT_EQ(eager.groups[i].neighborCount, chunked.groups[i].neighborCount);
+    for (int j = 0; j < eager.groups[i].neighborCount; j++) {
+      ASSERT_STR_EQ(eager.groups[i].neighbors[j].path,
+                    chunked.groups[i].neighbors[j].path);
+      float diff = eager.groups[i].neighbors[j].score -
+                   chunked.groups[i].neighbors[j].score;
+      if (diff < 0.0f) {
+        diff = -diff;
+      }
+      ASSERT_TRUE(diff < 0.0001f);
+    }
+  }
+
+  SimilarityFreeReport(&eager);
+  SimilarityFreeReport(&chunked);
+  for (int i = 0; i < 4; i++) {
+    CacheFreeMetadata(&items[i]);
+  }
+}
+
 void register_similarity_engine_tests(void) {
   register_test("test_similarity_base64_roundtrip", test_similarity_base64_roundtrip,
                 "similarity");
@@ -78,4 +128,6 @@ void register_similarity_engine_tests(void) {
                 "similarity");
   register_test("test_similarity_report_generation",
                 test_similarity_report_generation, "similarity");
+  register_test("test_similarity_memory_mode_parity",
+                test_similarity_memory_mode_parity, "similarity");
 }

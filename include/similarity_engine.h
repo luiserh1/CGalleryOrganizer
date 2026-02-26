@@ -25,6 +25,11 @@ typedef struct {
   SimilarityGroup *groups;
 } SimilarityReport;
 
+typedef enum {
+  SIM_MEMORY_MODE_EAGER = 0,
+  SIM_MEMORY_MODE_CHUNKED = 1
+} SimilarityMemoryMode;
+
 bool SimilarityEncodeEmbeddingBase64(const float *embedding, int dim,
                                      char **out_base64);
 bool SimilarityDecodeEmbeddingBase64(const char *base64, float **out_embedding,
@@ -38,6 +43,9 @@ bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
 
 bool SimilarityWriteReportJson(const char *output_path,
                                const SimilarityReport *report);
+
+void SimilaritySetMemoryMode(SimilarityMemoryMode mode);
+SimilarityMemoryMode SimilarityGetMemoryMode(void);
 
 void SimilarityFreeReport(SimilarityReport *report);
 

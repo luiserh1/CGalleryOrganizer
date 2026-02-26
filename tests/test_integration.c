@@ -569,6 +569,16 @@ void test_cli_similarity_report_requires_env(void) {
   ASSERT_TRUE(strstr(output, "requires an environment directory") != NULL);
 }
 
+void test_cli_similarity_memory_mode_validation(void) {
+  char output[2048];
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer tests/assets/png build/test_cli_sim_mode "
+      "--similarity-report --sim-memory-mode invalid 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "--sim-memory-mode must be eager|chunked") != NULL);
+}
+
 void test_cli_cache_compress_flag_validation(void) {
   char output[2048];
   int code = RunCommandCapture(
@@ -760,6 +770,8 @@ void register_integration_tests(void) {
                 test_cli_similarity_report_generates_json, "integration");
   register_test("test_cli_similarity_report_requires_env",
                 test_cli_similarity_report_requires_env, "integration");
+  register_test("test_cli_similarity_memory_mode_validation",
+                test_cli_similarity_memory_mode_validation, "integration");
   register_test("test_cli_cache_compress_flag_validation",
                 test_cli_cache_compress_flag_validation, "integration");
   register_test("test_cli_cache_compress_zstd_roundtrip_or_skip",

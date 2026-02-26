@@ -41,6 +41,8 @@ static void PrintUsage(const char *argv0) {
   printf("  --similarity-report Build similarity report using embeddings\n");
   printf("  --sim-incremental <on|off> Reuse valid embeddings on similarity runs "
          "(default: on)\n");
+  printf("  --sim-memory-mode <eager|chunked> Similarity embedding decode mode "
+         "(default: chunked)\n");
   printf("  --sim-threshold <0..1> Similarity threshold (default: 0.92)\n");
   printf("  --sim-topk <n>    Max neighbors per anchor (default: 5)\n");
   printf("  --cache-compress <mode> Cache compression mode: none|zstd|auto\n");
@@ -437,6 +439,7 @@ int main(int argc, char **argv) {
   bool rollback = false;
   float sim_threshold = 0.92f;
   int sim_topk = 5;
+  SimilarityMemoryMode sim_memory_mode = SIM_MEMORY_MODE_CHUNKED;
   CacheCompressionMode cache_compression_mode = CACHE_COMPRESSION_NONE;
   int cache_compression_level = 3;
   bool cache_compression_level_set = false;
@@ -495,6 +498,20 @@ int main(int argc, char **argv) {
         return 1;
       }
       sim_topk = (int)parsed;
+    } else if (strcmp(argv[i], "--sim-memory-mode") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --sim-memory-mode requires eager|chunked.\n");
+        return 1;
+      }
+      const char *mode = argv[++i];
+      if (strcmp(mode, "eager") == 0) {
+        sim_memory_mode = SIM_MEMORY_MODE_EAGER;
+      } else if (strcmp(mode, "chunked") == 0) {
+        sim_memory_mode = SIM_MEMORY_MODE_CHUNKED;
+      } else {
+        printf("Error: --sim-memory-mode must be eager|chunked.\n");
+        return 1;
+      }
     } else if (strcmp(argv[i], "--cache-compress") == 0) {
       if (i + 1 >= argc) {
         printf("Error: --cache-compress requires a mode: none|zstd|auto.\n");
@@ -696,6 +713,7 @@ int main(int argc, char **argv) {
   printf("\n");
 
   if (similarity_report) {
+    SimilaritySetMemoryMode(sim_memory_mode);
     char report_path[1024] = {0};
     snprintf(report_path, sizeof(report_path), "%s/similarity_report.json",
              env_dir);

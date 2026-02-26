@@ -166,6 +166,8 @@ typedef struct {
   float score;
 } ScoreIndex;
 
+static SimilarityMemoryMode g_memory_mode = SIM_MEMORY_MODE_CHUNKED;
+
 static int CompareScoreDesc(const void *a, const void *b) {
   const ScoreIndex *sa = (const ScoreIndex *)a;
   const ScoreIndex *sb = (const ScoreIndex *)b;
@@ -202,14 +204,8 @@ static void FreeGroupsPartial(SimilarityGroup *groups, int group_count) {
   free(groups);
 }
 
-bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
-                           const ImageMetadata *items, int item_count,
-                           SimilarityReport *out_report) {
-  if (!model_id || threshold < 0.0f || threshold > 1.0f || topk <= 0 ||
-      !out_report || item_count < 0) {
-    return false;
-  }
-
+static bool InitReport(SimilarityReport *out_report, const char *model_id,
+                       float threshold, int topk) {
   memset(out_report, 0, sizeof(SimilarityReport));
   strncpy(out_report->modelId, model_id, sizeof(out_report->modelId) - 1);
   out_report->threshold = threshold;
@@ -224,11 +220,63 @@ bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
 #endif
   strftime(out_report->generatedAt, sizeof(out_report->generatedAt),
            "%Y-%m-%dT%H:%M:%SZ", &tm_utc);
+  return true;
+}
 
-  if (item_count == 0 || !items) {
-    return true;
+static bool DecodeEmbeddingForItem(const ImageMetadata *item, float **out_embedding,
+                                   int *out_dim) {
+  if (!item || !item->path || !item->mlEmbeddingBase64 || item->mlEmbeddingDim <= 0 ||
+      !out_embedding || !out_dim) {
+    return false;
   }
 
+  float *embedding = NULL;
+  int dim = 0;
+  if (!SimilarityDecodeEmbeddingBase64(item->mlEmbeddingBase64, &embedding, &dim)) {
+    return false;
+  }
+  if (dim != item->mlEmbeddingDim) {
+    free(embedding);
+    return false;
+  }
+
+  *out_embedding = embedding;
+  *out_dim = dim;
+  return true;
+}
+
+static bool AppendGroup(const ImageMetadata *items, int anchor_index, int topk,
+                        ScoreIndex *candidates, int candidate_count,
+                        SimilarityGroup *groups, int *group_count) {
+  if (!items || !candidates || !groups || !group_count || candidate_count <= 0) {
+    return false;
+  }
+
+  qsort(candidates, (size_t)candidate_count, sizeof(ScoreIndex), CompareScoreDesc);
+
+  int keep = candidate_count < topk ? candidate_count : topk;
+  groups[*group_count].anchorPath = strdup(items[anchor_index].path);
+  groups[*group_count].neighborCount = keep;
+  groups[*group_count].neighbors = calloc((size_t)keep, sizeof(SimilarityNeighbor));
+  if (!groups[*group_count].anchorPath || !groups[*group_count].neighbors) {
+    return false;
+  }
+
+  for (int k = 0; k < keep; k++) {
+    const int idx = candidates[k].index;
+    groups[*group_count].neighbors[k].path = strdup(items[idx].path);
+    if (!groups[*group_count].neighbors[k].path) {
+      return false;
+    }
+    groups[*group_count].neighbors[k].score = candidates[k].score;
+  }
+
+  (*group_count)++;
+  return true;
+}
+
+static bool BuildReportEager(float threshold, int topk, const ImageMetadata *items,
+                             int item_count, SimilarityReport *out_report) {
   float **decoded = calloc((size_t)item_count, sizeof(float *));
   int *dims = calloc((size_t)item_count, sizeof(int));
   SimilarityGroup *groups = calloc((size_t)item_count, sizeof(SimilarityGroup));
@@ -240,22 +288,9 @@ bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
   }
 
   for (int i = 0; i < item_count; i++) {
-    if (!items[i].path || !items[i].mlEmbeddingBase64 || items[i].mlEmbeddingDim <= 0) {
+    if (!DecodeEmbeddingForItem(&items[i], &decoded[i], &dims[i])) {
       continue;
     }
-
-    float *embedding = NULL;
-    int dim = 0;
-    if (!SimilarityDecodeEmbeddingBase64(items[i].mlEmbeddingBase64, &embedding,
-                                         &dim)) {
-      continue;
-    }
-    if (dim != items[i].mlEmbeddingDim) {
-      free(embedding);
-      continue;
-    }
-    decoded[i] = embedding;
-    dims[i] = dim;
   }
 
   int group_count = 0;
@@ -274,18 +309,13 @@ bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
 
     int candidate_count = 0;
     for (int j = 0; j < item_count; j++) {
-      if (i == j || !decoded[j] || !items[j].path) {
-        continue;
-      }
-      if (dims[i] != dims[j]) {
+      if (i == j || !decoded[j] || !items[j].path || dims[i] != dims[j]) {
         continue;
       }
 
       float score = 0.0f;
-      if (!SimilarityCosine(decoded[i], decoded[j], dims[i], &score)) {
-        continue;
-      }
-      if (score < threshold) {
+      if (!SimilarityCosine(decoded[i], decoded[j], dims[i], &score) ||
+          score < threshold) {
         continue;
       }
 
@@ -294,37 +324,14 @@ bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
       candidate_count++;
     }
 
-    if (candidate_count > 0) {
-      qsort(candidates, (size_t)candidate_count, sizeof(ScoreIndex),
-            CompareScoreDesc);
-
-      int keep = candidate_count < topk ? candidate_count : topk;
-      groups[group_count].anchorPath = strdup(items[i].path);
-      groups[group_count].neighborCount = keep;
-      groups[group_count].neighbors =
-          calloc((size_t)keep, sizeof(SimilarityNeighbor));
-      if (!groups[group_count].anchorPath || !groups[group_count].neighbors) {
-        free(candidates);
-        FreeTempEmbeddings(decoded, item_count);
-        free(dims);
-        FreeGroupsPartial(groups, group_count + 1);
-        return false;
-      }
-
-      for (int k = 0; k < keep; k++) {
-        const int idx = candidates[k].index;
-        groups[group_count].neighbors[k].path = strdup(items[idx].path);
-        if (!groups[group_count].neighbors[k].path) {
-          free(candidates);
-          FreeTempEmbeddings(decoded, item_count);
-          free(dims);
-          FreeGroupsPartial(groups, group_count + 1);
-          return false;
-        }
-        groups[group_count].neighbors[k].score = candidates[k].score;
-      }
-
-      group_count++;
+    if (candidate_count > 0 &&
+        !AppendGroup(items, i, topk, candidates, candidate_count, groups,
+                     &group_count)) {
+      free(candidates);
+      FreeTempEmbeddings(decoded, item_count);
+      free(dims);
+      FreeGroupsPartial(groups, group_count + 1);
+      return false;
     }
 
     free(candidates);
@@ -337,6 +344,103 @@ bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
   out_report->groupCount = group_count;
   return true;
 }
+
+static bool BuildReportChunked(float threshold, int topk, const ImageMetadata *items,
+                               int item_count, SimilarityReport *out_report) {
+  SimilarityGroup *groups = calloc((size_t)item_count, sizeof(SimilarityGroup));
+  if (!groups) {
+    return false;
+  }
+
+  int group_count = 0;
+  for (int i = 0; i < item_count; i++) {
+    float *anchor = NULL;
+    int anchor_dim = 0;
+    if (!DecodeEmbeddingForItem(&items[i], &anchor, &anchor_dim)) {
+      continue;
+    }
+
+    ScoreIndex *candidates = calloc((size_t)item_count, sizeof(ScoreIndex));
+    if (!candidates) {
+      free(anchor);
+      FreeGroupsPartial(groups, group_count);
+      return false;
+    }
+
+    int candidate_count = 0;
+    for (int j = 0; j < item_count; j++) {
+      if (i == j || !items[j].path) {
+        continue;
+      }
+
+      float *peer = NULL;
+      int peer_dim = 0;
+      if (!DecodeEmbeddingForItem(&items[j], &peer, &peer_dim)) {
+        continue;
+      }
+      if (anchor_dim != peer_dim) {
+        free(peer);
+        continue;
+      }
+
+      float score = 0.0f;
+      bool ok = SimilarityCosine(anchor, peer, anchor_dim, &score);
+      free(peer);
+      if (!ok || score < threshold) {
+        continue;
+      }
+
+      candidates[candidate_count].index = j;
+      candidates[candidate_count].score = score;
+      candidate_count++;
+    }
+
+    if (candidate_count > 0 &&
+        !AppendGroup(items, i, topk, candidates, candidate_count, groups,
+                     &group_count)) {
+      free(candidates);
+      free(anchor);
+      FreeGroupsPartial(groups, group_count + 1);
+      return false;
+    }
+
+    free(candidates);
+    free(anchor);
+  }
+
+  out_report->groups = groups;
+  out_report->groupCount = group_count;
+  return true;
+}
+
+bool SimilarityBuildReport(const char *model_id, float threshold, int topk,
+                           const ImageMetadata *items, int item_count,
+                           SimilarityReport *out_report) {
+  if (!model_id || threshold < 0.0f || threshold > 1.0f || topk <= 0 ||
+      !out_report || item_count < 0) {
+    return false;
+  }
+
+  InitReport(out_report, model_id, threshold, topk);
+
+  if (item_count == 0 || !items) {
+    return true;
+  }
+
+  if (g_memory_mode == SIM_MEMORY_MODE_EAGER) {
+    return BuildReportEager(threshold, topk, items, item_count, out_report);
+  }
+  return BuildReportChunked(threshold, topk, items, item_count, out_report);
+}
+
+void SimilaritySetMemoryMode(SimilarityMemoryMode mode) {
+  if (mode != SIM_MEMORY_MODE_EAGER && mode != SIM_MEMORY_MODE_CHUNKED) {
+    return;
+  }
+  g_memory_mode = mode;
+}
+
+SimilarityMemoryMode SimilarityGetMemoryMode(void) { return g_memory_mode; }
 
 bool SimilarityWriteReportJson(const char *output_path,
                                const SimilarityReport *report) {
