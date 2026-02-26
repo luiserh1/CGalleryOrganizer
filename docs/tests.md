@@ -120,6 +120,20 @@ Expected:
 - Some tests invoke shell commands (`system`/`popen`) and use temporary build directories.
 - Keep temp paths scoped under `build/` and clean them in each test to avoid cross-test interference.
 
+## Roadmap Test Gates (0.4.2+)
+
+- `v0.4.2`:
+  - verify incremental similarity reuses embeddings on unchanged reruns.
+  - verify `--cache-compress auto` mode decision at threshold boundary.
+- `v0.4.3`:
+  - verify `chunked` and `eager` similarity modes produce equivalent output.
+  - verify peak RSS for similarity path is improved or justified.
+- `v0.4.4`:
+  - verify `--jobs 1` and `--jobs N` output parity.
+  - run repeated parallel smoke to detect instability/deadlocks.
+- `codex/benchmark-methodology` branch:
+  - validate statistical report fields (`runs`, `median`, `p95`, `stddev`) without runtime behavior diffs.
+
 ## Asset and Model Attribution Requirements
 
 When adding or updating fixtures under `tests/assets/**`, update

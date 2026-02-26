@@ -122,6 +122,13 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `mixed`: all other balanced outcomes
 - `loss`: latency increase > 30% and disk gain < 15%
 
+## 0.4.x Roadmap
+
+- `v0.4.2`: incremental similarity + cache compression `auto` mode.
+- `v0.4.3`: similarity memory optimization (`chunked` default).
+- `v0.4.4`: parallel scan/inference pipeline (`--jobs`, `CGO_JOBS`).
+- `codex/benchmark-methodology`: benchmark-only improvements merged without version bump.
+
 ### Preview with compound grouping
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --preview --group-by camera,date,resolution

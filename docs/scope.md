@@ -149,7 +149,7 @@ Deliver a minimal but complete similarity workflow on top of the local ML founda
 
 ---
 
-## v0.4.1 Scope: Performance Baseline + Optional Cache Compression (Planned)
+## v0.4.1 Scope: Performance Baseline + Optional Cache Compression (Completed)
 
 ### Primary Goal
 Measure and compare performance characteristics across key workloads, then introduce optional cache compression with quantified tradeoffs.
@@ -172,6 +172,97 @@ Measure and compare performance characteristics across key workloads, then intro
 - Compare modes via:
   - `make benchmark`
   - `make benchmark-compare`
+
+---
+
+## v0.4.2 Scope: Incremental Similarity + Compression Auto Mode (Planned)
+
+### Primary Goal
+Speed up repeated similarity workflows by reusing valid embeddings, and simplify compression behavior with an automatic mode.
+
+### Features
+- Incremental similarity generation:
+  - reuse embeddings for unchanged files
+  - infer only missing/stale embeddings
+  - regenerate report with reused + new embeddings
+- Compression ergonomics:
+  - `--cache-compress auto` with size-threshold policy
+  - keep explicit `none` and `zstd`
+- CLI additions:
+  - `--sim-incremental <on|off>` (default `on`)
+  - `--cache-compress <none|zstd|auto>`
+- Default policy constants:
+  - `CACHE_AUTO_THRESHOLD_BYTES = 8 MiB`
+  - `SIM_INCREMENTAL_DEFAULT = on`
+
+---
+
+## v0.4.3 Scope: Similarity Memory Optimization (Planned)
+
+### Primary Goal
+Reduce peak RSS during similarity computation by avoiding eager full-decoding of embeddings.
+
+### Features
+- Similarity engine refactor to bounded-memory processing (`chunked` mode).
+- Optional expert flag:
+  - `--sim-memory-mode <eager|chunked>` (default `chunked`)
+- Preserve report schema and ranking behavior.
+
+---
+
+## v0.4.4 Scope: Parallel Scan/Inference Pipeline (Planned)
+
+### Primary Goal
+Improve throughput via parallel scan->metadata->inference processing while preserving deterministic output.
+
+### Features
+- Worker-pool pipeline with bounded queue.
+- Aggregated serialized writes for cache/report safety.
+- CLI additions:
+  - `--jobs <n>` (default `auto`)
+  - `CGO_JOBS` override
+- Deterministic output parity between `--jobs 1` and `--jobs N`.
+
+---
+
+## Benchmark Methodology Branch (Non-Versioned)
+
+### Branch
+- `codex/benchmark-methodology`
+
+### Scope
+- Benchmark-only improvements (no runtime behavior changes):
+  - repeated runs (`--runs N`)
+  - summary stats (median/p95/min/max/stddev)
+  - optional warmup runs
+  - structured comparison report export
+
+### Merge Policy
+- May merge to `main` without creating a release tag.
+- If behavior changes leak into runtime paths, defer merge to the next functional version branch.
+
+---
+
+## Documentation Governance
+
+For every merged milestone branch:
+1. Update this file (`docs/scope.md`) status transitions (`Planned` -> `Completed`) with exact version.
+2. Keep `README.md` CLI/options/examples synchronized with parser behavior.
+3. Keep `docs/tests.md` smoke and benchmark flows synchronized.
+4. If benchmark schema changes, update schema docs in the same commit.
+5. Add version release-notes section in docs for:
+   - behavior changes
+   - migration/compat notes
+   - benchmark impact summary
+
+---
+
+## Version Mapping (Corrected)
+
+- `v0.4.2`: incremental similarity + compression auto mode
+- `v0.4.3`: similarity memory optimization
+- `v0.4.4`: parallel pipeline
+- benchmark-methodology branch: non-versioned merge path
 
 ---
 
