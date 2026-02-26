@@ -32,7 +32,7 @@ BENCHMARK_BIN = $(TEST_BIN_DIR)/benchmark_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
 
-.PHONY: all clean clean-all test benchmark benchmark-compare models help
+.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare models help
 
 all: $(TARGET)
 
@@ -57,6 +57,14 @@ benchmark-compare: $(BENCHMARK_BIN)
 	fi
 	@./$(BENCHMARK_BIN) --profile uncompressed
 	@./$(BENCHMARK_BIN) --profile zstd-l3
+
+benchmark-sim-memory-compare: $(BENCHMARK_BIN)
+	@if [ -z "$$BENCHMARK_DATASET" ] && [ ! -f "build/stress_data/.downloaded" ]; then \
+		echo "[*] Dataset not found via lockfile. Attempting to download..."; \
+		./scripts/download_stress_dataset.sh; \
+	fi
+	@./$(BENCHMARK_BIN) --profile uncompressed --workload similarity_search --sim-memory-mode eager
+	@./$(BENCHMARK_BIN) --profile uncompressed --workload similarity_search --sim-memory-mode chunked
 
 models:
 	@./scripts/download_models.sh
@@ -110,4 +118,5 @@ help:
 	@echo "  make help       - Show this help message"
 	@echo "  make benchmark  - Run benchmark workloads and append JSONL output"
 	@echo "  make benchmark-compare - Run benchmark profiles (uncompressed + zstd)"
+	@echo "  make benchmark-sim-memory-compare - Compare similarity_search RSS in eager vs chunked modes"
 	@echo "  make models     - Download and verify ML model artifacts into build/models"

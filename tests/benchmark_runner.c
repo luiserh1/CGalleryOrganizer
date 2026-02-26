@@ -23,6 +23,7 @@ typedef struct {
   char timestampUtc[64];
   char gitCommit[32];
   char profile[32];
+  char simMemoryMode[16];
   char workload[64];
   char datasetPath[1024];
   int datasetFileCount;
@@ -243,7 +244,7 @@ static bool BenchmarkScanCallback(const char *absolute_path, void *user_data) {
 }
 
 static bool BuildSimilarityReportFromCache(const char *report_path, float threshold,
-                                           int topk) {
+                                           int topk, SimilarityMemoryMode mode) {
   int key_count = 0;
   char **keys = CacheGetAllKeys(&key_count);
   if (key_count < 0) {
@@ -276,6 +277,7 @@ static bool BuildSimilarityReportFromCache(const char *report_path, float thresh
   SimilarityReport report = {0};
   const char *model_id = (usable_count > 0) ? entries[0].mlModelEmbedding
                                              : "embed-default";
+  SimilaritySetMemoryMode(mode);
   bool ok = SimilarityBuildReport(model_id, threshold, topk, entries,
                                   usable_count, &report);
   if (ok) {
@@ -389,6 +391,7 @@ static bool AppendBenchmarkRecord(const char *history_path,
   cJSON_AddStringToObject(root, "timestampUtc", record->timestampUtc);
   cJSON_AddStringToObject(root, "gitCommit", record->gitCommit);
   cJSON_AddStringToObject(root, "profile", record->profile);
+  cJSON_AddStringToObject(root, "simMemoryMode", record->simMemoryMode);
   cJSON_AddStringToObject(root, "workload", record->workload);
   cJSON_AddStringToObject(root, "datasetPath", record->datasetPath);
   cJSON_AddNumberToObject(root, "datasetFileCount", record->datasetFileCount);
@@ -445,6 +448,7 @@ static bool WriteLastSummary(const char *last_path, const BenchmarkRecord *recor
 
     cJSON_AddStringToObject(entry, "timestampUtc", records[i].timestampUtc);
     cJSON_AddStringToObject(entry, "profile", records[i].profile);
+    cJSON_AddStringToObject(entry, "simMemoryMode", records[i].simMemoryMode);
     cJSON_AddStringToObject(entry, "workload", records[i].workload);
     cJSON_AddNumberToObject(entry, "timeMs", (double)records[i].timeMs);
     cJSON_AddNumberToObject(entry, "cacheBytes", (double)records[i].cacheBytes);
@@ -472,6 +476,7 @@ static bool WriteLastSummary(const char *last_path, const BenchmarkRecord *recor
 static bool RunWorkload(BenchmarkWorkload workload, const char *dataset_path,
                         const char *models_root, CacheCompressionMode mode,
                         int compression_level, const char *profile_name,
+                        SimilarityMemoryMode sim_memory_mode,
                         BenchmarkRecord *record) {
   char profile_slug[64] = {0};
   ProfileSlug(profile_name, profile_slug, sizeof(profile_slug));
@@ -554,7 +559,8 @@ static bool RunWorkload(BenchmarkWorkload workload, const char *dataset_path,
   }
 
   if (ok && workload == WORKLOAD_SIMILARITY_SEARCH) {
-    if (!BuildSimilarityReportFromCache(report_path, 0.92f, 5)) {
+    if (!BuildSimilarityReportFromCache(report_path, 0.92f, 5,
+                                        sim_memory_mode)) {
       ok = false;
       snprintf(record->error, sizeof(record->error),
                "similarity report generation failed");
@@ -585,6 +591,7 @@ static bool RunWorkload(BenchmarkWorkload workload, const char *dataset_path,
 int main(int argc, char **argv) {
   const char *profile_arg = "uncompressed";
   const char *workload_arg = "all";
+  SimilarityMemoryMode sim_memory_mode = SIM_MEMORY_MODE_CHUNKED;
 
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--profile") == 0) {
@@ -599,6 +606,20 @@ int main(int argc, char **argv) {
         return 1;
       }
       workload_arg = argv[++i];
+    } else if (strcmp(argv[i], "--sim-memory-mode") == 0) {
+      if (i + 1 >= argc) {
+        fprintf(stderr, "Error: --sim-memory-mode requires eager|chunked.\n");
+        return 1;
+      }
+      const char *mode = argv[++i];
+      if (strcmp(mode, "eager") == 0) {
+        sim_memory_mode = SIM_MEMORY_MODE_EAGER;
+      } else if (strcmp(mode, "chunked") == 0) {
+        sim_memory_mode = SIM_MEMORY_MODE_CHUNKED;
+      } else {
+        fprintf(stderr, "Error: --sim-memory-mode must be eager|chunked.\n");
+        return 1;
+      }
     } else {
       fprintf(stderr, "Error: unknown option '%s'.\n", argv[i]);
       return 1;
@@ -671,6 +692,8 @@ int main(int argc, char **argv) {
     FillNowUtcIso(rec->timestampUtc);
     FillGitCommit(rec->gitCommit);
     snprintf(rec->profile, sizeof(rec->profile), "%s", profile_name);
+    snprintf(rec->simMemoryMode, sizeof(rec->simMemoryMode), "%s",
+             sim_memory_mode == SIM_MEMORY_MODE_EAGER ? "eager" : "chunked");
     snprintf(rec->datasetPath, sizeof(rec->datasetPath), "%s", dataset_path);
     rec->datasetFileCount = dataset_file_count;
     rec->cacheBytes = -1;
@@ -682,15 +705,16 @@ int main(int argc, char **argv) {
 
     bool ok = RunWorkload(workloads[i], dataset_path, models_root,
                           compression_mode, compression_level, profile_name,
-                          rec);
+                          sim_memory_mode, rec);
     if (!AppendBenchmarkRecord(history_path, rec)) {
       fprintf(stderr, "Error: failed to append benchmark history.\n");
       return 1;
     }
 
-    printf("[%s] %s => %s | time=%lldms cache=%lldB rssDelta=%lldB peakRss=%lldB\n",
-           rec->profile, rec->workload, ok ? "OK" : "FAIL", rec->timeMs,
-           rec->cacheBytes, rec->rssDeltaBytes, rec->peakRssBytes);
+    printf("[%s][sim:%s] %s => %s | time=%lldms cache=%lldB rssDelta=%lldB peakRss=%lldB\n",
+           rec->profile, rec->simMemoryMode, rec->workload,
+           ok ? "OK" : "FAIL", rec->timeMs, rec->cacheBytes, rec->rssDeltaBytes,
+           rec->peakRssBytes);
 
     if (!ok) {
       failures++;

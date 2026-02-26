@@ -19,6 +19,9 @@ make benchmark
 # Run baseline + compressed profile
 make benchmark-compare
 
+# Compare similarity memory modes
+make benchmark-sim-memory-compare
+
 # Clean binaries and generated build artifacts
 make clean
 ```
@@ -127,6 +130,7 @@ BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile unco
 Expected:
 - `build/benchmark_history.jsonl` appended with one JSON object.
 - `build/benchmark_last.json` refreshed.
+- each record includes `simMemoryMode` (`chunked` or `eager`).
 
 ## Notes on Test Fragility
 

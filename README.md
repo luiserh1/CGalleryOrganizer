@@ -110,6 +110,7 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 ```bash
 make benchmark
 make benchmark-compare
+make benchmark-sim-memory-compare
 ```
 
 Outputs:
@@ -118,6 +119,7 @@ Outputs:
 
 `benchmark_history.jsonl` records:
 - `timestampUtc`, `gitCommit`, `profile`, `workload`
+- `simMemoryMode` (`chunked` by default, `eager` for parity/diagnostics)
 - `datasetPath`, `datasetFileCount`
 - `cachePath`, `cacheBytes`
 - `timeMs`

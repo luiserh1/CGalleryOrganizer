@@ -60,6 +60,7 @@ void test_benchmark_output_jsonl_contract(void) {
   ASSERT_TRUE(strstr(line, "\"timestampUtc\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"gitCommit\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"profile\":\"uncompressed\"") != NULL);
+  ASSERT_TRUE(strstr(line, "\"simMemoryMode\":\"chunked\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"workload\":\"cache_metadata_only\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"cacheBytes\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"timeMs\"") != NULL);
