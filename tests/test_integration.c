@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 
+#include "cJSON.h"
 #include "duplicate_finder.h"
 #include "fs_utils.h"
 #include "gallery_cache.h"
@@ -40,6 +41,78 @@ static int RunCommandCapture(const char *cmd, char *output, size_t output_size) 
     return WEXITSTATUS(status);
   }
   return -1;
+}
+
+static bool LoadFileText(const char *path, char **out_text) {
+  if (!path || !out_text) {
+    return false;
+  }
+  *out_text = NULL;
+
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    return false;
+  }
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    return false;
+  }
+  long size = ftell(f);
+  if (size < 0) {
+    fclose(f);
+    return false;
+  }
+  rewind(f);
+
+  char *buf = malloc((size_t)size + 1);
+  if (!buf) {
+    fclose(f);
+    return false;
+  }
+  size_t n = fread(buf, 1, (size_t)size, f);
+  fclose(f);
+  buf[n] = '\0';
+  *out_text = buf;
+  return true;
+}
+
+static bool ReportsEquivalentIgnoringTimestamp(const char *left_path,
+                                               const char *right_path) {
+  char *left_text = NULL;
+  char *right_text = NULL;
+  if (!LoadFileText(left_path, &left_text) || !LoadFileText(right_path, &right_text)) {
+    free(left_text);
+    free(right_text);
+    return false;
+  }
+
+  cJSON *left = cJSON_Parse(left_text);
+  cJSON *right = cJSON_Parse(right_text);
+  free(left_text);
+  free(right_text);
+  if (!left || !right) {
+    cJSON_Delete(left);
+    cJSON_Delete(right);
+    return false;
+  }
+
+  cJSON_DeleteItemFromObjectCaseSensitive(left, "generatedAt");
+  cJSON_DeleteItemFromObjectCaseSensitive(right, "generatedAt");
+
+  char *left_norm = cJSON_PrintUnformatted(left);
+  char *right_norm = cJSON_PrintUnformatted(right);
+  cJSON_Delete(left);
+  cJSON_Delete(right);
+  if (!left_norm || !right_norm) {
+    free(left_norm);
+    free(right_norm);
+    return false;
+  }
+
+  bool same = strcmp(left_norm, right_norm) == 0;
+  free(left_norm);
+  free(right_norm);
+  return same;
 }
 
 static bool WriteRollbackManifest(const char *env_dir) {
@@ -579,6 +652,47 @@ void test_cli_similarity_memory_mode_validation(void) {
   ASSERT_TRUE(strstr(output, "--sim-memory-mode must be eager|chunked") != NULL);
 }
 
+void test_cli_similarity_memory_mode_parity(void) {
+  system("rm -rf build/test_cli_sim_mode_src build/test_cli_sim_mode_env "
+         "build/test_cli_sim_mode_models");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_mode_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_mode_env"));
+  ASSERT_TRUE(WriteBootstrapModels("build/test_cli_sim_mode_models"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
+                      "build/test_cli_sim_mode_src/a.png"));
+  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg "
+                      "build/test_cli_sim_mode_src/b.jpg"));
+  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_no_exif.jpg "
+                      "build/test_cli_sim_mode_src/c.jpg"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_sim_mode_models "
+      "./build/bin/gallery_organizer build/test_cli_sim_mode_src "
+      "build/test_cli_sim_mode_env --similarity-report --sim-memory-mode eager "
+      "--sim-threshold 0.1 --sim-topk 3 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_EQ(0, system("cp build/test_cli_sim_mode_env/similarity_report.json "
+                      "build/test_cli_sim_mode_env/eager_report.json"));
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_sim_mode_models "
+      "./build/bin/gallery_organizer build/test_cli_sim_mode_src "
+      "build/test_cli_sim_mode_env --similarity-report --sim-memory-mode chunked "
+      "--sim-threshold 0.1 --sim-topk 3 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  ASSERT_TRUE(ReportsEquivalentIgnoringTimestamp(
+      "build/test_cli_sim_mode_env/eager_report.json",
+      "build/test_cli_sim_mode_env/similarity_report.json"));
+
+  system("rm -rf build/test_cli_sim_mode_src build/test_cli_sim_mode_env "
+         "build/test_cli_sim_mode_models");
+}
+
 void test_cli_cache_compress_flag_validation(void) {
   char output[2048];
   int code = RunCommandCapture(
@@ -772,6 +886,8 @@ void register_integration_tests(void) {
                 test_cli_similarity_report_requires_env, "integration");
   register_test("test_cli_similarity_memory_mode_validation",
                 test_cli_similarity_memory_mode_validation, "integration");
+  register_test("test_cli_similarity_memory_mode_parity",
+                test_cli_similarity_memory_mode_parity, "integration");
   register_test("test_cli_cache_compress_flag_validation",
                 test_cli_cache_compress_flag_validation, "integration");
   register_test("test_cli_cache_compress_zstd_roundtrip_or_skip",
