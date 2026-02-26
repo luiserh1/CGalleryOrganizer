@@ -25,6 +25,9 @@ make benchmark-stats
 # Compare similarity memory modes
 make benchmark-sim-memory-compare
 
+# Build GUI frontend (requires raylib)
+make gui
+
 # Clean binaries and generated build artifacts
 make clean
 ```
@@ -59,6 +62,8 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--sim-memory-mode` validation + parity path coverage
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
+- App API layer validation (`src/app/*`), including request validation and cancellation handling
+- GUI state persistence and reset behavior (`src/gui/gui_state.c`)
 
 ## Manual Smoke Checklist
 
@@ -151,6 +156,18 @@ BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile unco
 Expected:
 - `build/benchmark_last.json` contains median/p95/min/max/stddev stats per workload.
 - `build/benchmark_compare.json` contains per-workload `deltaPct` fields for median metrics.
+
+### 13. GUI smoke
+```bash
+make gui
+./build/bin/gallery_organizer_gui
+```
+Expected:
+- manual gallery/env path inputs are editable.
+- scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
+- background tasks show progress and can be cancelled.
+- saved paths persist between runs.
+- `--reset-state` clears saved paths.
 
 ## Notes on Test Fragility
 
