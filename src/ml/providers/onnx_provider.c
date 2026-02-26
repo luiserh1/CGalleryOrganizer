@@ -58,11 +58,6 @@ static bool OnnxInit(const MlProviderConfig *config) {
 
   if (!FileExists(clf_path) || !FileExists(text_path) ||
       !FileExists(embed_path)) {
-    fprintf(stderr,
-            "[ML] missing models. Expected '%s', '%s' and '%s' under %s. "
-            "Run scripts/download_models.sh first.\n",
-            ML_DEFAULT_CLASSIFICATION_MODEL, ML_DEFAULT_TEXT_MODEL,
-            ML_DEFAULT_EMBEDDING_MODEL, g_models_root);
     return false;
   }
 

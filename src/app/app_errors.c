@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "fs_utils.h"
 #include "ml_api.h"
@@ -11,6 +12,15 @@
 
 static const char *GROUP_KEYS[] = {
     "date", "camera", "format", "orientation", "resolution"};
+
+static bool AppFileExistsRegular(const char *path) {
+  if (!path || path[0] == '\0') {
+    return false;
+  }
+
+  struct stat st;
+  return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
 
 void AppClearError(AppContext *ctx) {
   if (!ctx) {
@@ -170,6 +180,44 @@ AppStatus AppEnsureMlReady(AppContext *ctx, const char *models_root_override) {
   const char *models_root = models_root_override;
   if (!models_root || models_root[0] == '\0') {
     models_root = ctx->models_root;
+  }
+
+  char clf_path[APP_MAX_PATH] = {0};
+  char text_path[APP_MAX_PATH] = {0};
+  char embed_path[APP_MAX_PATH] = {0};
+  snprintf(clf_path, sizeof(clf_path), "%s/%s", models_root,
+           APP_MODEL_FILE_CLASSIFICATION);
+  snprintf(text_path, sizeof(text_path), "%s/%s", models_root,
+           APP_MODEL_FILE_TEXT_DETECTION);
+  snprintf(embed_path, sizeof(embed_path), "%s/%s", models_root,
+           APP_MODEL_FILE_EMBEDDING);
+
+  const char *missing[3] = {0};
+  int missing_count = 0;
+  if (!AppFileExistsRegular(clf_path)) {
+    missing[missing_count++] = APP_MODEL_FILE_CLASSIFICATION;
+  }
+  if (!AppFileExistsRegular(text_path)) {
+    missing[missing_count++] = APP_MODEL_FILE_TEXT_DETECTION;
+  }
+  if (!AppFileExistsRegular(embed_path)) {
+    missing[missing_count++] = APP_MODEL_FILE_EMBEDDING;
+  }
+
+  if (missing_count > 0) {
+    char missing_list[256] = {0};
+    for (int i = 0; i < missing_count; i++) {
+      if (i > 0) {
+        strncat(missing_list, ", ", sizeof(missing_list) - strlen(missing_list) - 1);
+      }
+      strncat(missing_list, missing[i],
+              sizeof(missing_list) - strlen(missing_list) - 1);
+    }
+    AppSetError(ctx,
+                "missing models under %s (%s). Run make models or use GUI "
+                "Download Models",
+                models_root, missing_list);
+    return APP_STATUS_ML_ERROR;
   }
 
   if (!MlInit(models_root)) {
