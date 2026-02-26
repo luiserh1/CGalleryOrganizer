@@ -180,6 +180,33 @@ static int CompareScoreDesc(const void *a, const void *b) {
   return 0;
 }
 
+static void TopKConsider(ScoreIndex *top, int *count, int maxk, int index,
+                         float score) {
+  if (!top || !count || maxk <= 0) {
+    return;
+  }
+
+  if (*count < maxk) {
+    top[*count].index = index;
+    top[*count].score = score;
+    (*count)++;
+    return;
+  }
+
+  int min_pos = 0;
+  float min_score = top[0].score;
+  for (int i = 1; i < *count; i++) {
+    if (top[i].score < min_score) {
+      min_score = top[i].score;
+      min_pos = i;
+    }
+  }
+  if (score > min_score) {
+    top[min_pos].index = index;
+    top[min_pos].score = score;
+  }
+}
+
 static void FreeTempEmbeddings(float **embeddings, int count) {
   if (!embeddings) {
     return;
@@ -299,7 +326,7 @@ static bool BuildReportEager(float threshold, int topk, const ImageMetadata *ite
       continue;
     }
 
-    ScoreIndex *candidates = calloc((size_t)item_count, sizeof(ScoreIndex));
+    ScoreIndex *candidates = calloc((size_t)topk, sizeof(ScoreIndex));
     if (!candidates) {
       FreeTempEmbeddings(decoded, item_count);
       free(dims);
@@ -319,9 +346,7 @@ static bool BuildReportEager(float threshold, int topk, const ImageMetadata *ite
         continue;
       }
 
-      candidates[candidate_count].index = j;
-      candidates[candidate_count].score = score;
-      candidate_count++;
+      TopKConsider(candidates, &candidate_count, topk, j, score);
     }
 
     if (candidate_count > 0 &&
@@ -360,7 +385,7 @@ static bool BuildReportChunked(float threshold, int topk, const ImageMetadata *i
       continue;
     }
 
-    ScoreIndex *candidates = calloc((size_t)item_count, sizeof(ScoreIndex));
+    ScoreIndex *candidates = calloc((size_t)topk, sizeof(ScoreIndex));
     if (!candidates) {
       free(anchor);
       FreeGroupsPartial(groups, group_count);
@@ -390,9 +415,7 @@ static bool BuildReportChunked(float threshold, int topk, const ImageMetadata *i
         continue;
       }
 
-      candidates[candidate_count].index = j;
-      candidates[candidate_count].score = score;
-      candidate_count++;
+      TopKConsider(candidates, &candidate_count, topk, j, score);
     }
 
     if (candidate_count > 0 &&
