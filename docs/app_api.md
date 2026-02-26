@@ -50,6 +50,7 @@ The API remains synchronous. Frontends can run calls in worker threads.
 | --- | --- | --- |
 | `AppInspectRuntimeState` | none (optional `env_dir` for cache/manifest probes) | frontend startup or before task dispatch |
 | `AppInstallModels` | valid manifest and writable models root | frontend startup or before ML/similarity tasks |
+| `AppInspectScanProfile` | same request semantics as `AppRunScan`; no scan execution | before scan-like actions requiring rebuild confirmation |
 | `AppRunScan` | valid `target_dir`, `env_dir`; cache profile sidecar may trigger automatic rebuild | none |
 | `AppGenerateSimilarityReport` | cache in `env_dir`; embeddings available or producible from cache state | `AppRunScan` with similarity/ML path enabled |
 | `AppPreviewOrganize` | cache in `env_dir` | `AppRunScan` |
@@ -74,11 +75,12 @@ The API remains synchronous. Frontends can run calls in worker threads.
 
 ### Cache profile reuse flow
 
-1. `AppRunScan(...)` with desired semantic parameters.
-2. API compares requested profile with stored sidecar
+1. (optional frontend preflight) `AppInspectScanProfile(...)`.
+2. `AppRunScan(...)` with desired semantic parameters.
+3. API compares requested profile with stored sidecar
    (`<env_dir>/.cache/gallery_cache.profile.json`).
-3. If profile matches, cache is reused.
-4. If profile is missing/malformed/mismatched, cache is rebuilt automatically
+4. If profile matches, cache is reused.
+5. If profile is missing/malformed/mismatched, cache is rebuilt automatically
    before scan and a new sidecar is written after successful save.
 
 ### Scan -> Organize -> Rollback
@@ -139,6 +141,11 @@ The API remains synchronous. Frontends can run calls in worker threads.
 - Always reports:
   - `logical_cores`
   - `recommended_jobs`
+- Cache count semantics:
+  - `cache_entry_count_known=true`: `cache_entry_count` is reliable
+  - `cache_entry_count_known=false`: count is unknown/stale and must not be treated as empty
+  - runtime inspect uses lightweight sources (in-memory active cache or profile sidecar last-known count),
+    not full cache decode/parse in idle GUI paths
 - Side effects: none on cache/ML/organizer state.
 
 ## Scan/Cache and ML
@@ -150,6 +157,18 @@ The API remains synchronous. Frontends can run calls in worker threads.
   - `cache_profile_matched`
   - `cache_profile_rebuilt`
   - `cache_profile_reason`
+
+### `AppStatus AppInspectScanProfile(AppContext *ctx, const AppScanRequest *request, AppScanProfileDecision *out_decision)`
+- Non-mutating preflight for scan-like requests.
+- Uses the same strict cache-profile decision logic as `AppRunScan(...)`.
+- Typical frontend use:
+  - inspect before starting a scan-like task,
+  - if `will_rebuild_cache=true` and cache exists, ask for user confirmation.
+- `out_decision` fields:
+  - `profile_present`: sidecar exists and parsed correctly.
+  - `profile_match`: requested semantics exactly match stored profile.
+  - `will_rebuild_cache`: scan would rebuild cache before pipeline execution.
+  - `reason`: human-readable summary of match/mismatch.
 
 #### Cache Profile Contract (v1)
 
@@ -165,6 +184,9 @@ Tracked strict-equality fields:
 - `modelsFingerprint` (SHA-256 fingerprint computed from required model files)
   - ML enrich requested: `clf-default.onnx`, `text-default.onnx`
   - similarity prep requested: `embed-default.onnx`
+
+Optional informational field (excluded from strict match):
+- `cacheEntryCount` (last-known cache entry count)
 
 Non-tracked scan request fields:
 - `jobs`

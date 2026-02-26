@@ -22,10 +22,13 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 - Automatic cache rebuild on profile mismatch (strict equality on semantic parameters).
 - Unified frontend backend contract (`include/app_api.h`, `include/app_api_types.h`).
 - Canonical frontend API contract documentation (`docs/app_api.md`).
-- GUI frontend with background tasks, progress/cancel, and persisted last-used
-  gallery/environment paths.
+- GUI frontend with background tasks, progress/cancel, and explicit persisted
+  functional configuration state (paths + scan/similarity/organize inputs).
 - Functional fixed GUI baseline (`1280x820`, non-resizable, deterministic layout).
 - Runtime inspection API for frontend action gating (`AppInspectRuntimeState`).
+- Lightweight runtime cache-count contract:
+  - `cache_entry_count_known` indicates whether `cache_entry_count` is reliable
+  - runtime inspection avoids full cache decode/parse on idle GUI checks
 - Native model install API with manifest validation and checksum verification (`AppInstallModels`).
 - Guided GUI behavior:
   - action dependency locking with explicit reason messages
@@ -70,7 +73,7 @@ make app-api-lib
 make run-gui
 ```
 
-Reset GUI saved paths explicitly:
+Reset GUI saved state explicitly:
 ```bash
 ./build/bin/gallery_organizer_gui --reset-state
 ```
@@ -138,6 +141,13 @@ Additional 0.5.4 behavior:
 - hover tooltips for fields/actions
 - strict numeric validation for jobs/threshold/topK/compression level with range hints
 - scan profile persistence and automatic cache rebuild on semantic mismatch
+- explicit save-only state behavior:
+  - **Save State** persists the full functional configuration
+  - unsaved configuration changes prompt Save/Discard/Cancel on exit
+- pre-scan rebuild guard:
+  - scan-like actions run profile preflight first
+  - when cache exists and profile mismatches, GUI asks confirmation before rebuild
+- idle runtime refresh uses event-driven updates plus a slow poll cadence
 
 Initial GUI path inputs are manual text fields (no native file picker in 0.5.x).
 
@@ -153,6 +163,8 @@ Cache profile behavior:
   - `--jobs`
   - cache compression mode/level
   - `--sim-incremental`
+- optional informational field:
+  - `cacheEntryCount` (last-known cache entry count, not part of strict profile match)
 - if profile differs from the current scan request, cache is automatically rebuilt before scan
 - missing/malformed profile is treated as mismatch and rebuilt safely
 

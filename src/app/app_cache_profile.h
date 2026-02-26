@@ -12,6 +12,8 @@ typedef struct {
   bool ml_enrich_requested;
   bool similarity_prep_requested;
   char models_fingerprint[65];
+  bool has_cache_entry_count;
+  int cache_entry_count;
 } AppCacheProfile;
 
 typedef enum {
@@ -33,5 +35,8 @@ bool AppSaveCacheProfile(const char *profile_path,
 bool AppCompareCacheProfiles(const AppCacheProfile *expected,
                              const AppCacheProfile *actual, char *out_reason,
                              size_t out_reason_size);
+
+bool AppLoadCacheProfileEntryCount(const char *profile_path,
+                                   int *out_entry_count);
 
 #endif // APP_CACHE_PROFILE_H

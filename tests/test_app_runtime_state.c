@@ -21,6 +21,24 @@ static bool WriteTextFile(const char *path, const char *content) {
   return true;
 }
 
+static AppStatus RunScan(AppContext *ctx, const char *target_dir,
+                         const char *env_dir, AppScanResult *out_result) {
+  AppScanRequest request = {
+      .target_dir = target_dir,
+      .env_dir = env_dir,
+      .exhaustive = false,
+      .ml_enrich = false,
+      .similarity_report = false,
+      .sim_incremental = true,
+      .jobs = 1,
+      .cache_compression_mode = APP_CACHE_COMPRESSION_NONE,
+      .cache_compression_level = 3,
+      .models_root_override = NULL,
+      .hooks = {0},
+  };
+  return AppRunScan(ctx, &request, out_result);
+}
+
 void test_app_runtime_state_invalid_arguments(void) {
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -66,7 +84,8 @@ void test_app_runtime_state_detects_cache_manifest_and_models(void) {
   AppStatus status = AppInspectRuntimeState(ctx, &request, &state);
   ASSERT_EQ(APP_STATUS_OK, status);
   ASSERT_TRUE(state.cache_exists);
-  ASSERT_EQ(1, state.cache_entry_count);
+  ASSERT_FALSE(state.cache_entry_count_known);
+  ASSERT_EQ(0, state.cache_entry_count);
   ASSERT_TRUE(state.rollback_manifest_exists);
   ASSERT_TRUE(state.models.classification_present);
   ASSERT_TRUE(state.models.text_detection_present);
@@ -109,6 +128,61 @@ void test_app_runtime_state_reports_missing_models(void) {
   system("rm -rf build/test_app_state_missing_models");
 }
 
+void test_app_runtime_state_uses_in_memory_count_for_active_cache(void) {
+  system("rm -rf build/test_app_state_active_cache_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_active_cache_env"));
+
+  AppRuntimeOptions opts = {0};
+  AppContext *ctx = AppContextCreate(&opts);
+  ASSERT_TRUE(ctx != NULL);
+
+  AppScanResult scan_result = {0};
+  ASSERT_EQ(APP_STATUS_OK,
+            RunScan(ctx, "tests/assets/png", "build/test_app_state_active_cache_env",
+                    &scan_result));
+  ASSERT_TRUE(scan_result.files_cached > 0);
+
+  AppRuntimeStateRequest request = {
+      .env_dir = "build/test_app_state_active_cache_env",
+      .models_root_override = NULL,
+  };
+  AppRuntimeState state = {0};
+  AppStatus status = AppInspectRuntimeState(ctx, &request, &state);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(state.cache_exists);
+  ASSERT_TRUE(state.cache_entry_count_known);
+  ASSERT_EQ(scan_result.files_cached, state.cache_entry_count);
+
+  AppContextDestroy(ctx);
+  system("rm -rf build/test_app_state_active_cache_env");
+}
+
+void test_app_runtime_state_malformed_cache_does_not_fail_when_count_unknown(void) {
+  system("rm -rf build/test_app_state_malformed_cache_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_malformed_cache_env/.cache"));
+  ASSERT_TRUE(WriteTextFile(
+      "build/test_app_state_malformed_cache_env/.cache/gallery_cache.json",
+      "{bad-json"));
+
+  AppRuntimeOptions opts = {0};
+  AppContext *ctx = AppContextCreate(&opts);
+  ASSERT_TRUE(ctx != NULL);
+
+  AppRuntimeStateRequest request = {
+      .env_dir = "build/test_app_state_malformed_cache_env",
+      .models_root_override = NULL,
+  };
+  AppRuntimeState state = {0};
+  AppStatus status = AppInspectRuntimeState(ctx, &request, &state);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(state.cache_exists);
+  ASSERT_FALSE(state.cache_entry_count_known);
+  ASSERT_EQ(0, state.cache_entry_count);
+
+  AppContextDestroy(ctx);
+  system("rm -rf build/test_app_state_malformed_cache_env");
+}
+
 void register_app_runtime_state_tests(void) {
   register_test("test_app_runtime_state_invalid_arguments",
                 test_app_runtime_state_invalid_arguments, "unit");
@@ -116,4 +190,10 @@ void register_app_runtime_state_tests(void) {
                 test_app_runtime_state_detects_cache_manifest_and_models, "unit");
   register_test("test_app_runtime_state_reports_missing_models",
                 test_app_runtime_state_reports_missing_models, "unit");
+  register_test("test_app_runtime_state_uses_in_memory_count_for_active_cache",
+                test_app_runtime_state_uses_in_memory_count_for_active_cache,
+                "integration");
+  register_test("test_app_runtime_state_malformed_cache_does_not_fail_when_count_unknown",
+                test_app_runtime_state_malformed_cache_does_not_fail_when_count_unknown,
+                "unit");
 }

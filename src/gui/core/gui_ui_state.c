@@ -1,10 +1,35 @@
-#include <stdio.h>
-#include <string.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "gui/core/gui_action_rules.h"
 #include "gui/gui_common.h"
+
+static void GuiUiSetBannerMessage(GuiUiState *state, const char *message,
+                                  bool is_error) {
+  if (!state) {
+    return;
+  }
+
+  state->banner_message[0] = '\0';
+  state->banner_is_error = is_error;
+
+  if (!message) {
+    return;
+  }
+
+  strncpy(state->banner_message, message, sizeof(state->banner_message) - 1);
+  state->banner_message[sizeof(state->banner_message) - 1] = '\0';
+}
+
+void GuiUiSetBannerInfo(GuiUiState *state, const char *message) {
+  GuiUiSetBannerMessage(state, message, false);
+}
+
+void GuiUiSetBannerError(GuiUiState *state, const char *message) {
+  GuiUiSetBannerMessage(state, message, true);
+}
 
 static bool TryParseIntStrict(const char *text, int *out_value) {
   if (!text || !out_value) {
@@ -56,57 +81,9 @@ static bool TaskUsesScanJobsSetting(GuiTaskType task_type) {
          task_type == GUI_TASK_SIMILARITY;
 }
 
-static bool GuiUiValidateNumericTaskInputs(GuiUiState *state,
-                                           GuiTaskType task_type) {
-  if (!state) {
-    return false;
-  }
-
-  if (TaskUsesScanJobsSetting(task_type)) {
-    int jobs = 0;
-    if (!TryParseIntStrict(state->jobs_input, &jobs) || jobs < 1 || jobs > 256) {
-      strncpy(state->banner_message, "Jobs must be an integer between 1 and 256",
-              sizeof(state->banner_message) - 1);
-      return false;
-    }
-    state->jobs = jobs;
-  }
-
-  if (TaskUsesCacheCompressionSettings(task_type) &&
-      state->cache_mode == APP_CACHE_COMPRESSION_ZSTD) {
-    int level = 0;
-    if (!TryParseIntStrict(state->cache_level_input, &level) || level < 1 ||
-        level > 19) {
-      strncpy(state->banner_message,
-              "Compression level must be an integer between 1 and 19",
-              sizeof(state->banner_message) - 1);
-      return false;
-    }
-    state->cache_level = level;
-  }
-
-  if (task_type == GUI_TASK_SIMILARITY) {
-    float threshold = 0.0f;
-    if (!TryParseFloatStrict(state->sim_threshold_input, &threshold) ||
-        threshold < 0.0f || threshold > 1.0f) {
-      strncpy(state->banner_message,
-              "Similarity threshold must be a number between 0.000 and 1.000",
-              sizeof(state->banner_message) - 1);
-      return false;
-    }
-    state->sim_threshold = threshold;
-
-    int topk = 0;
-    if (!TryParseIntStrict(state->sim_topk_input, &topk) || topk < 1 ||
-        topk > 1000) {
-      strncpy(state->banner_message, "TopK must be an integer between 1 and 1000",
-              sizeof(state->banner_message) - 1);
-      return false;
-    }
-    state->sim_topk = topk;
-  }
-
-  return true;
+static bool TaskRequiresScanProfilePreflight(GuiTaskType task_type) {
+  return task_type == GUI_TASK_SCAN || task_type == GUI_TASK_ML_ENRICH ||
+         task_type == GUI_TASK_SIMILARITY;
 }
 
 static void SyncNumericInputBuffers(GuiUiState *state) {
@@ -123,6 +100,376 @@ static void SyncNumericInputBuffers(GuiUiState *state) {
            state->sim_topk);
 }
 
+static void BuildPersistedStateFromUi(const GuiUiState *state,
+                                      GuiState *out_state) {
+  if (!state || !out_state) {
+    return;
+  }
+
+  memset(out_state, 0, sizeof(*out_state));
+  strncpy(out_state->gallery_dir, state->gallery_dir,
+          sizeof(out_state->gallery_dir) - 1);
+  out_state->gallery_dir[sizeof(out_state->gallery_dir) - 1] = '\0';
+  strncpy(out_state->env_dir, state->env_dir, sizeof(out_state->env_dir) - 1);
+  out_state->env_dir[sizeof(out_state->env_dir) - 1] = '\0';
+
+  out_state->scan_exhaustive = state->exhaustive;
+  out_state->scan_jobs = state->jobs;
+  out_state->scan_cache_mode =
+      state->cache_mode == APP_CACHE_COMPRESSION_ZSTD
+          ? APP_CACHE_COMPRESSION_ZSTD
+          : APP_CACHE_COMPRESSION_NONE;
+  out_state->scan_cache_level = state->cache_level;
+
+  out_state->sim_incremental = state->sim_incremental;
+  out_state->sim_threshold = state->sim_threshold;
+  out_state->sim_topk = state->sim_topk;
+  out_state->sim_memory_mode = state->sim_memory_mode == APP_SIM_MEMORY_EAGER
+                                   ? APP_SIM_MEMORY_EAGER
+                                   : APP_SIM_MEMORY_CHUNKED;
+
+  if (state->group_by[0] != '\0') {
+    strncpy(out_state->organize_group_by, state->group_by,
+            sizeof(out_state->organize_group_by) - 1);
+    out_state->organize_group_by[sizeof(out_state->organize_group_by) - 1] =
+        '\0';
+  } else {
+    strncpy(out_state->organize_group_by, "date",
+            sizeof(out_state->organize_group_by) - 1);
+    out_state->organize_group_by[sizeof(out_state->organize_group_by) - 1] =
+        '\0';
+  }
+}
+
+static void ApplyPersistedStateToUi(GuiUiState *state, const GuiState *saved) {
+  if (!state || !saved) {
+    return;
+  }
+
+  strncpy(state->gallery_dir, saved->gallery_dir, sizeof(state->gallery_dir) - 1);
+  state->gallery_dir[sizeof(state->gallery_dir) - 1] = '\0';
+  strncpy(state->env_dir, saved->env_dir, sizeof(state->env_dir) - 1);
+  state->env_dir[sizeof(state->env_dir) - 1] = '\0';
+
+  state->exhaustive = saved->scan_exhaustive;
+  state->jobs = saved->scan_jobs;
+  if (state->jobs < 1) {
+    state->jobs = 1;
+  } else if (state->jobs > 256) {
+    state->jobs = 256;
+  }
+
+  state->cache_mode = saved->scan_cache_mode == APP_CACHE_COMPRESSION_ZSTD
+                          ? APP_CACHE_COMPRESSION_ZSTD
+                          : APP_CACHE_COMPRESSION_NONE;
+  state->cache_level = saved->scan_cache_level;
+  if (state->cache_level < 1) {
+    state->cache_level = 1;
+  } else if (state->cache_level > 19) {
+    state->cache_level = 19;
+  }
+
+  state->sim_incremental = saved->sim_incremental;
+  state->sim_threshold = saved->sim_threshold;
+  if (state->sim_threshold < 0.0f) {
+    state->sim_threshold = 0.0f;
+  } else if (state->sim_threshold > 1.0f) {
+    state->sim_threshold = 1.0f;
+  }
+
+  state->sim_topk = saved->sim_topk;
+  if (state->sim_topk < 1) {
+    state->sim_topk = 1;
+  } else if (state->sim_topk > 1000) {
+    state->sim_topk = 1000;
+  }
+
+  state->sim_memory_mode = saved->sim_memory_mode == APP_SIM_MEMORY_EAGER
+                               ? APP_SIM_MEMORY_EAGER
+                               : APP_SIM_MEMORY_CHUNKED;
+
+  if (saved->organize_group_by[0] != '\0') {
+    strncpy(state->group_by, saved->organize_group_by, sizeof(state->group_by) - 1);
+    state->group_by[sizeof(state->group_by) - 1] = '\0';
+  } else {
+    strncpy(state->group_by, "date", sizeof(state->group_by) - 1);
+    state->group_by[sizeof(state->group_by) - 1] = '\0';
+  }
+
+  SyncNumericInputBuffers(state);
+}
+
+static bool GuiUiNormalizeAllNumericInputs(GuiUiState *state) {
+  if (!state) {
+    return false;
+  }
+
+  int jobs = 0;
+  if (!TryParseIntStrict(state->jobs_input, &jobs) || jobs < 1 || jobs > 256) {
+    GuiUiSetBannerError(state, "Jobs must be an integer between 1 and 256");
+    return false;
+  }
+  state->jobs = jobs;
+
+  int cache_level = 0;
+  if (!TryParseIntStrict(state->cache_level_input, &cache_level) ||
+      cache_level < 1 || cache_level > 19) {
+    GuiUiSetBannerError(state,
+                        "Compression level must be an integer between 1 and 19");
+    return false;
+  }
+  state->cache_level = cache_level;
+
+  float threshold = 0.0f;
+  if (!TryParseFloatStrict(state->sim_threshold_input, &threshold) ||
+      threshold < 0.0f || threshold > 1.0f) {
+    GuiUiSetBannerError(
+        state,
+        "Similarity threshold must be a number between 0.000 and 1.000");
+    return false;
+  }
+  state->sim_threshold = threshold;
+
+  int topk = 0;
+  if (!TryParseIntStrict(state->sim_topk_input, &topk) || topk < 1 ||
+      topk > 1000) {
+    GuiUiSetBannerError(state, "TopK must be an integer between 1 and 1000");
+    return false;
+  }
+  state->sim_topk = topk;
+
+  SyncNumericInputBuffers(state);
+  return true;
+}
+
+static bool GuiUiValidateNumericTaskInputs(GuiUiState *state,
+                                           GuiTaskType task_type) {
+  if (!state) {
+    return false;
+  }
+
+  if (TaskUsesScanJobsSetting(task_type)) {
+    int jobs = 0;
+    if (!TryParseIntStrict(state->jobs_input, &jobs) || jobs < 1 || jobs > 256) {
+      GuiUiSetBannerError(state, "Jobs must be an integer between 1 and 256");
+      return false;
+    }
+    state->jobs = jobs;
+  }
+
+  if (TaskUsesCacheCompressionSettings(task_type) &&
+      state->cache_mode == APP_CACHE_COMPRESSION_ZSTD) {
+    int level = 0;
+    if (!TryParseIntStrict(state->cache_level_input, &level) || level < 1 ||
+        level > 19) {
+      GuiUiSetBannerError(state,
+                          "Compression level must be an integer between 1 and 19");
+      return false;
+    }
+    state->cache_level = level;
+  }
+
+  if (task_type == GUI_TASK_SIMILARITY) {
+    float threshold = 0.0f;
+    if (!TryParseFloatStrict(state->sim_threshold_input, &threshold) ||
+        threshold < 0.0f || threshold > 1.0f) {
+      GuiUiSetBannerError(
+          state,
+          "Similarity threshold must be a number between 0.000 and 1.000");
+      return false;
+    }
+    state->sim_threshold = threshold;
+
+    int topk = 0;
+    if (!TryParseIntStrict(state->sim_topk_input, &topk) || topk < 1 ||
+        topk > 1000) {
+      GuiUiSetBannerError(state, "TopK must be an integer between 1 and 1000");
+      return false;
+    }
+    state->sim_topk = topk;
+  }
+
+  return true;
+}
+
+static bool GuiUiNumericInputBuffersEqualCurrentValues(const GuiUiState *state) {
+  if (!state) {
+    return true;
+  }
+
+  int jobs = 0;
+  if (!TryParseIntStrict(state->jobs_input, &jobs) || jobs != state->jobs) {
+    return false;
+  }
+
+  int cache_level = 0;
+  if (!TryParseIntStrict(state->cache_level_input, &cache_level) ||
+      cache_level != state->cache_level) {
+    return false;
+  }
+
+  float threshold = 0.0f;
+  if (!TryParseFloatStrict(state->sim_threshold_input, &threshold)) {
+    return false;
+  }
+  if (threshold < state->sim_threshold - 0.0005f ||
+      threshold > state->sim_threshold + 0.0005f) {
+    return false;
+  }
+
+  int topk = 0;
+  if (!TryParseIntStrict(state->sim_topk_input, &topk) || topk != state->sim_topk) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool BuildScanProfileRequestForTask(const GuiUiState *state,
+                                           GuiTaskType task_type,
+                                           AppScanRequest *out_request) {
+  if (!state || !out_request || !TaskRequiresScanProfilePreflight(task_type)) {
+    return false;
+  }
+
+  memset(out_request, 0, sizeof(*out_request));
+  out_request->target_dir = state->gallery_dir;
+  out_request->env_dir = state->env_dir;
+  out_request->exhaustive = state->exhaustive;
+  out_request->ml_enrich = task_type == GUI_TASK_ML_ENRICH;
+  out_request->similarity_report = task_type == GUI_TASK_SIMILARITY;
+  out_request->sim_incremental = state->sim_incremental;
+  out_request->jobs = state->jobs > 0 ? state->jobs : 1;
+  out_request->cache_compression_mode = state->cache_mode;
+  out_request->cache_compression_level = state->cache_level;
+  out_request->models_root_override = NULL;
+  return true;
+}
+
+static bool GuiUiHandleScanProfilePreflight(GuiUiState *state,
+                                            GuiTaskType task_type,
+                                            bool *out_requires_confirmation) {
+  if (!state || !out_requires_confirmation) {
+    return false;
+  }
+
+  *out_requires_confirmation = false;
+
+  if (!TaskRequiresScanProfilePreflight(task_type)) {
+    return true;
+  }
+
+  AppScanRequest preflight_request = {0};
+  if (!BuildScanProfileRequestForTask(state, task_type, &preflight_request)) {
+    GuiUiSetBannerError(state, "Failed to prepare scan profile preflight request");
+    return false;
+  }
+
+  AppScanProfileDecision decision = {0};
+  char error[APP_MAX_ERROR] = {0};
+  if (!GuiWorkerInspectScanProfile(&preflight_request, &decision, error,
+                                   sizeof(error))) {
+    if (error[0] != '\0') {
+      GuiUiSetBannerError(state, error);
+    } else {
+      GuiUiSetBannerError(state, "Scan profile preflight failed");
+    }
+    return false;
+  }
+
+  if (!decision.will_rebuild_cache) {
+    return true;
+  }
+
+  if (!(state->runtime_state_valid && state->runtime_state.cache_exists)) {
+    return true;
+  }
+
+  state->rebuild_confirm_pending = true;
+  state->rebuild_confirm_task = task_type;
+  strncpy(state->rebuild_confirm_reason, decision.reason,
+          sizeof(state->rebuild_confirm_reason) - 1);
+  state->rebuild_confirm_reason[sizeof(state->rebuild_confirm_reason) - 1] = '\0';
+
+  if (state->rebuild_confirm_reason[0] == '\0') {
+    strncpy(state->rebuild_confirm_reason,
+            "scan profile mismatch requires cache rebuild",
+            sizeof(state->rebuild_confirm_reason) - 1);
+    state->rebuild_confirm_reason[sizeof(state->rebuild_confirm_reason) - 1] =
+        '\0';
+  }
+
+  GuiUiSetBannerError(state, "Scan profile changed. Confirm cache rebuild to continue");
+  *out_requires_confirmation = true;
+  return true;
+}
+
+static bool GuiUiStartTaskInternal(GuiUiState *state, GuiTaskType task_type,
+                                   bool skip_rebuild_confirmation) {
+  if (!state) {
+    return false;
+  }
+
+  if (state->worker_snapshot.busy) {
+    GuiUiSetBannerError(state, "Another task is currently running");
+    return false;
+  }
+
+  if (!GuiUiValidateNumericTaskInputs(state, task_type)) {
+    return false;
+  }
+
+  GuiUiRefreshRuntimeState(state);
+  char reason[APP_MAX_ERROR] = {0};
+  if (!GuiActionCanStartTask(state, task_type, reason, sizeof(reason))) {
+    if (reason[0] != '\0') {
+      GuiUiSetBannerError(state, reason);
+    } else {
+      GuiUiSetBannerError(state, "Task prerequisites are not satisfied");
+    }
+    return false;
+  }
+
+  if (!skip_rebuild_confirmation) {
+    bool requires_confirmation = false;
+    if (!GuiUiHandleScanProfilePreflight(state, task_type,
+                                         &requires_confirmation)) {
+      return false;
+    }
+    if (requires_confirmation) {
+      return false;
+    }
+  }
+
+  GuiTaskInput input = {0};
+  input.type = task_type;
+  strncpy(input.gallery_dir, state->gallery_dir, sizeof(input.gallery_dir) - 1);
+  input.gallery_dir[sizeof(input.gallery_dir) - 1] = '\0';
+  strncpy(input.env_dir, state->env_dir, sizeof(input.env_dir) - 1);
+  input.env_dir[sizeof(input.env_dir) - 1] = '\0';
+  input.exhaustive = state->exhaustive;
+  input.jobs = state->jobs > 0 ? state->jobs : 1;
+  input.cache_mode = state->cache_mode;
+  input.cache_level = state->cache_level;
+  input.sim_incremental = state->sim_incremental;
+  input.sim_threshold = state->sim_threshold;
+  input.sim_topk = state->sim_topk;
+  input.sim_memory_mode = state->sim_memory_mode;
+  strncpy(input.group_by, state->group_by, sizeof(input.group_by) - 1);
+  input.group_by[sizeof(input.group_by) - 1] = '\0';
+
+  if (GuiWorkerStartTask(&input)) {
+    GuiUiSetBannerInfo(state, "Task started");
+    state->rebuild_confirm_pending = false;
+    state->rebuild_confirm_task = GUI_TASK_NONE;
+    state->rebuild_confirm_reason[0] = '\0';
+    return true;
+  }
+
+  GuiUiSetBannerError(state, "Failed to start task");
+  return false;
+}
+
 void GuiUiInitDefaults(GuiUiState *state) {
   if (!state) {
     return;
@@ -137,8 +484,14 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->sim_topk = 5;
   state->sim_memory_mode = APP_SIM_MEMORY_CHUNKED;
   strncpy(state->group_by, "date", sizeof(state->group_by) - 1);
+  state->group_by[sizeof(state->group_by) - 1] = '\0';
   state->runtime_state_valid = false;
+  state->rebuild_confirm_pending = false;
+  state->rebuild_confirm_task = GUI_TASK_NONE;
+  state->rebuild_confirm_reason[0] = '\0';
   SyncNumericInputBuffers(state);
+
+  BuildPersistedStateFromUi(state, &state->persisted_state);
 }
 
 void GuiUiSyncFromStateFile(GuiUiState *state) {
@@ -151,8 +504,7 @@ void GuiUiSyncFromStateFile(GuiUiState *state) {
     return;
   }
 
-  strncpy(state->gallery_dir, loaded.gallery_dir, sizeof(state->gallery_dir) - 1);
-  strncpy(state->env_dir, loaded.env_dir, sizeof(state->env_dir) - 1);
+  ApplyPersistedStateToUi(state, &loaded);
   state->persisted_state = loaded;
 }
 
@@ -161,9 +513,12 @@ bool GuiUiPersistState(GuiUiState *state) {
     return false;
   }
 
+  if (!GuiUiNormalizeAllNumericInputs(state)) {
+    return false;
+  }
+
   GuiState to_save = {0};
-  strncpy(to_save.gallery_dir, state->gallery_dir, sizeof(to_save.gallery_dir) - 1);
-  strncpy(to_save.env_dir, state->env_dir, sizeof(to_save.env_dir) - 1);
+  BuildPersistedStateFromUi(state, &to_save);
   if (!GuiStateSave(&to_save)) {
     return false;
   }
@@ -177,13 +532,41 @@ bool GuiUiHasUnsavedChanges(const GuiUiState *state) {
     return false;
   }
 
-  if (strncmp(state->gallery_dir, state->persisted_state.gallery_dir,
-              sizeof(state->gallery_dir)) != 0) {
+  if (!GuiUiNumericInputBuffersEqualCurrentValues(state)) {
     return true;
   }
 
-  if (strncmp(state->env_dir, state->persisted_state.env_dir,
-              sizeof(state->env_dir)) != 0) {
+  GuiState current_state = {0};
+  BuildPersistedStateFromUi(state, &current_state);
+
+  if (strncmp(current_state.gallery_dir, state->persisted_state.gallery_dir,
+              sizeof(current_state.gallery_dir)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.env_dir, state->persisted_state.env_dir,
+              sizeof(current_state.env_dir)) != 0) {
+    return true;
+  }
+
+  if (current_state.scan_exhaustive != state->persisted_state.scan_exhaustive ||
+      current_state.scan_jobs != state->persisted_state.scan_jobs ||
+      current_state.scan_cache_mode != state->persisted_state.scan_cache_mode ||
+      current_state.scan_cache_level != state->persisted_state.scan_cache_level ||
+      current_state.sim_incremental != state->persisted_state.sim_incremental ||
+      current_state.sim_topk != state->persisted_state.sim_topk ||
+      current_state.sim_memory_mode != state->persisted_state.sim_memory_mode) {
+    return true;
+  }
+  if (current_state.sim_threshold <
+          state->persisted_state.sim_threshold - 0.0005f ||
+      current_state.sim_threshold >
+          state->persisted_state.sim_threshold + 0.0005f) {
+    return true;
+  }
+
+  if (strncmp(current_state.organize_group_by,
+              state->persisted_state.organize_group_by,
+              sizeof(current_state.organize_group_by)) != 0) {
     return true;
   }
 
@@ -208,6 +591,7 @@ void GuiUiRefreshRuntimeState(GuiUiState *state) {
     state->runtime_state_valid = false;
     if (error[0] != '\0') {
       strncpy(state->runtime_error, error, sizeof(state->runtime_error) - 1);
+      state->runtime_error[sizeof(state->runtime_error) - 1] = '\0';
     } else {
       state->runtime_error[0] = '\0';
     }
@@ -220,52 +604,28 @@ void GuiUiRefreshRuntimeState(GuiUiState *state) {
 }
 
 bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
+  return GuiUiStartTaskInternal(state, task_type, false);
+}
+
+bool GuiUiStartPendingRebuildTask(GuiUiState *state) {
+  if (!state || !state->rebuild_confirm_pending ||
+      state->rebuild_confirm_task == GUI_TASK_NONE) {
+    return false;
+  }
+
+  GuiTaskType task = state->rebuild_confirm_task;
+  state->rebuild_confirm_pending = false;
+  state->rebuild_confirm_task = GUI_TASK_NONE;
+  state->rebuild_confirm_reason[0] = '\0';
+  return GuiUiStartTaskInternal(state, task, true);
+}
+
+void GuiUiCancelPendingRebuildTask(GuiUiState *state) {
   if (!state) {
-    return false;
+    return;
   }
 
-  if (state->worker_snapshot.busy) {
-    strncpy(state->banner_message, "Another task is currently running",
-            sizeof(state->banner_message) - 1);
-    return false;
-  }
-
-  if (!GuiUiValidateNumericTaskInputs(state, task_type)) {
-    return false;
-  }
-
-  GuiUiRefreshRuntimeState(state);
-  char reason[APP_MAX_ERROR] = {0};
-  if (!GuiActionCanStartTask(state, task_type, reason, sizeof(reason))) {
-    if (reason[0] != '\0') {
-      strncpy(state->banner_message, reason, sizeof(state->banner_message) - 1);
-    } else {
-      strncpy(state->banner_message, "Task prerequisites are not satisfied",
-              sizeof(state->banner_message) - 1);
-    }
-    return false;
-  }
-
-  GuiTaskInput input = {0};
-  input.type = task_type;
-  strncpy(input.gallery_dir, state->gallery_dir, sizeof(input.gallery_dir) - 1);
-  strncpy(input.env_dir, state->env_dir, sizeof(input.env_dir) - 1);
-  input.exhaustive = state->exhaustive;
-  input.jobs = state->jobs > 0 ? state->jobs : 1;
-  input.cache_mode = state->cache_mode;
-  input.cache_level = state->cache_level;
-  input.sim_incremental = state->sim_incremental;
-  input.sim_threshold = state->sim_threshold;
-  input.sim_topk = state->sim_topk;
-  input.sim_memory_mode = state->sim_memory_mode;
-  strncpy(input.group_by, state->group_by, sizeof(input.group_by) - 1);
-
-  if (GuiWorkerStartTask(&input)) {
-    strncpy(state->banner_message, "Task started", sizeof(state->banner_message) - 1);
-    return true;
-  }
-
-  strncpy(state->banner_message, "Failed to start task",
-          sizeof(state->banner_message) - 1);
-  return false;
+  state->rebuild_confirm_pending = false;
+  state->rebuild_confirm_task = GUI_TASK_NONE;
+  state->rebuild_confirm_reason[0] = '\0';
 }

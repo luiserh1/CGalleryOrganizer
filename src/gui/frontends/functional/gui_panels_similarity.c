@@ -64,8 +64,7 @@ static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
       CheckCollisionPointRec(GetMousePosition(), bounds) &&
       IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
       availability.reason[0] != '\0') {
-    strncpy(state->banner_message, availability.reason,
-            sizeof(state->banner_message) - 1);
+    GuiUiSetBannerError(state, availability.reason);
   }
   return availability.enabled && clicked;
 }
@@ -87,9 +86,8 @@ void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
                  (int)sizeof(state->sim_threshold_input), true)) {
     float parsed = 0.0f;
     if (!TryParseFloatStrict(state->sim_threshold_input, &parsed)) {
-      strncpy(state->banner_message,
-              "Similarity threshold must be a number between 0.000 and 1.000",
-              sizeof(state->banner_message) - 1);
+      GuiUiSetBannerError(state,
+                          "Similarity threshold must be a number between 0.000 and 1.000");
       snprintf(state->sim_threshold_input, sizeof(state->sim_threshold_input),
                "%.3f", state->sim_threshold);
     } else {
@@ -100,9 +98,11 @@ void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
         clamped = 1.0f;
       }
       if (clamped != parsed) {
-        snprintf(state->banner_message, sizeof(state->banner_message),
+        char message[APP_MAX_ERROR] = {0};
+        snprintf(message, sizeof(message),
                  "Similarity threshold clamped to %.3f (allowed range: 0.000..1.000)",
                  clamped);
+        GuiUiSetBannerError(state, message);
       }
       state->sim_threshold = clamped;
       snprintf(state->sim_threshold_input, sizeof(state->sim_threshold_input),
@@ -118,8 +118,7 @@ void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
                  (int)sizeof(state->sim_topk_input), true)) {
     int parsed = 0;
     if (!TryParseIntStrict(state->sim_topk_input, &parsed)) {
-      strncpy(state->banner_message, "TopK must be an integer between 1 and 1000",
-              sizeof(state->banner_message) - 1);
+      GuiUiSetBannerError(state, "TopK must be an integer between 1 and 1000");
       snprintf(state->sim_topk_input, sizeof(state->sim_topk_input), "%d",
                state->sim_topk);
     } else {
@@ -130,8 +129,10 @@ void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
         clamped = 1000;
       }
       if (clamped != parsed) {
-        snprintf(state->banner_message, sizeof(state->banner_message),
+        char message[APP_MAX_ERROR] = {0};
+        snprintf(message, sizeof(message),
                  "TopK clamped to %d (allowed range: 1..1000)", clamped);
+        GuiUiSetBannerError(state, message);
       }
       state->sim_topk = clamped;
       snprintf(state->sim_topk_input, sizeof(state->sim_topk_input), "%d",

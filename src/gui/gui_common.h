@@ -14,7 +14,7 @@ typedef struct {
 
   char gallery_dir[GUI_STATE_MAX_PATH];
   char env_dir[GUI_STATE_MAX_PATH];
-  char group_by[256];
+  char group_by[GUI_STATE_GROUP_BY_MAX];
   char jobs_input[16];
   char cache_level_input[8];
   char sim_threshold_input[32];
@@ -36,8 +36,13 @@ typedef struct {
   bool runtime_state_valid;
 
   char banner_message[APP_MAX_ERROR];
+  bool banner_is_error;
   char runtime_error[APP_MAX_ERROR];
   char detail_text[32768];
+
+  bool rebuild_confirm_pending;
+  GuiTaskType rebuild_confirm_task;
+  char rebuild_confirm_reason[APP_MAX_ERROR];
 } GuiUiState;
 
 void GuiUiInitDefaults(GuiUiState *state);
@@ -45,8 +50,12 @@ void GuiUiSyncFromStateFile(GuiUiState *state);
 bool GuiUiPersistState(GuiUiState *state);
 bool GuiUiHasUnsavedChanges(const GuiUiState *state);
 void GuiUiRefreshRuntimeState(GuiUiState *state);
+void GuiUiSetBannerInfo(GuiUiState *state, const char *message);
+void GuiUiSetBannerError(GuiUiState *state, const char *message);
 
 bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type);
+bool GuiUiStartPendingRebuildTask(GuiUiState *state);
+void GuiUiCancelPendingRebuildTask(GuiUiState *state);
 
 void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds);
 void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds);

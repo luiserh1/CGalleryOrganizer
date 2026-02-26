@@ -36,6 +36,11 @@ AppStatus AppInspectRuntimeState(AppContext *ctx,
 AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request,
                      AppScanResult *out_result);
 
+// Inspect cache profile decision for a scan request without running scan
+// pipeline work. Useful for frontend preflight/confirmation UX.
+AppStatus AppInspectScanProfile(AppContext *ctx, const AppScanRequest *request,
+                                AppScanProfileDecision *out_decision);
+
 // Build similarity report from embeddings in env_dir cache.
 // Requires valid cache entries with embeddings; run AppRunScan with similarity
 // support enabled beforehand when needed.

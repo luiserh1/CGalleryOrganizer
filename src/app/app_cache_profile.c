@@ -165,6 +165,33 @@ static bool LoadJsonFile(const char *path, char **out_json) {
   return true;
 }
 
+static bool ParseOptionalCacheEntryCount(cJSON *root, int *out_count) {
+  if (!root || !out_count) {
+    return false;
+  }
+
+  cJSON *count_node = cJSON_GetObjectItem(root, "cacheEntryCount");
+  if (!count_node) {
+    return false;
+  }
+  if (!cJSON_IsNumber(count_node)) {
+    return false;
+  }
+
+  double raw = count_node->valuedouble;
+  if (raw < 0.0) {
+    return false;
+  }
+
+  int parsed = (int)raw;
+  if ((double)parsed != raw) {
+    return false;
+  }
+
+  *out_count = parsed;
+  return true;
+}
+
 AppCacheProfileLoadStatus AppLoadCacheProfile(const char *profile_path,
                                               AppCacheProfile *out_profile) {
   if (!profile_path || !out_profile) {
@@ -210,6 +237,12 @@ AppCacheProfileLoadStatus AppLoadCacheProfile(const char *profile_path,
   out_profile->similarity_prep_requested = cJSON_IsTrue(similarity);
   strncpy(out_profile->models_fingerprint, fingerprint->valuestring,
           sizeof(out_profile->models_fingerprint) - 1);
+
+  int cached_entry_count = 0;
+  if (ParseOptionalCacheEntryCount(root, &cached_entry_count)) {
+    out_profile->has_cache_entry_count = true;
+    out_profile->cache_entry_count = cached_entry_count;
+  }
 
   cJSON_Delete(root);
   return APP_CACHE_PROFILE_LOAD_OK;
@@ -258,6 +291,9 @@ bool AppSaveCacheProfile(const char *profile_path,
   cJSON_AddBoolToObject(root, "similarityPrepRequested",
                         profile->similarity_prep_requested);
   cJSON_AddStringToObject(root, "modelsFingerprint", profile->models_fingerprint);
+  if (profile->has_cache_entry_count && profile->cache_entry_count >= 0) {
+    cJSON_AddNumberToObject(root, "cacheEntryCount", profile->cache_entry_count);
+  }
   cJSON_AddStringToObject(root, "updatedAtUtc", timestamp);
 
   char *json = cJSON_PrintUnformatted(root);
@@ -334,5 +370,23 @@ bool AppCompareCacheProfiles(const AppCacheProfile *expected,
   if (out_reason && out_reason_size > 0) {
     snprintf(out_reason, out_reason_size, "cache profile matched");
   }
+  return true;
+}
+
+bool AppLoadCacheProfileEntryCount(const char *profile_path,
+                                   int *out_entry_count) {
+  if (!profile_path || !out_entry_count) {
+    return false;
+  }
+
+  AppCacheProfile profile = {0};
+  AppCacheProfileLoadStatus load_status =
+      AppLoadCacheProfile(profile_path, &profile);
+  if (load_status != APP_CACHE_PROFILE_LOAD_OK ||
+      !profile.has_cache_entry_count) {
+    return false;
+  }
+
+  *out_entry_count = profile.cache_entry_count;
   return true;
 }

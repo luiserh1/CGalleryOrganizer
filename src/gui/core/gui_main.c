@@ -12,6 +12,7 @@
 static Font g_gui_font = {0};
 static float g_gui_font_size = 20.0f;
 static bool g_gui_font_loaded = false;
+static const double GUI_RUNTIME_IDLE_REFRESH_SEC = 3.0;
 
 static Rectangle ToRayRect(GuiRect rect) {
   Rectangle out = {rect.x, rect.y, rect.width, rect.height};
@@ -139,6 +140,12 @@ typedef enum {
   EXIT_DIALOG_CANCEL = 3
 } ExitDialogAction;
 
+typedef enum {
+  REBUILD_DIALOG_NONE = 0,
+  REBUILD_DIALOG_CONTINUE = 1,
+  REBUILD_DIALOG_CANCEL = 2
+} RebuildDialogAction;
+
 static ExitDialogAction DrawUnsavedExitDialog(void) {
   float screen_w = (float)GetScreenWidth();
   float screen_h = (float)GetScreenHeight();
@@ -151,10 +158,10 @@ static ExitDialogAction DrawUnsavedExitDialog(void) {
   DrawRectangleLinesEx(dialog, 1.0f, GRAY);
 
   Rectangle title = {dialog.x + 14.0f, dialog.y + 12.0f, dialog.width - 28.0f, 28.0f};
-  GuiLabel(title, "Unsaved path changes");
+  GuiLabel(title, "Unsaved configuration changes");
 
   DrawTextEx(GuiGetFont(),
-             "You have unsaved Gallery/Environment path edits.\nSave before exit?",
+             "You have unsaved GUI configuration changes.\nSave before exit?",
              (Vector2){dialog.x + 14.0f, dialog.y + 48.0f}, g_gui_font_size - 2.0f,
              1.0f, (Color){64, 64, 64, 255});
 
@@ -175,6 +182,48 @@ static ExitDialogAction DrawUnsavedExitDialog(void) {
   }
 
   return EXIT_DIALOG_NONE;
+}
+
+static RebuildDialogAction DrawRebuildConfirmDialog(const char *reason) {
+  float screen_w = (float)GetScreenWidth();
+  float screen_h = (float)GetScreenHeight();
+  Rectangle overlay = {0.0f, 0.0f, screen_w, screen_h};
+  DrawRectangleRec(overlay, (Color){0, 0, 0, 120});
+
+  Rectangle dialog = {(screen_w - 560.0f) * 0.5f, (screen_h - 230.0f) * 0.5f, 560.0f,
+                      230.0f};
+  DrawRectangleRec(dialog, (Color){246, 246, 246, 255});
+  DrawRectangleLinesEx(dialog, 1.0f, GRAY);
+
+  Rectangle title = {dialog.x + 14.0f, dialog.y + 12.0f, dialog.width - 28.0f, 28.0f};
+  GuiLabel(title, "Cache rebuild required");
+
+  DrawTextEx(
+      GuiGetFont(),
+      "Current scan semantics differ from the saved cache profile.\n"
+      "Continuing will rebuild cache before running the task.",
+      (Vector2){dialog.x + 14.0f, dialog.y + 46.0f}, g_gui_font_size - 2.0f, 1.0f,
+      (Color){64, 64, 64, 255});
+
+  char reason_line[APP_MAX_ERROR + 20] = {0};
+  snprintf(reason_line, sizeof(reason_line), "Reason: %s",
+           (reason && reason[0] != '\0') ? reason : "profile mismatch");
+  DrawTextEx(GuiGetFont(), reason_line, (Vector2){dialog.x + 14.0f, dialog.y + 106.0f},
+             g_gui_font_size - 3.0f, 1.0f, (Color){90, 70, 40, 255});
+
+  Rectangle btn_continue = {dialog.x + 14.0f, dialog.y + dialog.height - 54.0f,
+                            200.0f, 38.0f};
+  Rectangle btn_cancel = {dialog.x + dialog.width - 124.0f,
+                          dialog.y + dialog.height - 54.0f, 110.0f, 38.0f};
+
+  if (GuiButton(btn_continue, "Continue (Rebuild)")) {
+    return REBUILD_DIALOG_CONTINUE;
+  }
+  if (GuiButton(btn_cancel, "Cancel")) {
+    return REBUILD_DIALOG_CANCEL;
+  }
+
+  return REBUILD_DIALOG_NONE;
 }
 
 int main(int argc, char **argv) {
@@ -208,7 +257,7 @@ int main(int argc, char **argv) {
   GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
-             "CGalleryOrganizer v0.5.2 GUI");
+             "CGalleryOrganizer v0.5.4 GUI");
   InitGuiFont();
   GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
@@ -217,7 +266,7 @@ int main(int argc, char **argv) {
 
   bool exit_requested = false;
   bool show_exit_dialog = false;
-  double last_runtime_refresh = 0.0;
+  double last_runtime_refresh = GetTime();
   while (!exit_requested) {
     bool close_requested = WindowShouldClose();
     if (close_requested && !show_exit_dialog) {
@@ -231,21 +280,25 @@ int main(int argc, char **argv) {
 
     GuiWorkerGetSnapshot(&state.worker_snapshot);
     if (!state.worker_snapshot.busy) {
-      double now = GetTime();
-      if (now - last_runtime_refresh >= 0.5) {
+      if (GetTime() - last_runtime_refresh >= GUI_RUNTIME_IDLE_REFRESH_SEC) {
         GuiUiRefreshRuntimeState(&state);
-        last_runtime_refresh = now;
+        last_runtime_refresh = GetTime();
       }
     }
 
     if (state.worker_snapshot.has_result) {
       if (state.worker_snapshot.message[0] != '\0') {
-        strncpy(state.banner_message, state.worker_snapshot.message,
-                sizeof(state.banner_message) - 1);
+        if (state.worker_snapshot.success) {
+          GuiUiSetBannerInfo(&state, state.worker_snapshot.message);
+        } else {
+          GuiUiSetBannerError(&state, state.worker_snapshot.message);
+        }
       } else {
-        strncpy(state.banner_message,
-                state.worker_snapshot.success ? "Task completed" : "Task failed",
-                sizeof(state.banner_message) - 1);
+        if (state.worker_snapshot.success) {
+          GuiUiSetBannerInfo(&state, "Task completed");
+        } else {
+          GuiUiSetBannerError(&state, "Task failed");
+        }
       }
 
       if (state.worker_snapshot.detail_text[0] != '\0') {
@@ -264,28 +317,37 @@ int main(int argc, char **argv) {
     ClearBackground((Color){248, 248, 246, 255});
     GuiHelpBeginFrame();
 
+    bool modal_open = show_exit_dialog || state.rebuild_confirm_pending;
+
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
 
-    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.5.2 - GUI");
+    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.5.4 - GUI");
 
     for (int i = 0; i < 4; i++) {
       bool selected = (state.active_tab == i);
-      if (GuiButtonStyled(ToRayRect(layout.tabs[i]), tab_labels[i], true, selected)) {
+      if (GuiButtonStyled(ToRayRect(layout.tabs[i]), tab_labels[i], !modal_open,
+                          selected) &&
+          !modal_open) {
         state.active_tab = i;
       }
     }
 
     DrawRectangleLinesEx(ToRayRect(layout.panel_outer), 1.0f, GRAY);
     Rectangle panel_inner = ToRayRect(layout.panel_inner);
-    if (state.active_tab == 0) {
-      GuiDrawScanPanel(&state, panel_inner);
-    } else if (state.active_tab == 1) {
-      GuiDrawSimilarityPanel(&state, panel_inner);
-    } else if (state.active_tab == 2) {
-      GuiDrawOrganizePanel(&state, panel_inner);
+    if (!modal_open) {
+      if (state.active_tab == 0) {
+        GuiDrawScanPanel(&state, panel_inner);
+      } else if (state.active_tab == 1) {
+        GuiDrawSimilarityPanel(&state, panel_inner);
+      } else if (state.active_tab == 2) {
+        GuiDrawOrganizePanel(&state, panel_inner);
+      } else {
+        GuiDrawDuplicatesPanel(&state, panel_inner);
+      }
     } else {
-      GuiDrawDuplicatesPanel(&state, panel_inner);
+      GuiLabel((Rectangle){panel_inner.x + 14.0f, panel_inner.y + 14.0f, 600.0f, 30.0f},
+               "Action confirmation pending...");
     }
 
     DrawRectangleLinesEx(ToRayRect(layout.status_outer), 1.0f, LIGHTGRAY);
@@ -316,6 +378,8 @@ int main(int argc, char **argv) {
         status_color = (Color){35, 120, 55, 255};
       } else if (state.worker_snapshot.has_result ||
                  state.worker_snapshot.status != APP_STATUS_OK) {
+        status_color = (Color){160, 50, 40, 255};
+      } else if (state.banner_is_error) {
         status_color = (Color){160, 50, 40, 255};
       }
 
@@ -349,14 +413,25 @@ int main(int argc, char **argv) {
         if (GuiUiPersistState(&state)) {
           exit_requested = true;
         } else {
-          strncpy(state.banner_message, "Failed to save paths before exit",
-                  sizeof(state.banner_message) - 1);
+          GuiUiSetBannerError(&state, "Failed to save state before exit");
           show_exit_dialog = false;
         }
       } else if (action == EXIT_DIALOG_DISCARD_EXIT) {
         exit_requested = true;
       } else if (action == EXIT_DIALOG_CANCEL) {
         show_exit_dialog = false;
+      }
+    } else if (state.rebuild_confirm_pending) {
+      RebuildDialogAction action =
+          DrawRebuildConfirmDialog(state.rebuild_confirm_reason);
+      if (action == REBUILD_DIALOG_CONTINUE) {
+        if (!GuiUiStartPendingRebuildTask(&state)) {
+          GuiUiSetBannerError(&state,
+                              "Failed to start task after rebuild confirmation");
+        }
+      } else if (action == REBUILD_DIALOG_CANCEL) {
+        GuiUiCancelPendingRebuildTask(&state);
+        GuiUiSetBannerInfo(&state, "Task start cancelled");
       }
     }
 

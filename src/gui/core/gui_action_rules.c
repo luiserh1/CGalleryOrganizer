@@ -142,7 +142,12 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
       SetDisabled(out, "Runtime state not available for cache checks");
       return;
     }
-    if (!state->runtime_state.cache_exists || state->runtime_state.cache_entry_count <= 0) {
+    if (!state->runtime_state.cache_exists) {
+      SetDisabled(out, "Run Scan/Cache first to populate cache");
+      return;
+    }
+    if (state->runtime_state.cache_entry_count_known &&
+        state->runtime_state.cache_entry_count <= 0) {
       SetDisabled(out, "Run Scan/Cache first to populate cache");
       return;
     }

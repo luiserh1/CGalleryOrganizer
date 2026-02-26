@@ -67,4 +67,8 @@ bool GuiWorkerInspectRuntimeState(const AppRuntimeStateRequest *request,
                                   AppRuntimeState *out_state, char *out_error,
                                   size_t out_error_size);
 
+bool GuiWorkerInspectScanProfile(const AppScanRequest *request,
+                                 AppScanProfileDecision *out_decision,
+                                 char *out_error, size_t out_error_size);
+
 #endif // GUI_WORKER_H

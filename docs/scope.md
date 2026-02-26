@@ -487,6 +487,27 @@ automatically rebuilding cache only when tracked parameters change.
   - `cache_profile_matched`
   - `cache_profile_rebuilt`
   - `cache_profile_reason`
+- Added non-mutating scan profile preflight API:
+  - `AppInspectScanProfile(...)`
+  - exposes `AppScanProfileDecision` for frontend rebuild confirmation UX
+- Added lightweight runtime cache-count contract for frontend gating:
+  - `cache_entry_count_known` indicates whether `cache_entry_count` is reliable
+  - runtime inspection uses active in-memory cache count or sidecar last-known
+    count instead of decoding/parsing large cache files during idle GUI refresh
+- Extended profile sidecar with optional informational field:
+  - `cacheEntryCount` (last-known count; excluded from strict profile match)
+- Updated GUI idle refresh policy for safer cadence:
+  - event-driven refresh plus slower idle poll
+  - post-refresh timestamp update to avoid bursty back-to-back refresh cycles
+- Updated GUI cache-dependent action gating:
+  - unknown entry count no longer blocks cache-dependent actions when cache exists
+- Expanded GUI saved state contract (explicit-save only):
+  - persisted fields now include full functional configuration
+    (paths + scan/similarity/organize inputs)
+  - save button persists full state; exit prompts on unsaved configuration changes
+- Added pre-scan rebuild confirmation guard in GUI:
+  - scan-like tasks run profile preflight
+  - when cache exists and mismatch implies rebuild, user must confirm continue/cancel
 - Added focused tests for profile roundtrip/match/mismatch rules and
   non-semantic parameter tolerance.
 
@@ -494,8 +515,12 @@ automatically rebuilding cache only when tracked parameters change.
 - Behavior changes:
   - scan now performs profile-aware cache reuse/rebuild automatically.
   - missing or malformed profile sidecar is treated as mismatch and rebuilt safely.
+  - GUI/runtime state inspection remains responsive even with very large cache files.
+  - GUI now saves/restores full functional configuration when explicitly saved.
+  - GUI scan-like actions prompt for confirmation before rebuilding an existing cache.
 - Migration/compat notes:
   - no CLI flag changes required.
   - cache profile write is attempted only after successful cache save.
+  - `cacheEntryCount` in sidecar is optional and load-tolerant.
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone.

@@ -71,17 +71,70 @@ void test_app_cache_profile_roundtrip(void) {
   strncpy(profile.models_fingerprint,
           "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
           sizeof(profile.models_fingerprint) - 1);
+  profile.has_cache_entry_count = true;
+  profile.cache_entry_count = 42;
 
   ASSERT_TRUE(AppSaveCacheProfile(path, &profile));
 
   AppCacheProfile loaded = {0};
   ASSERT_EQ(APP_CACHE_PROFILE_LOAD_OK, AppLoadCacheProfile(path, &loaded));
+  ASSERT_TRUE(loaded.has_cache_entry_count);
+  ASSERT_EQ(42, loaded.cache_entry_count);
 
   char reason[APP_MAX_ERROR] = {0};
   ASSERT_TRUE(AppCompareCacheProfiles(&profile, &loaded, reason, sizeof(reason)));
   ASSERT_STR_EQ("cache profile matched", reason);
 
   system("rm -rf build/test_app_profile_roundtrip");
+}
+
+void test_app_cache_profile_entry_count_not_part_of_match_semantics(void) {
+  AppCacheProfile expected = {0};
+  AppCacheProfile actual = {0};
+
+  strncpy(expected.source_root_abs, "/tmp/sourceA",
+          sizeof(expected.source_root_abs) - 1);
+  expected.exhaustive = true;
+  expected.ml_enrich_requested = true;
+  expected.similarity_prep_requested = true;
+  strncpy(expected.models_fingerprint,
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          sizeof(expected.models_fingerprint) - 1);
+  expected.has_cache_entry_count = true;
+  expected.cache_entry_count = 1;
+
+  actual = expected;
+  actual.has_cache_entry_count = true;
+  actual.cache_entry_count = 9000;
+
+  char reason[APP_MAX_ERROR] = {0};
+  ASSERT_TRUE(AppCompareCacheProfiles(&expected, &actual, reason, sizeof(reason)));
+  ASSERT_STR_EQ("cache profile matched", reason);
+}
+
+void test_app_cache_profile_optional_entry_count_absent_is_supported(void) {
+  system("rm -rf build/test_app_profile_optional_count");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_optional_count"));
+
+  const char *path = "build/test_app_profile_optional_count/profile.json";
+  ASSERT_TRUE(WriteTextFile(
+      path,
+      "{"
+      "\"schemaVersion\":1,"
+      "\"sourceRootAbs\":\"/tmp/sourceA\","
+      "\"exhaustive\":false,"
+      "\"mlEnrichRequested\":false,"
+      "\"similarityPrepRequested\":false,"
+      "\"modelsFingerprint\":\"\","
+      "\"updatedAtUtc\":\"2026-02-26T00:00:00Z\""
+      "}"));
+
+  AppCacheProfile loaded = {0};
+  ASSERT_EQ(APP_CACHE_PROFILE_LOAD_OK, AppLoadCacheProfile(path, &loaded));
+  ASSERT_FALSE(loaded.has_cache_entry_count);
+  ASSERT_EQ(0, loaded.cache_entry_count);
+
+  system("rm -rf build/test_app_profile_optional_count");
 }
 
 void test_app_scan_profile_missing_triggers_rebuild_and_creation(void) {
@@ -315,6 +368,12 @@ void test_app_scan_profile_not_saved_on_failure_or_cancel(void) {
 void register_app_cache_profile_tests(void) {
   register_test("test_app_cache_profile_roundtrip",
                 test_app_cache_profile_roundtrip, "unit");
+  register_test("test_app_cache_profile_entry_count_not_part_of_match_semantics",
+                test_app_cache_profile_entry_count_not_part_of_match_semantics,
+                "unit");
+  register_test("test_app_cache_profile_optional_entry_count_absent_is_supported",
+                test_app_cache_profile_optional_entry_count_absent_is_supported,
+                "unit");
   register_test("test_app_scan_profile_missing_triggers_rebuild_and_creation",
                 test_app_scan_profile_missing_triggers_rebuild_and_creation,
                 "integration");

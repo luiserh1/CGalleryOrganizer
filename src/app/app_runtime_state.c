@@ -1,13 +1,10 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "cJSON.h"
-#include "core/cache_codec.h"
-
+#include "app/app_cache_profile.h"
 #include "app/app_internal.h"
 
 static const int APP_DEFAULT_MAX_JOBS = 8;
@@ -43,108 +40,45 @@ static int AppRecommendJobs(int logical_cores) {
   return recommended;
 }
 
-static int AppCountJsonObjectKeys(cJSON *root) {
-  if (!root || !cJSON_IsObject(root)) {
-    return 0;
+static bool AppContextHasRequestedCacheOpen(const AppContext *ctx,
+                                            const char *cache_path) {
+  if (!ctx || !cache_path || cache_path[0] == '\0') {
+    return false;
   }
-
-  int count = 0;
-  for (cJSON *child = root->child; child; child = child->next) {
-    count++;
-  }
-  return count;
+  return ctx->cache_initialized &&
+         strcmp(ctx->active_cache_path, cache_path) == 0;
 }
 
-static AppStatus AppReadCacheEntryCountFromFile(AppContext *ctx,
-                                                const char *cache_path,
-                                                int *out_count) {
-  if (!ctx || !cache_path || !out_count) {
-    return APP_STATUS_INVALID_ARGUMENT;
+static void AppResolveCacheEntryCount(AppContext *ctx, const char *env_dir,
+                                      const char *cache_path,
+                                      AppRuntimeState *out_state) {
+  if (!ctx || !cache_path || !out_state || !out_state->cache_exists) {
+    return;
   }
 
-  *out_count = 0;
+  out_state->cache_entry_count_known = false;
+  out_state->cache_entry_count = 0;
 
-  FILE *f = fopen(cache_path, "rb");
-  if (!f) {
-    AppSetError(ctx, "failed to open cache file '%s'", cache_path);
-    return APP_STATUS_IO_ERROR;
+  if (AppContextHasRequestedCacheOpen(ctx, cache_path)) {
+    int in_memory_count = CacheGetEntryCount();
+    if (in_memory_count >= 0) {
+      out_state->cache_entry_count = in_memory_count;
+      out_state->cache_entry_count_known = true;
+      return;
+    }
   }
 
-  if (fseek(f, 0, SEEK_END) != 0) {
-    fclose(f);
-    AppSetError(ctx, "failed to seek cache file '%s'", cache_path);
-    return APP_STATUS_IO_ERROR;
+  char profile_path[APP_MAX_PATH] = {0};
+  if (!AppBuildCacheProfilePath(env_dir, profile_path, sizeof(profile_path))) {
+    return;
   }
 
-  long len = ftell(f);
-  if (len < 0) {
-    fclose(f);
-    AppSetError(ctx, "failed to read cache length for '%s'", cache_path);
-    return APP_STATUS_IO_ERROR;
+  int last_known_count = 0;
+  if (AppLoadCacheProfileEntryCount(profile_path, &last_known_count) &&
+      last_known_count >= 0) {
+    out_state->cache_entry_count = last_known_count;
+    out_state->cache_entry_count_known = true;
   }
-
-  if (fseek(f, 0, SEEK_SET) != 0) {
-    fclose(f);
-    AppSetError(ctx, "failed to rewind cache file '%s'", cache_path);
-    return APP_STATUS_IO_ERROR;
-  }
-
-  if (len == 0) {
-    fclose(f);
-    return APP_STATUS_OK;
-  }
-
-  unsigned char *raw = malloc((size_t)len);
-  if (!raw) {
-    fclose(f);
-    AppSetError(ctx, "out of memory reading cache '%s'", cache_path);
-    return APP_STATUS_INTERNAL_ERROR;
-  }
-
-  size_t read_bytes = fread(raw, 1, (size_t)len, f);
-  fclose(f);
-  if (read_bytes != (size_t)len) {
-    free(raw);
-    AppSetError(ctx, "failed to read cache bytes from '%s'", cache_path);
-    return APP_STATUS_IO_ERROR;
-  }
-
-  unsigned char *decoded = NULL;
-  size_t decoded_len = 0;
-  CacheCompressionMode detected_mode = CACHE_COMPRESSION_NONE;
-  char decode_error[256] = {0};
-  if (!CacheCodecDecode(raw, (size_t)len, &decoded, &decoded_len, &detected_mode,
-                        decode_error, sizeof(decode_error))) {
-    free(raw);
-    AppSetError(ctx, "failed to decode cache '%s': %s", cache_path,
-                decode_error[0] != '\0' ? decode_error : "unknown");
-    return APP_STATUS_CACHE_ERROR;
-  }
-  free(raw);
-
-  char *json_text = malloc(decoded_len + 1);
-  if (!json_text) {
-    free(decoded);
-    AppSetError(ctx, "out of memory while parsing cache '%s'", cache_path);
-    return APP_STATUS_INTERNAL_ERROR;
-  }
-
-  if (decoded_len > 0) {
-    memcpy(json_text, decoded, decoded_len);
-  }
-  json_text[decoded_len] = '\0';
-  free(decoded);
-
-  cJSON *root = cJSON_Parse(json_text);
-  free(json_text);
-  if (!root) {
-    AppSetError(ctx, "failed to parse cache JSON '%s'", cache_path);
-    return APP_STATUS_CACHE_ERROR;
-  }
-
-  *out_count = AppCountJsonObjectKeys(root);
-  cJSON_Delete(root);
-  return APP_STATUS_OK;
 }
 
 static void AppResolveModelsRoot(const AppContext *ctx,
@@ -248,12 +182,7 @@ AppStatus AppInspectRuntimeState(AppContext *ctx,
 
   out_state->cache_exists = AppFileExistsRegular(cache_path);
   if (out_state->cache_exists) {
-    int entry_count = 0;
-    AppStatus status = AppReadCacheEntryCountFromFile(ctx, cache_path, &entry_count);
-    if (status != APP_STATUS_OK) {
-      return status;
-    }
-    out_state->cache_entry_count = entry_count;
+    AppResolveCacheEntryCount(ctx, request->env_dir, cache_path, out_state);
   }
 
   char manifest_path[APP_MAX_PATH] = {0};

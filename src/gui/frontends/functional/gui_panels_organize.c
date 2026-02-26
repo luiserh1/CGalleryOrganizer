@@ -30,8 +30,7 @@ static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
       CheckCollisionPointRec(GetMousePosition(), bounds) &&
       IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
       availability.reason[0] != '\0') {
-    strncpy(state->banner_message, availability.reason,
-            sizeof(state->banner_message) - 1);
+    GuiUiSetBannerError(state, availability.reason);
   }
   return availability.enabled && clicked;
 }

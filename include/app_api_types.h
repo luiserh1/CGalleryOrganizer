@@ -69,6 +69,8 @@ typedef struct {
 
 typedef struct {
   bool cache_exists;
+  // True when cache_entry_count is reliable for the current env/cache state.
+  bool cache_entry_count_known;
   int cache_entry_count;
   bool rollback_manifest_exists;
   int logical_cores;
@@ -108,6 +110,17 @@ typedef struct {
   // Human-readable reason for match/mismatch/rebuild decision.
   char cache_profile_reason[APP_MAX_ERROR];
 } AppScanResult;
+
+typedef struct {
+  // True when profile sidecar exists and could be parsed.
+  bool profile_present;
+  // True when requested profile semantics exactly match stored profile.
+  bool profile_match;
+  // True when scan would rebuild cache before pipeline execution.
+  bool will_rebuild_cache;
+  // Human-readable summary of profile decision.
+  char reason[APP_MAX_ERROR];
+} AppScanProfileDecision;
 
 typedef struct {
   // Required cache environment root.

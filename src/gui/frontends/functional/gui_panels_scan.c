@@ -50,8 +50,7 @@ static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
       CheckCollisionPointRec(GetMousePosition(), bounds) &&
       IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
       availability.reason[0] != '\0') {
-    strncpy(state->banner_message, availability.reason,
-            sizeof(state->banner_message) - 1);
+    GuiUiSetBannerError(state, availability.reason);
   }
   return availability.enabled && clicked;
 }
@@ -104,8 +103,7 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                  (int)sizeof(state->jobs_input), true)) {
     int parsed = 0;
     if (!TryParseIntStrict(state->jobs_input, &parsed)) {
-      strncpy(state->banner_message, "Jobs must be an integer between 1 and 256",
-              sizeof(state->banner_message) - 1);
+      GuiUiSetBannerError(state, "Jobs must be an integer between 1 and 256");
       snprintf(state->jobs_input, sizeof(state->jobs_input), "%d", state->jobs);
     } else {
       int clamped = parsed;
@@ -115,8 +113,10 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
         clamped = 256;
       }
       if (clamped != parsed) {
-        snprintf(state->banner_message, sizeof(state->banner_message),
+        char message[APP_MAX_ERROR] = {0};
+        snprintf(message, sizeof(message),
                  "Jobs clamped to %d (allowed range: 1..256)", clamped);
+        GuiUiSetBannerError(state, message);
       }
       state->jobs = clamped;
       snprintf(state->jobs_input, sizeof(state->jobs_input), "%d", state->jobs);
@@ -151,9 +151,8 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                    (int)sizeof(state->cache_level_input), true)) {
       int parsed = 0;
       if (!TryParseIntStrict(state->cache_level_input, &parsed)) {
-        strncpy(state->banner_message,
-                "Compression level must be an integer between 1 and 19",
-                sizeof(state->banner_message) - 1);
+        GuiUiSetBannerError(state,
+                            "Compression level must be an integer between 1 and 19");
         snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
                  state->cache_level);
       } else {
@@ -164,9 +163,11 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
           clamped = 19;
         }
         if (clamped != parsed) {
-          snprintf(state->banner_message, sizeof(state->banner_message),
+          char message[APP_MAX_ERROR] = {0};
+          snprintf(message, sizeof(message),
                    "Compression level clamped to %d (allowed range: 1..19)",
                    clamped);
+          GuiUiSetBannerError(state, message);
         }
         state->cache_level = clamped;
         snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
@@ -201,27 +202,25 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                    "Install models from manifest into build/models")) {
     GuiUiStartTask(state, GUI_TASK_DOWNLOAD_MODELS);
   }
-  if (ActionButton(state, ToRayRect(layout.save_paths_button), "Save Paths",
+  if (ActionButton(state, ToRayRect(layout.save_paths_button), "Save State",
                    GUI_ACTION_SAVE_PATHS,
-                   "Persist Gallery/Environment paths for next launch")) {
+                   "Persist current GUI configuration for next launch")) {
     if (GuiUiPersistState(state)) {
-      strncpy(state->banner_message, "Paths saved",
-              sizeof(state->banner_message) - 1);
+      GuiUiSetBannerInfo(state, "GUI state saved");
     } else {
-      strncpy(state->banner_message, "Failed to save paths",
-              sizeof(state->banner_message) - 1);
+      GuiUiSetBannerError(state, "Failed to save GUI state");
     }
   }
   if (ActionButton(state, ToRayRect(layout.reset_paths_button),
-                   "Reset Saved Paths", GUI_ACTION_RESET_PATHS,
-                   "Clear persisted Gallery/Environment paths")) {
-    GuiStateReset();
-    state->gallery_dir[0] = '\0';
-    state->env_dir[0] = '\0';
-    state->persisted_state.gallery_dir[0] = '\0';
-    state->persisted_state.env_dir[0] = '\0';
-    strncpy(state->banner_message, "Saved GUI state reset",
-            sizeof(state->banner_message) - 1);
+                   "Reset Saved State", GUI_ACTION_RESET_PATHS,
+                   "Clear persisted GUI state and reset current fields")) {
+    if (GuiStateReset()) {
+      GuiUiInitDefaults(state);
+      GuiUiRefreshRuntimeState(state);
+      GuiUiSetBannerInfo(state, "Saved GUI state reset");
+    } else {
+      GuiUiSetBannerError(state, "Failed to reset saved GUI state");
+    }
   }
 
   GuiHelpDrawHintLabel(

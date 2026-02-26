@@ -31,6 +31,89 @@ static AppStatus AppRebuildCacheForProfileMismatch(
                              request->cache_compression_level, true);
 }
 
+static AppStatus AppEvaluateScanProfileDecision(
+    AppContext *ctx, const AppScanRequest *request,
+    AppScanProfileDecision *out_decision, AppCacheProfile *out_requested_profile,
+    char *out_profile_path, size_t out_profile_path_size) {
+  if (!ctx || !request || !out_decision) {
+    return APP_STATUS_INVALID_ARGUMENT;
+  }
+
+  memset(out_decision, 0, sizeof(*out_decision));
+  if (out_requested_profile) {
+    memset(out_requested_profile, 0, sizeof(*out_requested_profile));
+  }
+  if (out_profile_path && out_profile_path_size > 0) {
+    out_profile_path[0] = '\0';
+  }
+
+  char profile_path[APP_MAX_PATH] = {0};
+  if (!AppBuildCacheProfilePath(request->env_dir, profile_path,
+                                sizeof(profile_path))) {
+    AppSetError(ctx, "failed to resolve cache profile path");
+    return APP_STATUS_INTERNAL_ERROR;
+  }
+
+  AppCacheProfile requested_profile = {0};
+  char profile_error[APP_MAX_ERROR] = {0};
+  if (!AppBuildRequestedCacheProfile(ctx, request, &requested_profile,
+                                     profile_error, sizeof(profile_error))) {
+    AppSetError(ctx, "failed to build cache profile: %s",
+                profile_error[0] != '\0' ? profile_error : "unknown");
+    return APP_STATUS_IO_ERROR;
+  }
+
+  AppCacheProfile stored_profile = {0};
+  AppCacheProfileLoadStatus load_status =
+      AppLoadCacheProfile(profile_path, &stored_profile);
+  if (load_status == APP_CACHE_PROFILE_LOAD_OK) {
+    out_decision->profile_present = true;
+    out_decision->profile_match =
+        AppCompareCacheProfiles(&requested_profile, &stored_profile,
+                                out_decision->reason,
+                                sizeof(out_decision->reason));
+  } else if (load_status == APP_CACHE_PROFILE_LOAD_MISSING) {
+    out_decision->profile_present = false;
+    out_decision->profile_match = false;
+    snprintf(out_decision->reason, sizeof(out_decision->reason),
+             "cache profile missing");
+  } else {
+    out_decision->profile_present = false;
+    out_decision->profile_match = false;
+    snprintf(out_decision->reason, sizeof(out_decision->reason),
+             "cache profile malformed or unreadable");
+  }
+  out_decision->will_rebuild_cache = !out_decision->profile_match;
+
+  if (out_requested_profile) {
+    *out_requested_profile = requested_profile;
+  }
+  if (out_profile_path && out_profile_path_size > 0) {
+    strncpy(out_profile_path, profile_path, out_profile_path_size - 1);
+    out_profile_path[out_profile_path_size - 1] = '\0';
+  }
+
+  return APP_STATUS_OK;
+}
+
+AppStatus AppInspectScanProfile(AppContext *ctx, const AppScanRequest *request,
+                                AppScanProfileDecision *out_decision) {
+  if (!ctx || !request || !out_decision || !request->target_dir ||
+      request->target_dir[0] == '\0') {
+    return APP_STATUS_INVALID_ARGUMENT;
+  }
+
+  AppClearError(ctx);
+
+  if (request->jobs < 1) {
+    AppSetError(ctx, "invalid jobs value %d", request->jobs);
+    return APP_STATUS_INVALID_ARGUMENT;
+  }
+
+  return AppEvaluateScanProfileDecision(ctx, request, out_decision, NULL, NULL,
+                                        0);
+}
+
 AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request,
                      AppScanResult *out_result) {
   if (!ctx || !request || !out_result || !request->target_dir ||
@@ -61,47 +144,30 @@ AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request,
     }
   }
 
-  char cache_dir[APP_MAX_PATH] = {0};
   char cache_path[APP_MAX_PATH] = {0};
-  char profile_path[APP_MAX_PATH] = {0};
+  char cache_dir[APP_MAX_PATH] = {0};
   if (!AppBuildCachePaths(request->env_dir, cache_dir, sizeof(cache_dir),
-                          cache_path, sizeof(cache_path)) ||
-      !AppBuildCacheProfilePath(request->env_dir, profile_path,
-                                sizeof(profile_path))) {
+                          cache_path, sizeof(cache_path))) {
     AppSetError(ctx, "failed to resolve cache profile paths");
     return APP_STATUS_INTERNAL_ERROR;
   }
 
   AppCacheProfile requested_profile = {0};
-  char profile_error[APP_MAX_ERROR] = {0};
-  if (!AppBuildRequestedCacheProfile(ctx, request, &requested_profile,
-                                     profile_error, sizeof(profile_error))) {
-    AppSetError(ctx, "failed to build cache profile: %s",
-                profile_error[0] != '\0' ? profile_error : "unknown");
-    return APP_STATUS_IO_ERROR;
+  AppScanProfileDecision profile_decision = {0};
+  char profile_path[APP_MAX_PATH] = {0};
+  status = AppEvaluateScanProfileDecision(
+      ctx, request, &profile_decision, &requested_profile, profile_path,
+      sizeof(profile_path));
+  if (status != APP_STATUS_OK) {
+    return status;
   }
+  out_result->cache_profile_matched = profile_decision.profile_match;
+  strncpy(out_result->cache_profile_reason, profile_decision.reason,
+          sizeof(out_result->cache_profile_reason) - 1);
+  out_result->cache_profile_reason[sizeof(out_result->cache_profile_reason) - 1] =
+      '\0';
 
-  AppCacheProfile stored_profile = {0};
-  AppCacheProfileLoadStatus load_status =
-      AppLoadCacheProfile(profile_path, &stored_profile);
-  if (load_status == APP_CACHE_PROFILE_LOAD_OK) {
-    out_result->cache_profile_matched =
-        AppCompareCacheProfiles(&requested_profile, &stored_profile,
-                                out_result->cache_profile_reason,
-                                sizeof(out_result->cache_profile_reason));
-  } else {
-    out_result->cache_profile_matched = false;
-    if (load_status == APP_CACHE_PROFILE_LOAD_MISSING) {
-      snprintf(out_result->cache_profile_reason,
-               sizeof(out_result->cache_profile_reason), "cache profile missing");
-    } else {
-      snprintf(out_result->cache_profile_reason,
-               sizeof(out_result->cache_profile_reason),
-               "cache profile malformed or unreadable");
-    }
-  }
-
-  if (!out_result->cache_profile_matched) {
+  if (profile_decision.will_rebuild_cache) {
     status = AppRebuildCacheForProfileMismatch(ctx, request, cache_path,
                                                profile_path);
     if (status != APP_STATUS_OK) {
@@ -142,6 +208,15 @@ AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request,
   if (!CacheSave()) {
     AppSetError(ctx, "failed to save cache");
     return APP_STATUS_CACHE_ERROR;
+  }
+
+  int cache_entry_count = CacheGetEntryCount();
+  if (cache_entry_count >= 0) {
+    requested_profile.has_cache_entry_count = true;
+    requested_profile.cache_entry_count = cache_entry_count;
+  } else {
+    requested_profile.has_cache_entry_count = false;
+    requested_profile.cache_entry_count = 0;
   }
 
   if (!AppSaveCacheProfile(profile_path, &requested_profile)) {

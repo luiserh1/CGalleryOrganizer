@@ -69,6 +69,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - Cache profile persistence + strict match/rebuild logic (`src/app/app_cache_profile.c`)
 - Runtime-state/model-management app API checks:
   - runtime prerequisite inspection
+  - lightweight cache count behavior (`cache_entry_count_known`)
   - native model install manifest + checksum paths
 - GUI state persistence and reset behavior (`src/gui/gui_state.c`)
 - Functional GUI fixed-layout invariants (`src/gui/frontends/functional/gui_fixed_layout.c`)
@@ -104,6 +105,7 @@ Profile reuse check:
 Expected:
 - second run reports `Cache profile: matched`.
 - sidecar exists at `build/smoke_env/.cache/gallery_cache.profile.json`.
+- sidecar JSON may include optional `cacheEntryCount` after successful save.
 
 Profile mismatch check:
 ```bash
@@ -198,11 +200,21 @@ Expected:
 - each panel exposes hover tooltip help for inputs/actions.
 - Scan panel includes **Download Models** and completes model install workflow.
 - jobs/compression level/threshold/topK fields enforce documented numeric ranges.
-- GUI window starts fixed at `1280x820` (non-resizable baseline in 0.5.3).
+- **Save State** persists full functional GUI configuration (paths + scan/similarity/organize inputs).
+- **Reset Saved State** clears persisted GUI configuration and restores defaults in-session.
 - GUI window starts fixed at `1280x820` (non-resizable functional baseline).
 - panel controls remain aligned with no overlaps in the fixed shell.
-- saved gallery/env paths persist between runs.
+- saved GUI configuration persists between runs when explicitly saved.
+- scan-like actions show a rebuild confirmation dialog when profile mismatch would rebuild an existing cache.
 - `--reset-state` clears saved GUI state.
+
+### 14. GUI idle performance smoke (large cache)
+Precondition: point GUI `Environment Dir` at an env containing a large cache file.
+
+Expected:
+- leaving GUI idle for 15-30s does not cause periodic freezes/stutters.
+- tabs, hover tooltips, and status text remain responsive while idle.
+- malformed cache file should not crash runtime checks; count can be unknown.
 
 ## Notes on Test Fragility
 

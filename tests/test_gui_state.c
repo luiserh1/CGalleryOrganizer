@@ -25,6 +25,16 @@ void test_gui_state_roundtrip_with_override(void) {
   GuiState in = {0};
   strncpy(in.gallery_dir, "/tmp/gallery_a", sizeof(in.gallery_dir) - 1);
   strncpy(in.env_dir, "/tmp/env_a", sizeof(in.env_dir) - 1);
+  in.scan_exhaustive = true;
+  in.scan_jobs = 6;
+  in.scan_cache_mode = APP_CACHE_COMPRESSION_ZSTD;
+  in.scan_cache_level = 7;
+  in.sim_incremental = false;
+  in.sim_threshold = 0.77f;
+  in.sim_topk = 15;
+  in.sim_memory_mode = APP_SIM_MEMORY_EAGER;
+  strncpy(in.organize_group_by, "camera,date",
+          sizeof(in.organize_group_by) - 1);
 
   ASSERT_TRUE(GuiStateSave(&in));
 
@@ -32,11 +42,28 @@ void test_gui_state_roundtrip_with_override(void) {
   ASSERT_TRUE(GuiStateLoad(&out));
   ASSERT_STR_EQ(in.gallery_dir, out.gallery_dir);
   ASSERT_STR_EQ(in.env_dir, out.env_dir);
+  ASSERT_EQ((int)in.scan_exhaustive, (int)out.scan_exhaustive);
+  ASSERT_EQ(in.scan_jobs, out.scan_jobs);
+  ASSERT_EQ(in.scan_cache_mode, out.scan_cache_mode);
+  ASSERT_EQ(in.scan_cache_level, out.scan_cache_level);
+  ASSERT_EQ((int)in.sim_incremental, (int)out.sim_incremental);
+  ASSERT_TRUE(out.sim_threshold > 0.769f && out.sim_threshold < 0.771f);
+  ASSERT_EQ(in.sim_topk, out.sim_topk);
+  ASSERT_EQ(in.sim_memory_mode, out.sim_memory_mode);
+  ASSERT_STR_EQ(in.organize_group_by, out.organize_group_by);
 
-  char saved_json[2048] = {0};
+  char saved_json[4096] = {0};
   ReadFileText("build/test_gui_state/state.json", saved_json, sizeof(saved_json));
-  ASSERT_TRUE(strstr(saved_json, "\"galleryDir\"") != NULL);
-  ASSERT_TRUE(strstr(saved_json, "\"envDir\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"schemaVersion\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"scanExhaustive\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"scanJobs\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"scanCacheCompressionMode\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"scanCacheCompressionLevel\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"simIncremental\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"simThreshold\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"simTopK\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"simMemoryMode\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"organizeGroupBy\"") != NULL);
   ASSERT_TRUE(strstr(saved_json, "uiScalePercent") == NULL);
   ASSERT_TRUE(strstr(saved_json, "windowWidth") == NULL);
   ASSERT_TRUE(strstr(saved_json, "windowHeight") == NULL);
@@ -72,10 +99,19 @@ void test_gui_state_legacy_defaults(void) {
   ASSERT_TRUE(GuiStateLoad(&loaded));
   ASSERT_STR_EQ("/tmp/g", loaded.gallery_dir);
   ASSERT_STR_EQ("/tmp/e", loaded.env_dir);
+  ASSERT_FALSE(loaded.scan_exhaustive);
+  ASSERT_EQ(1, loaded.scan_jobs);
+  ASSERT_EQ(APP_CACHE_COMPRESSION_NONE, loaded.scan_cache_mode);
+  ASSERT_EQ(3, loaded.scan_cache_level);
+  ASSERT_TRUE(loaded.sim_incremental);
+  ASSERT_TRUE(loaded.sim_threshold > 0.919f && loaded.sim_threshold < 0.921f);
+  ASSERT_EQ(5, loaded.sim_topk);
+  ASSERT_EQ(APP_SIM_MEMORY_CHUNKED, loaded.sim_memory_mode);
+  ASSERT_STR_EQ("date", loaded.organize_group_by);
 
   ASSERT_TRUE(GuiStateSave(&loaded));
 
-  char rewritten_json[2048] = {0};
+  char rewritten_json[4096] = {0};
   ReadFileText("build/test_gui_state/state.json", rewritten_json,
                sizeof(rewritten_json));
   ASSERT_TRUE(strstr(rewritten_json, "uiScalePercent") == NULL);
@@ -86,11 +122,48 @@ void test_gui_state_legacy_defaults(void) {
   system("rm -rf build/test_gui_state");
 }
 
+void test_gui_state_invalid_values_are_clamped(void) {
+  system("rm -rf build/test_gui_state");
+  system("mkdir -p build/test_gui_state");
+  ASSERT_EQ(0, setenv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json", 1));
+
+  FILE *f = fopen("build/test_gui_state/state.json", "wb");
+  ASSERT_TRUE(f != NULL);
+  fputs("{"
+        "\"galleryDir\":\"/tmp/g\","
+        "\"envDir\":\"/tmp/e\","
+        "\"scanJobs\":999,"
+        "\"scanCacheCompressionMode\":\"auto\","
+        "\"scanCacheCompressionLevel\":25,"
+        "\"simThreshold\":1.7,"
+        "\"simTopK\":0,"
+        "\"simMemoryMode\":\"bad\","
+        "\"organizeGroupBy\":\"\""
+        "}",
+        f);
+  fclose(f);
+
+  GuiState loaded = {0};
+  ASSERT_TRUE(GuiStateLoad(&loaded));
+  ASSERT_EQ(256, loaded.scan_jobs);
+  ASSERT_EQ(APP_CACHE_COMPRESSION_NONE, loaded.scan_cache_mode);
+  ASSERT_EQ(19, loaded.scan_cache_level);
+  ASSERT_TRUE(loaded.sim_threshold > 0.999f && loaded.sim_threshold <= 1.0f);
+  ASSERT_EQ(1, loaded.sim_topk);
+  ASSERT_EQ(APP_SIM_MEMORY_CHUNKED, loaded.sim_memory_mode);
+  ASSERT_STR_EQ("date", loaded.organize_group_by);
+
+  unsetenv("CGO_GUI_STATE_PATH");
+  system("rm -rf build/test_gui_state");
+}
+
 void register_gui_state_tests(void) {
   register_test("test_gui_state_roundtrip_with_override",
                 test_gui_state_roundtrip_with_override, "unit");
   register_test("test_gui_state_resolve_default_path",
                 test_gui_state_resolve_default_path, "unit");
-  register_test("test_gui_state_legacy_defaults",
-                test_gui_state_legacy_defaults, "unit");
+  register_test("test_gui_state_legacy_defaults", test_gui_state_legacy_defaults,
+                "unit");
+  register_test("test_gui_state_invalid_values_are_clamped",
+                test_gui_state_invalid_values_are_clamped, "unit");
 }

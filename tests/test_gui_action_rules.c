@@ -49,7 +49,18 @@ void test_gui_action_rules_cache_gated_actions(void) {
   ASSERT_FALSE(availability.enabled);
 
   state.runtime_state.cache_exists = true;
+  state.runtime_state.cache_entry_count_known = false;
+  state.runtime_state.cache_entry_count = 0;
+  GuiResolveActionAvailability(&state, GUI_ACTION_ORGANIZE_PREVIEW, &availability);
+  ASSERT_TRUE(availability.enabled);
+
+  state.runtime_state.cache_entry_count_known = true;
+  state.runtime_state.cache_entry_count = 0;
+  GuiResolveActionAvailability(&state, GUI_ACTION_ORGANIZE_PREVIEW, &availability);
+  ASSERT_FALSE(availability.enabled);
+
   state.runtime_state.cache_entry_count = 2;
+  state.runtime_state.cache_entry_count_known = true;
   GuiResolveActionAvailability(&state, GUI_ACTION_ORGANIZE_PREVIEW, &availability);
   ASSERT_TRUE(availability.enabled);
 
