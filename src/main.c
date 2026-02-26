@@ -598,7 +598,7 @@ static void *ScanWorkerRun(void *arg) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.4.2\n");
+  printf("CGalleryOrganizer v0.4.4\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
