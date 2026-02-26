@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "raygui.h"
 #include "raylib.h"
@@ -13,6 +14,37 @@
 static Rectangle ToRayRect(GuiRect rect) {
   Rectangle out = {rect.x, rect.y, rect.width, rect.height};
   return out;
+}
+
+static bool TryParseIntStrict(const char *text, int *out_value) {
+  if (!text || !out_value) {
+    return false;
+  }
+
+  char *endptr = NULL;
+  long parsed = strtol(text, &endptr, 10);
+  if (!endptr || *endptr != '\0') {
+    return false;
+  }
+  if (parsed < INT_MIN || parsed > INT_MAX) {
+    return false;
+  }
+  *out_value = (int)parsed;
+  return true;
+}
+
+static bool TryParseFloatStrict(const char *text, float *out_value) {
+  if (!text || !out_value) {
+    return false;
+  }
+
+  char *endptr = NULL;
+  float parsed = strtof(text, &endptr);
+  if (!endptr || *endptr != '\0') {
+    return false;
+  }
+  *out_value = parsed;
+  return true;
 }
 
 static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
@@ -53,24 +85,55 @@ void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
                   "Minimum cosine similarity accepted into report groups");
   if (GuiTextBox(ToRayRect(layout.threshold_input), state->sim_threshold_input,
                  (int)sizeof(state->sim_threshold_input), true)) {
-    float parsed = strtof(state->sim_threshold_input, NULL);
-    if (parsed >= 0.0f && parsed <= 1.0f) {
-      state->sim_threshold = parsed;
+    float parsed = 0.0f;
+    if (!TryParseFloatStrict(state->sim_threshold_input, &parsed)) {
+      strncpy(state->banner_message,
+              "Similarity threshold must be a number between 0.000 and 1.000",
+              sizeof(state->banner_message) - 1);
+      snprintf(state->sim_threshold_input, sizeof(state->sim_threshold_input),
+               "%.3f", state->sim_threshold);
+    } else {
+      float clamped = parsed;
+      if (clamped < 0.0f) {
+        clamped = 0.0f;
+      } else if (clamped > 1.0f) {
+        clamped = 1.0f;
+      }
+      if (clamped != parsed) {
+        snprintf(state->banner_message, sizeof(state->banner_message),
+                 "Similarity threshold clamped to %.3f (allowed range: 0.000..1.000)",
+                 clamped);
+      }
+      state->sim_threshold = clamped;
       snprintf(state->sim_threshold_input, sizeof(state->sim_threshold_input),
                "%.3f", state->sim_threshold);
     }
   }
-  GuiHelpRegister(ToRayRect(layout.threshold_input),
-                  "Valid range: 0.000..1.000");
+  GuiHelpRegister(ToRayRect(layout.threshold_input), "Valid range: 0.000..1.000");
 
   GuiLabel(ToRayRect(layout.topk_label), "TopK");
   GuiHelpRegister(ToRayRect(layout.topk_label),
                   "Maximum neighbors per anchor in report");
   if (GuiTextBox(ToRayRect(layout.topk_input), state->sim_topk_input,
                  (int)sizeof(state->sim_topk_input), true)) {
-    int parsed = atoi(state->sim_topk_input);
-    if (parsed > 0 && parsed <= 1000) {
-      state->sim_topk = parsed;
+    int parsed = 0;
+    if (!TryParseIntStrict(state->sim_topk_input, &parsed)) {
+      strncpy(state->banner_message, "TopK must be an integer between 1 and 1000",
+              sizeof(state->banner_message) - 1);
+      snprintf(state->sim_topk_input, sizeof(state->sim_topk_input), "%d",
+               state->sim_topk);
+    } else {
+      int clamped = parsed;
+      if (clamped < 1) {
+        clamped = 1;
+      } else if (clamped > 1000) {
+        clamped = 1000;
+      }
+      if (clamped != parsed) {
+        snprintf(state->banner_message, sizeof(state->banner_message),
+                 "TopK clamped to %d (allowed range: 1..1000)", clamped);
+      }
+      state->sim_topk = clamped;
       snprintf(state->sim_topk_input, sizeof(state->sim_topk_input), "%d",
                state->sim_topk);
     }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "raygui.h"
 #include "raylib.h"
@@ -13,6 +14,23 @@
 static Rectangle ToRayRect(GuiRect rect) {
   Rectangle out = {rect.x, rect.y, rect.width, rect.height};
   return out;
+}
+
+static bool TryParseIntStrict(const char *text, int *out_value) {
+  if (!text || !out_value) {
+    return false;
+  }
+
+  char *endptr = NULL;
+  long parsed = strtol(text, &endptr, 10);
+  if (!endptr || *endptr != '\0') {
+    return false;
+  }
+  if (parsed < INT_MIN || parsed > INT_MAX) {
+    return false;
+  }
+  *out_value = (int)parsed;
+  return true;
 }
 
 static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
@@ -71,18 +89,40 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                   "Enable deeper metadata extraction (slower, larger cache)");
 
   GuiLabel(ToRayRect(layout.jobs_label), "Jobs");
+  char jobs_help[APP_MAX_ERROR] = {0};
+  int recommended_jobs = state->runtime_state_valid
+                             ? state->runtime_state.recommended_jobs
+                             : 1;
+  int logical_cores = state->runtime_state_valid ? state->runtime_state.logical_cores
+                                                 : 1;
+  snprintf(jobs_help, sizeof(jobs_help),
+           "Parallel workers (1..256, recommended 1..%d for %d logical cores)",
+           recommended_jobs, logical_cores);
   GuiHelpRegister(ToRayRect(layout.jobs_label),
-                  "Parallel workers (1..256, recommended up to logical cores)");
+                  jobs_help);
   if (GuiTextBox(ToRayRect(layout.jobs_input), state->jobs_input,
                  (int)sizeof(state->jobs_input), true)) {
-    int parsed = atoi(state->jobs_input);
-    if (parsed > 0 && parsed <= 256) {
-      state->jobs = parsed;
+    int parsed = 0;
+    if (!TryParseIntStrict(state->jobs_input, &parsed)) {
+      strncpy(state->banner_message, "Jobs must be an integer between 1 and 256",
+              sizeof(state->banner_message) - 1);
+      snprintf(state->jobs_input, sizeof(state->jobs_input), "%d", state->jobs);
+    } else {
+      int clamped = parsed;
+      if (clamped < 1) {
+        clamped = 1;
+      } else if (clamped > 256) {
+        clamped = 256;
+      }
+      if (clamped != parsed) {
+        snprintf(state->banner_message, sizeof(state->banner_message),
+                 "Jobs clamped to %d (allowed range: 1..256)", clamped);
+      }
+      state->jobs = clamped;
       snprintf(state->jobs_input, sizeof(state->jobs_input), "%d", state->jobs);
     }
   }
-  GuiHelpRegister(ToRayRect(layout.jobs_input),
-                  "Worker count: valid range 1..256");
+  GuiHelpRegister(ToRayRect(layout.jobs_input), jobs_help);
 
   GuiLabel(ToRayRect(layout.cache_label), "Cache compression");
   GuiHelpRegister(ToRayRect(layout.cache_label),
@@ -110,9 +150,26 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
   GuiHelpRegister(ToRayRect(layout.level_label), "zstd compression level (1..19)");
   if (GuiTextBox(ToRayRect(layout.level_input), state->cache_level_input,
                  (int)sizeof(state->cache_level_input), true)) {
-    int parsed = atoi(state->cache_level_input);
-    if (parsed >= 1 && parsed <= 19) {
-      state->cache_level = parsed;
+    int parsed = 0;
+    if (!TryParseIntStrict(state->cache_level_input, &parsed)) {
+      strncpy(state->banner_message,
+              "Compression level must be an integer between 1 and 19",
+              sizeof(state->banner_message) - 1);
+      snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
+               state->cache_level);
+    } else {
+      int clamped = parsed;
+      if (clamped < 1) {
+        clamped = 1;
+      } else if (clamped > 19) {
+        clamped = 19;
+      }
+      if (clamped != parsed) {
+        snprintf(state->banner_message, sizeof(state->banner_message),
+                 "Compression level clamped to %d (allowed range: 1..19)",
+                 clamped);
+      }
+      state->cache_level = clamped;
       snprintf(state->cache_level_input, sizeof(state->cache_level_input), "%d",
                state->cache_level);
     }
