@@ -1,30 +1,72 @@
 #include <string.h>
 
 #include "raygui.h"
+#include "raylib.h"
 
 #include "gui/gui_common.h"
 
-void GuiDrawOrganizePanel(GuiUiState *state) {
-  if (!state) {
+static Rectangle ToRayRect(GuiLayoutRect rect) {
+  Rectangle out = {rect.x, rect.y, rect.width, rect.height};
+  return out;
+}
+
+static float LabelWidth(const char *text, const GuiLayoutMetrics *metrics) {
+  return GuiLayoutMeasureTextWidth(text, metrics) + (float)(metrics->gap * 2);
+}
+
+void GuiDrawOrganizePanel(GuiUiState *state, GuiLayoutRect panel_bounds,
+                          const GuiLayoutMetrics *metrics) {
+  if (!state || !metrics) {
     return;
   }
 
-  GuiLabel((Rectangle){30, 120, 160, 24}, "Group-by keys");
-  GuiTextBox((Rectangle){170, 116, 280, 30}, state->group_by,
-             (int)sizeof(state->group_by), true);
+  GuiLayoutContext ctx = {0};
+  GuiLayoutInit(&ctx, panel_bounds, metrics);
 
-  if (GuiButton((Rectangle){30, 166, 180, 36}, "Preview Organize")) {
+  GuiLayoutRect group_label = GuiLayoutPlaceFixed(
+      &ctx, LabelWidth("Group-by keys", metrics), (float)metrics->label_h);
+  GuiLabel(ToRayRect(group_label), "Group-by keys");
+  GuiLayoutRect group_input = GuiLayoutPlaceFlex(
+      &ctx, 260.0f * metrics->effective_scale, (float)metrics->input_h);
+  GuiTextBox(ToRayRect(group_input), state->group_by, (int)sizeof(state->group_by),
+             true);
+
+  GuiLayoutNextLine(&ctx);
+
+  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
+                    &ctx, GuiLayoutButtonWidth("Preview Organize", metrics,
+                                               170.0f * metrics->effective_scale),
+                    (float)metrics->button_h)),
+                "Preview Organize")) {
     GuiUiStartTask(state, GUI_TASK_PREVIEW_ORGANIZE);
   }
 
-  if (GuiButton((Rectangle){230, 166, 180, 36}, "Execute Organize")) {
+  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
+                    &ctx, GuiLayoutButtonWidth("Execute Organize", metrics,
+                                               170.0f * metrics->effective_scale),
+                    (float)metrics->button_h)),
+                "Execute Organize")) {
     GuiUiStartTask(state, GUI_TASK_EXECUTE_ORGANIZE);
   }
 
-  if (GuiButton((Rectangle){430, 166, 160, 36}, "Rollback")) {
+  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
+                    &ctx, GuiLayoutButtonWidth("Rollback", metrics,
+                                               130.0f * metrics->effective_scale),
+                    (float)metrics->button_h)),
+                "Rollback")) {
     GuiUiStartTask(state, GUI_TASK_ROLLBACK);
   }
 
-  GuiLabel((Rectangle){30, 220, 920, 24},
+  GuiLayoutNextLine(&ctx);
+  GuiLayoutRect info = GuiLayoutPlaceFlex(&ctx, 300.0f * metrics->effective_scale,
+                                          (float)metrics->label_h);
+  GuiLabel(ToRayRect(info),
            "Use comma-separated keys from: date,camera,format,orientation,resolution");
+
+#if defined(CGO_GUI_LAYOUT_DEBUG)
+  if (!GuiLayoutContextIsValid(&ctx)) {
+    strncpy(state->banner_message, "Layout warning: organize panel overlap/bounds",
+            sizeof(state->banner_message) - 1);
+  }
+#endif
 }
