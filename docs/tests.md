@@ -42,13 +42,13 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 ## Coverage Focus
 
 - Filesystem utilities (`src/utils/fs_utils.c`)
-- Cache lifecycle and schema evolution (`src/core/gallery_cache.c`)
+- Cache lifecycle and schema evolution (`src/core/gallery_cache_io.c`, `src/core/gallery_cache_entry.c`)
 - Hashing helpers (`src/utils/hash_utils.c`)
 - Duplicate grouping (`src/systems/duplicate_finder.c`)
-- Organizer plan/rollback behavior (`src/systems/organizer.c`)
+- Organizer plan/execute/rollback behavior (`src/systems/organizer_planner.c`, `src/systems/organizer_executor.c`, `src/systems/organizer_manifest.c`)
 - Metadata extraction integration using real assets (`tests/assets/**`)
 - ML subsystem API/provider behavior (`src/ml/**`)
-- Similarity engine behavior (`src/systems/similarity_engine.c`)
+- Similarity engine behavior (`src/systems/similarity_codec.c`, `src/systems/similarity_math.c`, `src/systems/similarity_report.c`)
 - CLI flow checks through the built binary (`build/bin/gallery_organizer`), including:
   - `--exhaustive`
   - rollback compatibility forms
@@ -156,6 +156,7 @@ Expected:
 
 - Some tests invoke shell commands (`system`/`popen`) and use temporary build directories.
 - Keep temp paths scoped under `build/` and clean them in each test to avoid cross-test interference.
+- Integration tests are split by domain (`tests/test_integration_metadata.c`, `tests/test_cli_core.c`, `tests/test_cli_ml_similarity.c`) and composed by `tests/test_integration.c`.
 
 ## Roadmap Test Gates (0.4.3+)
 

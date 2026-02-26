@@ -243,6 +243,22 @@ Improve throughput via parallel scan->metadata->inference processing while prese
 
 ---
 
+## v0.4.5 Scope: Modularity + Technical Debt Cleanup (Completed)
+
+### Primary Goal
+Reduce maintenance risk by decomposing oversized files, formalizing engineering
+guardrails, and preserving runtime behavior contracts.
+
+### Features
+- Decompose CLI monolith (`src/main.c`) into dedicated `src/cli/*` modules.
+- Split oversized benchmark and core/system implementation files while keeping
+  public contracts stable.
+- Formalize low technical debt and modularity rules in `docs/CODE_STYLE.md`.
+- Improve test maintainability by splitting oversized integration test suites.
+- Keep CLI/cache/report behavior stable (cleanup-only milestone).
+
+---
+
 ## Documentation Governance
 
 For every merged milestone branch:
