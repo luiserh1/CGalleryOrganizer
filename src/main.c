@@ -31,7 +31,7 @@ static int HandleRollback(AppContext *app, const char *target_dir,
 
 static int HandleDuplicates(AppContext *app, const char *env_dir,
                             AppCacheCompressionMode compression_mode,
-                            int compression_level) {
+                            int compression_level, bool move_duplicates) {
   AppDuplicateFindRequest find_request = {
       .env_dir = env_dir,
       .cache_compression_mode = compression_mode,
@@ -50,7 +50,13 @@ static int HandleDuplicates(AppContext *app, const char *env_dir,
     return 0;
   }
 
-  if (env_dir && env_dir[0] != '\0') {
+  if (move_duplicates) {
+    if (!env_dir || env_dir[0] == '\0') {
+      printf("Error: --duplicates-move requires an environment directory.\n");
+      AppFreeDuplicateReport(&report);
+      return 1;
+    }
+
     AppDuplicateMoveRequest move_request = {
         .target_dir = env_dir,
         .report = &report,
@@ -78,8 +84,7 @@ static int HandleDuplicates(AppContext *app, const char *env_dir,
         printf("    Duplicate: %s\n", report.groups[i].duplicate_paths[j]);
       }
     }
-    printf("\nTo automatically move these duplicates, provide a target "
-           "directory as the second argument.\n");
+    printf("\nTo move duplicates, rerun with --duplicates-move.\n");
   }
 
   AppFreeDuplicateReport(&report);
@@ -96,7 +101,7 @@ static void PrintAppError(AppContext *app, const char *prefix) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.5.1\n");
+  printf("CGalleryOrganizer v0.5.4\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -104,6 +109,8 @@ int main(int argc, char **argv) {
   bool sim_incremental = true;
   bool organize = false;
   bool preview = false;
+  bool duplicates_report = false;
+  bool duplicates_move = false;
   bool rollback = false;
   const char *jobs_arg = "auto";
   bool jobs_set_by_cli = false;
@@ -228,6 +235,10 @@ int main(int argc, char **argv) {
       group_by_arg = argv[++i];
     } else if (strcmp(argv[i], "--preview") == 0) {
       preview = true;
+    } else if (strcmp(argv[i], "--duplicates-report") == 0) {
+      duplicates_report = true;
+    } else if (strcmp(argv[i], "--duplicates-move") == 0) {
+      duplicates_move = true;
     } else if (strcmp(argv[i], "--rollback") == 0) {
       rollback = true;
     } else if (argv[i][0] == '-') {
@@ -249,6 +260,10 @@ int main(int argc, char **argv) {
     printf("Error: Cannot specify --rollback with --organize or --preview.\n");
     return 1;
   }
+  if (rollback && (duplicates_report || duplicates_move)) {
+    printf("Error: Cannot specify --rollback with duplicate actions.\n");
+    return 1;
+  }
   if (rollback && similarity_report) {
     printf("Error: Cannot specify --rollback with --similarity-report.\n");
     return 1;
@@ -259,6 +274,16 @@ int main(int argc, char **argv) {
   }
   if (similarity_report && (organize || preview)) {
     printf("Error: --similarity-report cannot be combined with --organize/--preview.\n");
+    return 1;
+  }
+  if (duplicates_report && duplicates_move) {
+    printf("Error: Cannot specify --duplicates-report and --duplicates-move together.\n");
+    return 1;
+  }
+  if ((duplicates_report || duplicates_move) &&
+      (organize || preview || similarity_report)) {
+    printf("Error: Duplicate actions cannot be combined with "
+           "--similarity-report/--organize/--preview.\n");
     return 1;
   }
   if (cache_compression_level_set &&
@@ -303,6 +328,11 @@ int main(int argc, char **argv) {
   }
   if (similarity_report && !env_dir) {
     printf("Error: --similarity-report requires an environment directory.\n");
+    AppContextDestroy(app);
+    return 1;
+  }
+  if (duplicates_move && !env_dir) {
+    printf("Error: --duplicates-move requires an environment directory.\n");
     AppContextDestroy(app);
     return 1;
   }
@@ -445,9 +475,9 @@ int main(int argc, char **argv) {
     }
 
     AppFreeOrganizePlanResult(&preview_result);
-  } else if (!similarity_report) {
+  } else if (duplicates_report || duplicates_move) {
     int rc = HandleDuplicates(app, env_dir, cache_compression_mode,
-                              cache_compression_level);
+                              cache_compression_level, duplicates_move);
     AppContextDestroy(app);
     return rc;
   }
