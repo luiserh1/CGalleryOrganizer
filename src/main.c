@@ -40,6 +40,9 @@ static void PrintUsage(const char *argv0) {
   printf("  --similarity-report Build similarity report using embeddings\n");
   printf("  --sim-threshold <0..1> Similarity threshold (default: 0.92)\n");
   printf("  --sim-topk <n>    Max neighbors per anchor (default: 5)\n");
+  printf("  --cache-compress <mode> Cache compression mode: none|zstd\n");
+  printf("  --cache-compress-level <1..19> Compression level when using zstd "
+         "(default: 3)\n");
   printf("  --organize        Execute metadata-based restructuring\n");
   printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
          "Default: date\n");
@@ -420,7 +423,7 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.4.0\n");
+  printf("CGalleryOrganizer v0.4.1\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -430,6 +433,9 @@ int main(int argc, char **argv) {
   bool rollback = false;
   float sim_threshold = 0.92f;
   int sim_topk = 5;
+  CacheCompressionMode cache_compression_mode = CACHE_COMPRESSION_NONE;
+  int cache_compression_level = 3;
+  bool cache_compression_level_set = false;
   const char *target_dir = NULL;
   const char *env_dir = NULL;
   const char *group_by_arg = NULL;
@@ -471,6 +477,34 @@ int main(int argc, char **argv) {
         return 1;
       }
       sim_topk = (int)parsed;
+    } else if (strcmp(argv[i], "--cache-compress") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --cache-compress requires a mode: none|zstd.\n");
+        return 1;
+      }
+      const char *mode = argv[++i];
+      if (strcmp(mode, "none") == 0) {
+        cache_compression_mode = CACHE_COMPRESSION_NONE;
+      } else if (strcmp(mode, "zstd") == 0) {
+        cache_compression_mode = CACHE_COMPRESSION_ZSTD;
+      } else {
+        printf("Error: Invalid --cache-compress mode '%s'. Allowed: none|zstd\n",
+               mode);
+        return 1;
+      }
+    } else if (strcmp(argv[i], "--cache-compress-level") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --cache-compress-level requires a value in [1,19].\n");
+        return 1;
+      }
+      char *endptr = NULL;
+      long parsed = strtol(argv[++i], &endptr, 10);
+      if (!endptr || *endptr != '\0' || parsed < 1 || parsed > 19) {
+        printf("Error: --cache-compress-level must be in [1,19].\n");
+        return 1;
+      }
+      cache_compression_level = (int)parsed;
+      cache_compression_level_set = true;
     } else if (strcmp(argv[i], "--organize") == 0) {
       organize = true;
     } else if (strcmp(argv[i], "--group-by") == 0) {
@@ -514,6 +548,12 @@ int main(int argc, char **argv) {
     printf("Error: --similarity-report cannot be combined with --organize/--preview.\n");
     return 1;
   }
+  if (cache_compression_level_set &&
+      cache_compression_mode != CACHE_COMPRESSION_ZSTD) {
+    printf("Error: --cache-compress-level is only valid with --cache-compress "
+           "zstd.\n");
+    return 1;
+  }
 
   if (rollback) {
     const char *rollback_env = ResolveRollbackEnvDir(target_dir, env_dir);
@@ -555,6 +595,16 @@ int main(int argc, char **argv) {
   }
 
   FsMakeDirRecursive(cache_dir);
+  if (!CacheSetCompression(cache_compression_mode, cache_compression_level)) {
+    if (cache_compression_mode == CACHE_COMPRESSION_ZSTD) {
+      printf("Error: zstd cache compression is unavailable or invalid.\n");
+      printf("Hint: install zstd development package or use "
+             "--cache-compress none.\n");
+    } else {
+      printf("Error: Invalid cache compression configuration.\n");
+    }
+    return 1;
+  }
   if (!CacheInit(cache_path)) {
     printf("Error: Failed to initialize cache.\n");
     return 1;
