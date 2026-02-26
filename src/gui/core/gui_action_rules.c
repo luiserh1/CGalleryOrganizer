@@ -178,6 +178,7 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
     return;
 
   case GUI_ACTION_SAVE_PATHS:
+  case GUI_ACTION_DOWNLOAD_MODELS:
   case GUI_ACTION_RESET_PATHS:
     SetEnabled(out);
     return;
@@ -219,6 +220,9 @@ bool GuiActionCanStartTask(const GuiUiState *state, GuiTaskType task_type,
     break;
   case GUI_TASK_MOVE_DUPLICATES:
     action_id = GUI_ACTION_DUPLICATES_MOVE;
+    break;
+  case GUI_TASK_DOWNLOAD_MODELS:
+    action_id = GUI_ACTION_DOWNLOAD_MODELS;
     break;
   default:
     if (out_reason && out_reason_size > 0) {

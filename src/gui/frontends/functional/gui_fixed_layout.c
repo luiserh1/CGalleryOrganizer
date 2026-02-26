@@ -113,10 +113,11 @@ void GuiBuildScanPanelLayout(GuiRect panel_bounds, GuiScanPanelLayout *out_layou
   y += 56.0f;
   out_layout->actions_divider = MakeRect(x, y - 8.0f, panel_right - x, 1.0f);
 
-  out_layout->scan_button = MakeRect(x, y, 180.0f, 42.0f);
-  out_layout->ml_button = MakeRect(x + 190.0f, y, 180.0f, 42.0f);
-  out_layout->save_paths_button = MakeRect(x + 380.0f, y, 180.0f, 42.0f);
-  out_layout->reset_paths_button = MakeRect(x + 570.0f, y, 220.0f, 42.0f);
+  out_layout->scan_button = MakeRect(x, y, 170.0f, 42.0f);
+  out_layout->ml_button = MakeRect(x + 180.0f, y, 170.0f, 42.0f);
+  out_layout->download_models_button = MakeRect(x + 360.0f, y, 190.0f, 42.0f);
+  out_layout->save_paths_button = MakeRect(x + 560.0f, y, 170.0f, 42.0f);
+  out_layout->reset_paths_button = MakeRect(x + 740.0f, y, 210.0f, 42.0f);
 
   y += 54.0f;
   out_layout->info_label = MakeRect(x, y, 1080.0f, 30.0f);

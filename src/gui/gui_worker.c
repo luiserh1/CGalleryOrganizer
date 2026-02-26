@@ -297,6 +297,32 @@ static void WorkerRunMoveDuplicates(const GuiTaskInput *input) {
   WorkerSetResult(APP_STATUS_OK, "Duplicate move completed", true);
 }
 
+static void WorkerRunDownloadModels(void) {
+  AppModelInstallRequest request = {
+      .manifest_path_override = NULL,
+      .models_root_override = NULL,
+      .force_redownload = false,
+      .hooks = BuildHooks(),
+  };
+  AppModelInstallResult result = {0};
+  AppStatus status = AppInstallModels(g_worker.app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    WorkerSetResult(status, "Model installation failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.model_install_result = result;
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Model install completed.\nManifest entries: %d\nInstalled: %d\nSkipped: %d\n"
+           "Models root: %s\nLockfile: %s\n",
+           result.manifest_model_count, result.installed_count, result.skipped_count,
+           result.models_root, result.lockfile_path);
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  WorkerSetResult(APP_STATUS_OK, "Model installation completed", true);
+}
+
 static void *WorkerThreadMain(void *unused) {
   (void)unused;
 
@@ -336,6 +362,9 @@ static void *WorkerThreadMain(void *unused) {
     break;
   case GUI_TASK_MOVE_DUPLICATES:
     WorkerRunMoveDuplicates(&input);
+    break;
+  case GUI_TASK_DOWNLOAD_MODELS:
+    WorkerRunDownloadModels();
     break;
   default:
     WorkerSetResult(APP_STATUS_INVALID_ARGUMENT, "Unknown task type", false);
@@ -399,6 +428,8 @@ bool GuiWorkerStartTask(const GuiTaskInput *input) {
   g_worker.snapshot.has_result = false;
   g_worker.snapshot.success = false;
   g_worker.snapshot.status = APP_STATUS_OK;
+  memset(&g_worker.snapshot.model_install_result, 0,
+         sizeof(g_worker.snapshot.model_install_result));
   g_worker.snapshot.message[0] = '\0';
   g_worker.snapshot.detail_text[0] = '\0';
   g_worker.snapshot.duplicate_report_ready = g_worker.duplicate_report_ready;

@@ -15,7 +15,8 @@ typedef enum {
   GUI_TASK_EXECUTE_ORGANIZE = 5,
   GUI_TASK_ROLLBACK = 6,
   GUI_TASK_FIND_DUPLICATES = 7,
-  GUI_TASK_MOVE_DUPLICATES = 8
+  GUI_TASK_MOVE_DUPLICATES = 8,
+  GUI_TASK_DOWNLOAD_MODELS = 9
 } GuiTaskType;
 
 typedef struct {
@@ -44,6 +45,7 @@ typedef struct {
   char progress_stage[64];
   AppScanResult scan_result;
   AppSimilarityResult similarity_result;
+  AppModelInstallResult model_install_result;
   AppOrganizeExecuteResult organize_execute_result;
   AppRollbackResult rollback_result;
   AppDuplicateMoveResult duplicate_move_result;

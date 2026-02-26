@@ -134,6 +134,11 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                    "Run classification/text detection/embeddings into cache")) {
     GuiUiStartTask(state, GUI_TASK_ML_ENRICH);
   }
+  if (ActionButton(state, ToRayRect(layout.download_models_button),
+                   "Download Models", GUI_ACTION_DOWNLOAD_MODELS,
+                   "Install models from manifest into build/models")) {
+    GuiUiStartTask(state, GUI_TASK_DOWNLOAD_MODELS);
+  }
   if (ActionButton(state, ToRayRect(layout.save_paths_button), "Save Paths",
                    GUI_ACTION_SAVE_PATHS,
                    "Persist Gallery/Environment paths for next launch")) {
@@ -159,5 +164,5 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
 
   GuiHelpDrawHintLabel(
       ToRayRect(layout.info_label),
-      "Hints: configure paths and workers, then Scan/Cache. Use Save Paths to persist.");
+      "Hints: configure paths and workers, install models if needed, then run tasks.");
 }

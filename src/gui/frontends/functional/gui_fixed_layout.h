@@ -45,6 +45,7 @@ typedef struct {
   GuiRect actions_divider;
   GuiRect scan_button;
   GuiRect ml_button;
+  GuiRect download_models_button;
   GuiRect save_paths_button;
   GuiRect reset_paths_button;
   GuiRect info_label;
