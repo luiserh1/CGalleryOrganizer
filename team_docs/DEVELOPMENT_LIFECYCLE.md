@@ -3,6 +3,7 @@
 ## 1. Intake
 - PM defines goal, scope, success criteria, and constraints.
 - PM assigns primary/secondary role ownership.
+- PM remains planning-only and does not implement code changes.
 
 ## 2. Design
 - API Maintainer validates contract impact.
@@ -26,8 +27,11 @@
 ## 6. Review and Merge
 - PM verifies acceptance criteria and dependency order.
 - QA confirms regression coverage.
-- Merge only when all gates are green.
+- Main Maintainer confirms governance/build/CI compliance.
+- Merge only when all gates are green and no Main Maintainer veto is active.
+- PM-authored changes under `team_docs/` require Main Maintainer as final merger/committer.
 
 ## 7. Post-Merge
 - Update audit backlog if residual risk remains.
 - Record follow-up actions by owner and target milestone.
+- Release tag/changelog decisions are executed by Main Maintainer.

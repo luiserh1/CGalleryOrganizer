@@ -6,8 +6,11 @@ Own repository governance: documentation quality, dependency policy, and build s
 ## Responsibilities
 - Maintain docs accuracy across README, `docs/`, tools docs, and governance docs.
 - Approve dependency add/remove/version policy changes.
+- Own build and CI policy decisions.
 - Maintain `Makefile` targets and strict build standards.
-- Ensure release notes and milestone docs are synchronized.
+- Own release tagging and changelog publication.
+- Hold governance/build veto authority on merges.
+- Serve as required merger/committer for PM-authored `team_docs/` changes.
 
 ## Limitations
 - Does not own feature implementation sequencing (PM role).
@@ -23,6 +26,7 @@ Own repository governance: documentation quality, dependency policy, and build s
 - Documentation synced to actual behavior.
 - Build/dependency policy updates.
 - Release readiness confirmation from governance perspective.
+- Final release tag/changelog decision record.
 
 ## Agent Execution Rules
 - No stale commands/paths in docs.

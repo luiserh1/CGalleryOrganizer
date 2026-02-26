@@ -21,8 +21,8 @@ CGalleryOrganizer is a local-first media organizer with:
 
 ## Team Model
 - Work is divided across role playbooks in `team_docs/roles/`.
-- PM owns sequencing and acceptance criteria.
-- Main Maintainer owns dependency policy, docs quality, and build system consistency.
+- PM owns sequencing, scope, and acceptance criteria only (no coding/commit authority).
+- Main Maintainer owns dependency policy, docs quality, build/CI policy, and release tagging/changelog.
 
 ## Mandatory Quality Gates
 - `make test` must pass.

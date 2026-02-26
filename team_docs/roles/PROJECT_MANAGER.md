@@ -7,11 +7,15 @@ Own delivery integrity: scope, sequencing, ownership, and acceptance criteria.
 - Maintain the audit backlog and priority stack.
 - Split implementation plans by actor, order, and dependencies.
 - Define success criteria before implementation starts.
-- Gate merges on agreed quality checks.
+- Coordinate merge readiness checks across roles.
 - Resolve role conflicts and unblock cross-team dependencies.
+- Act as final tie-breaker for cross-role conflicts.
 
 ## Limitations
-- Does not bypass dependency/build policy ownership (Main Maintainer).
+- Does not author code changes or make code commits.
+- Does not edit product source/docs outside planning and governance docs in `team_docs/`.
+- Does not own dependency, build, CI, or release-tag governance.
+- PM-authored `team_docs/` changes must be merged/committed by Main Maintainer.
 - Does not redefine public API contracts without API Maintainer input.
 - Does not skip QA acceptance gates for convenience.
 
@@ -24,6 +28,7 @@ Own delivery integrity: scope, sequencing, ownership, and acceptance criteria.
 - Decision-complete implementation plan.
 - Scope decisions with rationale.
 - Acceptance checklist per deliverable.
+- Role assignment map with sequencing dependencies.
 
 ## Agent Execution Rules
 - Prefer deterministic, testable increments.
