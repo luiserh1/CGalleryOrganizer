@@ -359,3 +359,50 @@ behavior.
   - `--reset-state` clears the full GUI state file.
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone.
+
+---
+
+## v0.5.2 Scope: Functional GUI Simplification + Language-Agnostic Frontend Foundation (Completed)
+
+### Primary Goal
+Simplify GUI presentation to a deterministic functional baseline while
+strengthening app API contract clarity for future multi-language frontend
+integrations (native and web adapter paths).
+
+### Features
+- Added canonical frontend API documentation:
+  - `docs/app_api.md`
+  - function purpose, request/response semantics, lifecycle/call order,
+    dependency matrix, and ownership rules.
+- Clarified multi-language frontend strategy:
+  - native in-process frontends (CLI/current GUI/future Swift bridge)
+  - out-of-process adapter path for future web frontends.
+- Added concise API contract comments in:
+  - `include/app_api.h`
+  - `include/app_api_types.h`
+- Simplified GUI shell/runtime to fixed functional baseline:
+  - fixed window `1280x820`
+  - non-resizable runtime
+  - removed zoom/responsive runtime behavior
+- Reorganized GUI implementation for clearer boundaries:
+  - runtime core: `src/gui/core/*`
+  - functional presentation: `src/gui/frontends/functional/*`
+- Replaced responsive layout module with deterministic fixed layout helpers:
+  - `src/gui/frontends/functional/gui_fixed_layout.[ch]`
+- Simplified GUI state schema to path-focused persistence:
+  - persisted: `galleryDir`, `envDir`, optional `updatedAt`
+  - legacy size/zoom fields tolerated on load and omitted on write.
+- Added optional native-consumption build artifact:
+  - `make app-api-lib`
+  - outputs shared app API library for native frontend bindings.
+
+### Release Notes
+- Behavior changes:
+  - GUI now uses fixed functional geometry rather than responsive/zoom behavior.
+  - GUI state persists only last-used gallery/env paths (+ optional timestamp).
+- Migration/compat notes:
+  - old GUI state files with `uiScalePercent/windowWidth/windowHeight` still load
+    paths and are rewritten to simplified schema on next save.
+  - CLI behavior and flags remain unchanged.
+- Benchmark impact summary:
+  - no benchmark methodology/schema changes in this milestone.

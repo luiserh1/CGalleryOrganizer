@@ -28,6 +28,9 @@ make benchmark-sim-memory-compare
 # Build GUI frontend (requires raylib)
 make gui
 
+# Build shared app API library (native frontend integration target)
+make app-api-lib
+
 # Clean binaries and generated build artifacts
 make clean
 ```
@@ -64,7 +67,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--cache-compress auto` threshold selection
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
 - GUI state persistence and reset behavior (`src/gui/gui_state.c`)
-- GUI layout math and no-overlap behavior (`src/gui/gui_layout.c`)
+- Functional GUI fixed-layout invariants (`src/gui/frontends/functional/gui_fixed_layout.c`)
 
 ## Manual Smoke Checklist
 
@@ -169,10 +172,9 @@ Expected:
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.
-- resizing down to minimum window size keeps controls readable and non-overlapping.
-- maximizing/fullscreen keeps panel layout stable (no overlaps).
-- zoom controls (`A-`, `A+`, `Reset`) change effective UI scale.
-- saved paths, zoom, and last window size persist between runs.
+- GUI window starts fixed at `1280x820` (non-resizable baseline in 0.5.2).
+- panel controls remain aligned with no overlaps in the fixed shell.
+- saved gallery/env paths persist between runs.
 - `--reset-state` clears saved GUI state.
 
 ## Notes on Test Fragility

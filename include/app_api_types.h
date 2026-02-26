@@ -17,12 +17,14 @@ typedef enum {
   APP_STATUS_INTERNAL_ERROR = 6
 } AppStatus;
 
+// Cache serialization mode for env_dir .cache artifact.
 typedef enum {
   APP_CACHE_COMPRESSION_NONE = 0,
   APP_CACHE_COMPRESSION_ZSTD = 1,
   APP_CACHE_COMPRESSION_AUTO = 2
 } AppCacheCompressionMode;
 
+// Embedding decode strategy for similarity generation.
 typedef enum {
   APP_SIM_MEMORY_EAGER = 0,
   APP_SIM_MEMORY_CHUNKED = 1
@@ -46,11 +48,14 @@ typedef struct {
 } AppOperationHooks;
 
 typedef struct {
+  // Optional models root override. NULL uses project defaults.
   const char *models_root;
 } AppRuntimeOptions;
 
 typedef struct {
+  // Required for scan-like operations.
   const char *target_dir;
+  // Required cache environment root.
   const char *env_dir;
   bool exhaustive;
   bool ml_enrich;
@@ -74,6 +79,7 @@ typedef struct {
 } AppScanResult;
 
 typedef struct {
+  // Required cache environment root.
   const char *env_dir;
   AppCacheCompressionMode cache_compression_mode;
   int cache_compression_level;
@@ -85,10 +91,12 @@ typedef struct {
 } AppSimilarityRequest;
 
 typedef struct {
+  // Absolute or env-relative path to generated similarity report.
   char report_path[APP_MAX_PATH];
 } AppSimilarityResult;
 
 typedef struct {
+  // Required cache environment root.
   const char *env_dir;
   AppCacheCompressionMode cache_compression_mode;
   int cache_compression_level;
@@ -97,11 +105,13 @@ typedef struct {
 } AppOrganizePlanRequest;
 
 typedef struct {
+  // Heap-owned string, release with AppFreeOrganizePlanResult().
   char *plan_text;
   int planned_moves;
 } AppOrganizePlanResult;
 
 typedef struct {
+  // Required cache environment root.
   const char *env_dir;
   AppCacheCompressionMode cache_compression_mode;
   int cache_compression_level;
@@ -115,6 +125,7 @@ typedef struct {
 } AppOrganizeExecuteResult;
 
 typedef struct {
+  // Required cache environment root with manifest history.
   const char *env_dir;
 } AppRollbackRequest;
 
@@ -123,6 +134,7 @@ typedef struct {
 } AppRollbackResult;
 
 typedef struct {
+  // Required cache environment root.
   const char *env_dir;
   AppCacheCompressionMode cache_compression_mode;
   int cache_compression_level;
@@ -135,12 +147,15 @@ typedef struct {
 } AppDuplicateGroup;
 
 typedef struct {
+  // Heap-owned array allocated by AppFindDuplicates().
   AppDuplicateGroup *groups;
   int group_count;
 } AppDuplicateReport;
 
 typedef struct {
+  // Destination directory where duplicate files are moved.
   const char *target_dir;
+  // Must reference report previously returned by AppFindDuplicates().
   const AppDuplicateReport *report;
 } AppDuplicateMoveRequest;
 

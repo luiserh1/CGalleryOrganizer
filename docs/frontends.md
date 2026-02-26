@@ -2,25 +2,52 @@
 
 ## Overview
 
-CGalleryOrganizer 0.5.1 uses a shared backend app service layer to support
-multiple frontends without duplicating orchestration logic.
+CGalleryOrganizer uses a single backend service contract (`app_api`) shared by all
+frontends.
 
-Frontends currently available:
+Current shipped frontends:
 - CLI: `build/bin/gallery_organizer`
-- GUI: `build/bin/gallery_organizer_gui`
+- Functional GUI (C + raylib/raygui): `build/bin/gallery_organizer_gui`
 
 ## Ownership Boundaries
 
 - Public frontend/backend contract:
   - `include/app_api.h`
   - `include/app_api_types.h`
-- App service implementation:
+- Contract documentation:
+  - `docs/app_api.md`
+- Backend service implementation:
   - `src/app/*`
-- Frontend code:
-  - CLI: `src/main.c` + `src/cli/*` (argument parsing and presentation)
-  - GUI: `src/gui/*`
+- Frontend presentation layers:
+  - CLI: `src/main.c` + `src/cli/*`
+  - GUI runtime core: `src/gui/core/*`
+  - GUI functional presentation: `src/gui/frontends/functional/*`
 
-Frontends do not orchestrate backend internals directly.
+Frontends must not orchestrate backend internals (`Cache*`, `Ml*`, `Organizer*`,
+`Similarity*`) directly.
+
+## Integration Modes
+
+## 1) Native in-process frontends
+
+Examples: CLI, current C GUI, future Swift/ObjC bridge.
+
+- Link to `app_api` directly.
+- Optional shared library artifact for native bindings: `make app-api-lib`.
+- Build typed requests.
+- Execute synchronous `App*` calls.
+- Render frontend-specific output.
+
+## 2) Out-of-process / web frontends
+
+Examples: browser or remote UI.
+
+- Must use an adapter service/bridge process.
+- Must not call C APIs directly from browser code.
+- Adapter owns translation between transport formats and `App*` types.
+
+No adapter service is shipped in 0.5.2; this is the required boundary contract
+for future work.
 
 ## Data Flow
 
@@ -28,45 +55,34 @@ Frontends do not orchestrate backend internals directly.
 2. Frontend builds typed app request structs.
 3. Frontend calls app API operation.
 4. App layer coordinates cache/ML/organizer/duplicate/similarity subsystems.
-5. App layer returns typed result and status.
-6. Frontend renders output (stdout or GUI widgets).
+5. App layer returns typed result + status.
+6. Frontend renders output.
 
 ## Progress and Cancellation
 
-Long-running operations accept operation hooks:
-- progress callback: emits stage + counters
-- cancel callback: polled by backend loops
+Long-running operations expose callbacks through `AppOperationHooks`.
 
-GUI uses a worker thread with these hooks; CLI uses synchronous execution
-without hooks.
+- GUI runs synchronous API calls in a worker thread.
+- CLI runs calls on main thread.
 
-## GUI Responsive Layout (0.5.1)
+## Functional GUI Baseline (0.5.2)
 
-GUI layout uses internal layout math (`src/gui/gui_layout.[ch]`) instead of
-hardcoded pixel coordinates:
-- deterministic effective scale:
-  - `auto_scale = clamp(min(window_w/1000, window_h/760), 0.85, 1.75)`
-  - `user_zoom_scale = clamp(uiScalePercent, 80..160)/100`
-  - `effective_scale = auto_scale * user_zoom_scale`
-- row/stack layout with wrapping to avoid control overlap.
-- minimum window size derived from worst-case panel requirements and enforced
-  at runtime.
+The GUI intentionally targets a functional baseline:
+- fixed window size: `1280x820`
+- no responsive resizing behavior
+- no runtime zoom controls
+- full operation parity with CLI workflows
 
-## GUI Saved State
-
-The GUI persists:
+Persisted GUI state:
 - `galleryDir`
 - `envDir`
-- `uiScalePercent`
-- `windowWidth`
-- `windowHeight`
 - optional `updatedAt`
 
-Storage location (`gui_state.json`):
+State storage (`gui_state.json`):
 - macOS: `~/Library/Application Support/CGalleryOrganizer/`
 - Linux: `$XDG_CONFIG_HOME/CGalleryOrganizer/` or `~/.config/CGalleryOrganizer/`
 - Windows: `%APPDATA%/CGalleryOrganizer/`
 
 Cleanup policy:
-- explicit reset only (GUI action or `--reset-state`)
-- not affected by `make clean`/`make clean-all`
+- explicit reset only (`--reset-state` or GUI reset action)
+- not affected by `make clean` / `make clean-all`

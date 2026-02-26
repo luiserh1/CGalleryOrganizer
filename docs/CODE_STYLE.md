@@ -72,6 +72,8 @@ This document defines practical coding conventions used in CGalleryOrganizer.
 - The backend-facing contract for frontends is the public app API:
   - `include/app_api.h`
   - `include/app_api_types.h`
+- API behavior documentation must be kept in:
+  - `docs/app_api.md`
 - Frontend entrypoints (`src/main.c`, `src/gui/*`) must call backend flows via
   app API operations, not by directly orchestrating `Cache*`, `Organizer*`,
   `Similarity*`, `Ml*`, or other subsystem internals.
@@ -79,14 +81,18 @@ This document defines practical coding conventions used in CGalleryOrganizer.
   no behavior implementation in headers.
 - Shared workflow logic must live once in backend/app service modules, then be
   reused by all frontends.
+- App API contracts must stay language/framework neutral so future frontends
+  (SwiftUI/web adapters/etc.) can consume the same backend behavior.
+- Browser/web frontends must integrate through a dedicated adapter/service
+  boundary; do not introduce browser-direct calls to C backend internals.
 
 ## 11. GUI Layout Rules
 
-- GUI feature panels must use layout helpers/tokens (`src/gui/gui_layout.[ch]`)
-  rather than fixed absolute coordinates.
-- Avoid hardcoded control sizes/positions in panel implementations; derive
-  spacing and control geometry from runtime layout metrics.
-- New GUI controls must preserve no-overlap guarantees at:
-  - enforced minimum window size
-  - baseline window size
-  - fullscreen/maximized widths
+- `v0.5.2` functional GUI intentionally uses fixed-size geometry.
+- Keep functional GUI geometry deterministic and centralized in a dedicated
+  layout helper module (`src/gui/frontends/functional/gui_fixed_layout.[ch]`).
+- New controls in functional GUI must preserve no-overlap and in-bounds
+  guarantees for the fixed shell (`1280x820`).
+- If/when responsive or user-oriented GUI variants are added in future versions,
+  they must live in separate frontend modules and must not duplicate backend
+  orchestration logic.

@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.5.1)
+## Key Features (v0.5.2)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -19,11 +19,10 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 - Optional whole-file cache compression (`--cache-compress none|zstd|auto`).
 - Incremental similarity reuse toggle (`--sim-incremental on|off`, default `on`).
 - Unified frontend backend contract (`include/app_api.h`, `include/app_api_types.h`).
+- Canonical frontend API contract documentation (`docs/app_api.md`).
 - GUI frontend with background tasks, progress/cancel, and persisted last-used
   gallery/environment paths.
-- Responsive GUI layout with scalable typography, minimum window constraints,
-  and no-overlap wrapped controls.
-- GUI zoom controls (`A-`, `A+`, `Reset`) with persisted zoom and window size.
+- Functional fixed GUI baseline (`1280x820`, non-resizable, deterministic layout).
 
 ## Build
 
@@ -50,6 +49,11 @@ make test
 ### Build GUI frontend
 ```bash
 make gui
+```
+
+### Build Native App API Shared Library
+```bash
+make app-api-lib
 ```
 
 ### Run GUI frontend
@@ -111,10 +115,9 @@ The GUI exposes the same backend capabilities as the CLI:
 - rollback
 - duplicate analysis + move
 
-Additional 0.5.1 behavior:
-- window is resizable with enforced minimum size
-- controls and text scale with window size and user zoom
-- UI zoom and last window size persist in `gui_state.json`
+Additional 0.5.2 behavior:
+- fixed window shell (`1280x820`) focused on functional operation parity
+- deterministic non-responsive panel geometry
 - selected tabs/mode toggles are highlighted for clarity
 - task action buttons are disabled while a background task is running
 
@@ -192,6 +195,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 
 - `v0.5.0`: unified app API + CLI/GUI dual frontends.
 - `v0.5.1`: responsive GUI layout + scalable typography + persisted zoom/window state.
+- `v0.5.2`: fixed functional GUI baseline + language-agnostic frontend contract docs.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping
@@ -207,8 +211,10 @@ Suggested comparison rubric (zstd vs uncompressed):
 ## Project Layout
 - `src/`: core implementation.
 - `src/app/`: unified backend service API implementation for frontends.
-- `src/gui/`: GUI frontend implementation.
+- `src/gui/core/`: shared GUI runtime (event loop, worker integration, shell).
+- `src/gui/frontends/functional/`: fixed functional GUI panel/layout layer.
 - `include/`: public headers.
+- `docs/app_api.md`: canonical frontend/backend API contract documentation.
 - `docs/frontends.md`: frontend architecture and ownership boundaries.
 - `models/`: tracked ML model manifest metadata (not model binaries).
 - `tests/`: test framework and test suites.

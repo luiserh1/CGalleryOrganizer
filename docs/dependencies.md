@@ -70,7 +70,7 @@ Priority order for new integrations:
   - Linux (Debian/Ubuntu): install package providing `raylib` + pkg-config metadata
   - Windows: install raylib and ensure headers/libs are available to your toolchain
 - Integration points:
-  - GUI entry: `src/gui/gui_main.c`
+  - GUI entry: `src/gui/core/gui_main.c`
   - Build target: `make gui`
 
 ## Vendored GUI Helper
