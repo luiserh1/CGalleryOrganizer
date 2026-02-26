@@ -5,6 +5,7 @@
 #include "raygui.h"
 #include "raylib.h"
 
+#include "gui/core/gui_help.h"
 #include "gui/frontends/functional/gui_fixed_layout.h"
 #include "gui/gui_common.h"
 
@@ -260,6 +261,7 @@ int main(int argc, char **argv) {
 
     BeginDrawing();
     ClearBackground((Color){248, 248, 246, 255});
+    GuiHelpBeginFrame();
 
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
@@ -357,6 +359,7 @@ int main(int argc, char **argv) {
       }
     }
 
+    GuiHelpDrawTooltip();
     EndDrawing();
   }
 

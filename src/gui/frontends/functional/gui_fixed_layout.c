@@ -117,6 +117,9 @@ void GuiBuildScanPanelLayout(GuiRect panel_bounds, GuiScanPanelLayout *out_layou
   out_layout->ml_button = MakeRect(x + 190.0f, y, 180.0f, 42.0f);
   out_layout->save_paths_button = MakeRect(x + 380.0f, y, 180.0f, 42.0f);
   out_layout->reset_paths_button = MakeRect(x + 570.0f, y, 220.0f, 42.0f);
+
+  y += 54.0f;
+  out_layout->info_label = MakeRect(x, y, 1080.0f, 30.0f);
 }
 
 void GuiBuildSimilarityPanelLayout(GuiRect panel_bounds,

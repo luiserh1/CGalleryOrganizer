@@ -47,6 +47,7 @@ typedef struct {
   GuiRect ml_button;
   GuiRect save_paths_button;
   GuiRect reset_paths_button;
+  GuiRect info_label;
 } GuiScanPanelLayout;
 
 typedef struct {
