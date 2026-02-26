@@ -208,12 +208,12 @@ static void OnnxShutdown(void) {
 }
 
 const MlProviderVTable *MlGetOnnxProvider(void) {
-  static const MlProviderVTable k_vtable = {
+  static const MlProviderVTable PROVIDER_VTABLE = {
       .init = OnnxInit,
       .shutdown = OnnxShutdown,
       .infer = OnnxInfer,
       .name = ProviderName,
   };
 
-  return &k_vtable;
+  return &PROVIDER_VTABLE;
 }
