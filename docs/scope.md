@@ -315,3 +315,47 @@ backend workflow logic.
   - GUI state is stored outside repository build artifacts
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone
+
+---
+
+## v0.5.1 Scope: Responsive GUI Layout + Scalable Typography (Completed)
+
+### Primary Goal
+Make the GUI robust under resizing by replacing fixed geometry with responsive
+layout primitives and scalable typography while preserving existing feature
+behavior.
+
+### Features
+- Added responsive GUI layout engine (`src/gui/gui_layout.[ch]`) with:
+  - row/stack placement
+  - wrapping for narrow widths
+  - shared runtime layout metrics derived from effective scale
+- Added deterministic UI scaling model:
+  - `effective_scale = auto_scale(window_size) * user_zoom_scale`
+  - auto scale based on baseline `1000x760`
+  - user zoom persisted as `uiScalePercent` (`80..160`)
+- Enabled resizable window with enforced minimum size based on worst-case panel
+  requirements.
+- Migrated GUI panels and shell to dynamic sizing/placement:
+  - scan, similarity, organize, duplicates
+  - header tabs and status/log area
+- Added GUI zoom controls in header:
+  - `A-`, `A+`, `Reset`, and current `%` display
+- Extended GUI state persistence (`gui_state.json`) with:
+  - `uiScalePercent`
+  - `windowWidth`
+  - `windowHeight`
+  - optional `updatedAt`
+- Added automated tests for layout math and state migration/defaults:
+  - `tests/test_gui_layout.c`
+  - extended `tests/test_gui_state.c`
+
+### Release Notes
+- Behavior changes:
+  - GUI now resizes safely without control overlap.
+  - GUI persists zoom level and last window dimensions in addition to paths.
+- Migration/compat notes:
+  - Existing `gui_state.json` files without new fields load with defaults.
+  - `--reset-state` clears the full GUI state file.
+- Benchmark impact summary:
+  - no benchmark methodology/schema changes in this milestone.

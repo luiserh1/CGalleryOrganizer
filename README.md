@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.5.0)
+## Key Features (v0.5.1)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -21,6 +21,9 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 - Unified frontend backend contract (`include/app_api.h`, `include/app_api_types.h`).
 - GUI frontend with background tasks, progress/cancel, and persisted last-used
   gallery/environment paths.
+- Responsive GUI layout with scalable typography, minimum window constraints,
+  and no-overlap wrapped controls.
+- GUI zoom controls (`A-`, `A+`, `Reset`) with persisted zoom and window size.
 
 ## Build
 
@@ -108,7 +111,12 @@ The GUI exposes the same backend capabilities as the CLI:
 - rollback
 - duplicate analysis + move
 
-Initial GUI path inputs are manual text fields (no native file picker in 0.5.0).
+Additional 0.5.1 behavior:
+- window is resizable with enforced minimum size
+- controls and text scale with window size and user zoom
+- UI zoom and last window size persist in `gui_state.json`
+
+Initial GUI path inputs are manual text fields (no native file picker in 0.5.x).
 
 ## Examples
 
@@ -181,6 +189,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 ## Roadmap
 
 - `v0.5.0`: unified app API + CLI/GUI dual frontends.
+- `v0.5.1`: responsive GUI layout + scalable typography + persisted zoom/window state.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

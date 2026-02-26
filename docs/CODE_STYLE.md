@@ -79,3 +79,14 @@ This document defines practical coding conventions used in CGalleryOrganizer.
   no behavior implementation in headers.
 - Shared workflow logic must live once in backend/app service modules, then be
   reused by all frontends.
+
+## 11. GUI Layout Rules
+
+- GUI feature panels must use layout helpers/tokens (`src/gui/gui_layout.[ch]`)
+  rather than fixed absolute coordinates.
+- Avoid hardcoded control sizes/positions in panel implementations; derive
+  spacing and control geometry from runtime layout metrics.
+- New GUI controls must preserve no-overlap guarantees at:
+  - enforced minimum window size
+  - baseline window size
+  - fullscreen/maximized widths

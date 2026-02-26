@@ -2,7 +2,7 @@
 
 ## Overview
 
-CGalleryOrganizer 0.5.0 uses a shared backend app service layer to support
+CGalleryOrganizer 0.5.1 uses a shared backend app service layer to support
 multiple frontends without duplicating orchestration logic.
 
 Frontends currently available:
@@ -40,11 +40,27 @@ Long-running operations accept operation hooks:
 GUI uses a worker thread with these hooks; CLI uses synchronous execution
 without hooks.
 
+## GUI Responsive Layout (0.5.1)
+
+GUI layout uses internal layout math (`src/gui/gui_layout.[ch]`) instead of
+hardcoded pixel coordinates:
+- deterministic effective scale:
+  - `auto_scale = clamp(min(window_w/1000, window_h/760), 0.85, 1.75)`
+  - `user_zoom_scale = clamp(uiScalePercent, 80..160)/100`
+  - `effective_scale = auto_scale * user_zoom_scale`
+- row/stack layout with wrapping to avoid control overlap.
+- minimum window size derived from worst-case panel requirements and enforced
+  at runtime.
+
 ## GUI Saved State
 
-The GUI persists the last-used path pair:
+The GUI persists:
 - `galleryDir`
 - `envDir`
+- `uiScalePercent`
+- `windowWidth`
+- `windowHeight`
+- optional `updatedAt`
 
 Storage location (`gui_state.json`):
 - macOS: `~/Library/Application Support/CGalleryOrganizer/`
