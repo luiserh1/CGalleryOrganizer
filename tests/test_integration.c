@@ -690,6 +690,48 @@ void test_cli_jobs_env_and_override(void) {
   system("rm -rf build/test_cli_jobs_src build/test_cli_jobs_env");
 }
 
+void test_cli_jobs_similarity_report_parity(void) {
+  system("rm -rf build/test_cli_jobs_parity_src build/test_cli_jobs_parity_env "
+         "build/test_cli_jobs_parity_models");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_parity_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_parity_env"));
+  ASSERT_TRUE(WriteBootstrapModels("build/test_cli_jobs_parity_models"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
+                      "build/test_cli_jobs_parity_src/a.png"));
+  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg "
+                      "build/test_cli_jobs_parity_src/b.jpg"));
+  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_no_exif.jpg "
+                      "build/test_cli_jobs_parity_src/c.jpg"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_jobs_parity_models "
+      "./build/bin/gallery_organizer build/test_cli_jobs_parity_src "
+      "build/test_cli_jobs_parity_env --similarity-report --jobs 1 "
+      "--sim-threshold 0.1 --sim-topk 3 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_EQ(0,
+            system("cp build/test_cli_jobs_parity_env/similarity_report.json "
+                   "build/test_cli_jobs_parity_env/sim_jobs1_report.json"));
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "CGO_MODELS_ROOT=build/test_cli_jobs_parity_models "
+      "./build/bin/gallery_organizer build/test_cli_jobs_parity_src "
+      "build/test_cli_jobs_parity_env --similarity-report --jobs 2 "
+      "--sim-threshold 0.1 --sim-topk 3 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  ASSERT_TRUE(ReportsEquivalentIgnoringTimestamp(
+      "build/test_cli_jobs_parity_env/sim_jobs1_report.json",
+      "build/test_cli_jobs_parity_env/similarity_report.json"));
+
+  system("rm -rf build/test_cli_jobs_parity_src build/test_cli_jobs_parity_env "
+         "build/test_cli_jobs_parity_models");
+}
+
 void test_cli_similarity_memory_mode_parity(void) {
   system("rm -rf build/test_cli_sim_mode_src build/test_cli_sim_mode_env "
          "build/test_cli_sim_mode_models");
@@ -928,6 +970,8 @@ void register_integration_tests(void) {
                 "integration");
   register_test("test_cli_jobs_env_and_override",
                 test_cli_jobs_env_and_override, "integration");
+  register_test("test_cli_jobs_similarity_report_parity",
+                test_cli_jobs_similarity_report_parity, "integration");
   register_test("test_cli_similarity_memory_mode_parity",
                 test_cli_similarity_memory_mode_parity, "integration");
   register_test("test_cli_cache_compress_flag_validation",

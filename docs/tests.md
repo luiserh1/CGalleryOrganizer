@@ -118,13 +118,21 @@ Expected:
 - second run reuses embeddings (`ML evaluated: 0`).
 - third run forces fresh embedding inference (`ML evaluated` increases).
 
-### 10. Similarity viewer smoke
+### 10. Parallel jobs parity smoke
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report --jobs 1
+cp build/smoke_env/similarity_report.json build/smoke_env/sim_jobs1_report.json
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report --jobs 4
+```
+Expected: `similarity_report.json` remains semantically equivalent to the `--jobs 1` output (ignoring `generatedAt` timestamp).
+
+### 11. Similarity viewer smoke
 ```bash
 python3 -m http.server 8000
 ```
 Then open `/tools/similarity_viewer/`, click **Load Default** (after copying report to `build/similarity_report.json`) or upload `build/smoke_env/similarity_report.json`.
 
-### 11. Benchmark smoke
+### 12. Benchmark smoke
 ```bash
 BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile uncompressed --workload cache_metadata_only
 ```

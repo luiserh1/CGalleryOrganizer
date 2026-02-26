@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,8 @@
 static int g_files_scanned = 0;
 static int g_files_cached = 0;
 static const int k_default_max_jobs = 8;
+static pthread_mutex_t g_cache_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_stats_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static const char *k_group_keys[] = {"date", "camera", "format", "orientation",
                                      "resolution"};
@@ -38,6 +41,17 @@ typedef struct {
   int count;
   int capacity;
 } PathList;
+
+typedef struct {
+  PathList *paths;
+  int start;
+  int end;
+  AppScanContext *ctx;
+  bool *failed;
+  pthread_mutex_t *failed_mutex;
+} ScanWorkerContext;
+
+static int ComparePathStrings(const void *a, const void *b);
 
 static void PrintUsage(const char *argv0) {
   printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv0);
@@ -239,7 +253,9 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
     return;
   }
 
+  pthread_mutex_lock(&g_stats_mutex);
   ctx->ml_files_evaluated++;
+  pthread_mutex_unlock(&g_stats_mutex);
 
   MlFeature requested[3] = {0};
   int requested_count = 0;
@@ -256,11 +272,14 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
   MlResult result = {0};
 
   if (!MlInferImage(absolute_path, requested, requested_count, &result)) {
+    pthread_mutex_lock(&g_stats_mutex);
     ctx->ml_failures++;
+    pthread_mutex_unlock(&g_stats_mutex);
     return;
   }
 
   ApplyMlResultToMetadata(md, &result);
+  pthread_mutex_lock(&g_stats_mutex);
   if (result.has_classification && result.topk_count > 0) {
     ctx->ml_files_classified++;
   }
@@ -270,6 +289,7 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
   if (result.has_embedding && result.embedding_dim > 0) {
     ctx->ml_files_embedded++;
   }
+  pthread_mutex_unlock(&g_stats_mutex);
 
   MlFreeResult(&result);
 }
@@ -297,6 +317,7 @@ static bool BuildSimilarityReportFromCache(const char *report_path,
   if (!keys) {
     return false;
   }
+  qsort(keys, (size_t)key_count, sizeof(char *), ComparePathStrings);
 
   ImageMetadata *entries = calloc((size_t)key_count, sizeof(ImageMetadata));
   if (!entries) {
@@ -446,7 +467,10 @@ static bool ProcessMediaPath(const char *absolute_path, AppScanContext *ctx) {
 
       bool exhaustive = (ctx != NULL) ? ctx->exhaustive : false;
 
-      if (CacheGetValidEntry(absolute_path, mod_date, size, &md)) {
+      pthread_mutex_lock(&g_cache_mutex);
+      bool valid_entry = CacheGetValidEntry(absolute_path, mod_date, size, &md);
+      pthread_mutex_unlock(&g_cache_mutex);
+      if (valid_entry) {
         if (md.exactHashMd5[0] == '\0' ||
             (exhaustive && md.allMetadataJson == NULL)) {
           ImageMetadata full = ExtractMetadata(absolute_path, exhaustive);
@@ -475,9 +499,14 @@ static bool ProcessMediaPath(const char *absolute_path, AppScanContext *ctx) {
         }
 
         RunMlInferenceIfRequested(absolute_path, &md, ctx);
-        CacheUpdateEntry(&md);
-
-        g_files_cached++;
+        pthread_mutex_lock(&g_cache_mutex);
+        bool updated = CacheUpdateEntry(&md);
+        pthread_mutex_unlock(&g_cache_mutex);
+        if (updated) {
+          pthread_mutex_lock(&g_stats_mutex);
+          g_files_cached++;
+          pthread_mutex_unlock(&g_stats_mutex);
+        }
         CacheFreeMetadata(&md);
         return true;
       }
@@ -521,13 +550,51 @@ static bool ProcessMediaPath(const char *absolute_path, AppScanContext *ctx) {
       ComputeFileMd5(absolute_path, md.exactHashMd5);
       RunMlInferenceIfRequested(absolute_path, &md, ctx);
 
-      if (CacheUpdateEntry(&md)) {
+      pthread_mutex_lock(&g_cache_mutex);
+      bool updated = CacheUpdateEntry(&md);
+      pthread_mutex_unlock(&g_cache_mutex);
+      if (updated) {
+        pthread_mutex_lock(&g_stats_mutex);
         g_files_cached++;
+        pthread_mutex_unlock(&g_stats_mutex);
       }
       CacheFreeMetadata(&md);
       CacheFreeMetadata(&extracted);
     }
   return true;
+}
+
+static bool WorkerShouldStop(ScanWorkerContext *ctx) {
+  bool failed = false;
+  pthread_mutex_lock(ctx->failed_mutex);
+  failed = *ctx->failed;
+  pthread_mutex_unlock(ctx->failed_mutex);
+  return failed;
+}
+
+static void WorkerMarkFailed(ScanWorkerContext *ctx) {
+  pthread_mutex_lock(ctx->failed_mutex);
+  *ctx->failed = true;
+  pthread_mutex_unlock(ctx->failed_mutex);
+}
+
+static void *ScanWorkerRun(void *arg) {
+  ScanWorkerContext *ctx = (ScanWorkerContext *)arg;
+  for (int i = ctx->start; i < ctx->end; i++) {
+    if (WorkerShouldStop(ctx)) {
+      return NULL;
+    }
+
+    pthread_mutex_lock(&g_stats_mutex);
+    g_files_scanned++;
+    pthread_mutex_unlock(&g_stats_mutex);
+
+    if (!ProcessMediaPath(ctx->paths->items[i], ctx->ctx)) {
+      WorkerMarkFailed(ctx);
+      return NULL;
+    }
+  }
+  return NULL;
 }
 
 int main(int argc, char **argv) {
@@ -818,18 +885,67 @@ int main(int argc, char **argv) {
     CacheShutdown();
     return 1;
   }
-  for (int i = 0; i < scan_paths.count; i++) {
-    g_files_scanned++;
-    if (!ProcessMediaPath(scan_paths.items[i], &scan_ctx)) {
-      PathListFree(&scan_paths);
-      if (ml_initialized) {
-        MlShutdown();
+  bool scan_failed = false;
+  if (resolved_jobs <= 1 || scan_paths.count <= 1) {
+    for (int i = 0; i < scan_paths.count; i++) {
+      pthread_mutex_lock(&g_stats_mutex);
+      g_files_scanned++;
+      pthread_mutex_unlock(&g_stats_mutex);
+      if (!ProcessMediaPath(scan_paths.items[i], &scan_ctx)) {
+        scan_failed = true;
+        break;
       }
-      CacheShutdown();
-      return 1;
     }
+  } else {
+    int worker_count = resolved_jobs;
+    if (worker_count > scan_paths.count) {
+      worker_count = scan_paths.count;
+    }
+    pthread_t *threads = calloc((size_t)worker_count, sizeof(pthread_t));
+    ScanWorkerContext *worker_ctx =
+        calloc((size_t)worker_count, sizeof(ScanWorkerContext));
+    pthread_mutex_t failed_mutex = PTHREAD_MUTEX_INITIALIZER;
+    bool failed = false;
+    if (!threads || !worker_ctx) {
+      free(threads);
+      free(worker_ctx);
+      scan_failed = true;
+    } else {
+      int base = scan_paths.count / worker_count;
+      int rem = scan_paths.count % worker_count;
+      int cursor = 0;
+      for (int i = 0; i < worker_count; i++) {
+        int span = base + (i < rem ? 1 : 0);
+        worker_ctx[i].paths = &scan_paths;
+        worker_ctx[i].start = cursor;
+        worker_ctx[i].end = cursor + span;
+        worker_ctx[i].ctx = &scan_ctx;
+        worker_ctx[i].failed = &failed;
+        worker_ctx[i].failed_mutex = &failed_mutex;
+        cursor += span;
+        if (pthread_create(&threads[i], NULL, ScanWorkerRun, &worker_ctx[i]) !=
+            0) {
+          failed = true;
+          worker_count = i;
+          break;
+        }
+      }
+      for (int i = 0; i < worker_count; i++) {
+        pthread_join(threads[i], NULL);
+      }
+      scan_failed = failed;
+    }
+    free(threads);
+    free(worker_ctx);
   }
   PathListFree(&scan_paths);
+  if (scan_failed) {
+    if (ml_initialized) {
+      MlShutdown();
+    }
+    CacheShutdown();
+    return 1;
+  }
 
   if (!CacheSave()) {
     printf("Error: Failed to save cache.\n");
