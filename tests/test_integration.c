@@ -7,6 +7,7 @@
 #include "gallery_cache.h"
 #include "hash_utils.h"
 #include "metadata_parser.h"
+#include "core/cache_codec.h"
 #include "test_framework.h"
 
 static int RunCommandCapture(const char *cmd, char *output, size_t output_size) {
@@ -568,6 +569,58 @@ void test_cli_similarity_report_requires_env(void) {
   ASSERT_TRUE(strstr(output, "requires an environment directory") != NULL);
 }
 
+void test_cli_cache_compress_flag_validation(void) {
+  char output[2048];
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer tests/assets/png "
+      "build/test_cli_cache_mode --cache-compress bogus 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "Invalid --cache-compress mode") != NULL);
+
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer tests/assets/png "
+      "build/test_cli_cache_mode --cache-compress-level 3 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "only valid with --cache-compress zstd") != NULL);
+}
+
+void test_cli_cache_compress_zstd_roundtrip_or_skip(void) {
+  if (!CacheCodecIsAvailable(CACHE_COMPRESSION_ZSTD)) {
+    return;
+  }
+
+  system("rm -rf build/test_cli_cache_zstd_src build/test_cli_cache_zstd_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_cache_zstd_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_cache_zstd_env"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
+                      "build/test_cli_cache_zstd_src/a.png"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_cache_zstd_src "
+      "build/test_cli_cache_zstd_env --cache-compress zstd "
+      "--cache-compress-level 3 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  FILE *f = fopen("build/test_cli_cache_zstd_env/.cache/gallery_cache.json", "rb");
+  ASSERT_TRUE(f != NULL);
+  char magic[9] = {0};
+  ASSERT_TRUE(fread(magic, 1, 8, f) == 8);
+  fclose(f);
+  ASSERT_TRUE(memcmp(magic, CACHE_CODEC_MAGIC, 8) == 0);
+
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_cache_zstd_src "
+      "build/test_cli_cache_zstd_env 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  system("rm -rf build/test_cli_cache_zstd_src build/test_cli_cache_zstd_env");
+}
+
 void register_integration_tests(void) {
   register_test("test_metadata_png_support", test_metadata_png_support,
                 "integration");
@@ -617,4 +670,9 @@ void register_integration_tests(void) {
                 test_cli_similarity_report_generates_json, "integration");
   register_test("test_cli_similarity_report_requires_env",
                 test_cli_similarity_report_requires_env, "integration");
+  register_test("test_cli_cache_compress_flag_validation",
+                test_cli_cache_compress_flag_validation, "integration");
+  register_test("test_cli_cache_compress_zstd_roundtrip_or_skip",
+                test_cli_cache_compress_zstd_roundtrip_or_skip,
+                "integration");
 }

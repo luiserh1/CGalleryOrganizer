@@ -11,6 +11,9 @@ extern void register_duplicate_finder_tests(void);
 extern void register_organizer_tests(void);
 extern void register_ml_api_tests(void);
 extern void register_similarity_engine_tests(void);
+extern void register_cache_codec_tests(void);
+extern void register_benchmark_output_tests(void);
+extern void register_memory_metrics_tests(void);
 
 int main(int argc, char **argv) {
   printf("=== CGalleryOrganizer Test Suite ===\n\n");
@@ -33,6 +36,9 @@ int main(int argc, char **argv) {
   register_organizer_tests();
   register_ml_api_tests();
   register_similarity_engine_tests();
+  register_cache_codec_tests();
+  register_benchmark_output_tests();
+  register_memory_metrics_tests();
   register_integration_tests();
 
   int run_count = 0;
