@@ -62,6 +62,7 @@ void test_benchmark_output_jsonl_contract(void) {
   ASSERT_TRUE(strstr(line, "\"profile\":\"uncompressed\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"simMemoryMode\":\"chunked\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"workload\":\"cache_metadata_only\"") != NULL);
+  ASSERT_TRUE(strstr(line, "\"runCount\":1") != NULL);
   ASSERT_TRUE(strstr(line, "\"cacheBytes\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"timeMs\"") != NULL);
   ASSERT_TRUE(strstr(line, "\"peakRssBytes\"") != NULL);
@@ -74,7 +75,49 @@ void test_benchmark_output_jsonl_contract(void) {
   system("rm -rf build/test_bench_output");
 }
 
+void test_benchmark_stats_and_comparison_report(void) {
+  system("rm -rf build/test_bench_stats");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_stats"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "BENCHMARK_DATASET=tests/assets/png "
+      "BENCHMARK_HISTORY_PATH=build/test_bench_stats/history.jsonl "
+      "BENCHMARK_LAST_PATH=build/test_bench_stats/last.json "
+      "./build/tests/bin/benchmark_runner --profile uncompressed "
+      "--compare-profile uncompressed --comparison-path "
+      "build/test_bench_stats/compare.json --workload cache_metadata_only "
+      "--runs 2 --warmup-runs 1 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  FILE *f = fopen("build/test_bench_stats/last.json", "r");
+  ASSERT_TRUE(f != NULL);
+  char last_buf[8192] = {0};
+  size_t n = fread(last_buf, 1, sizeof(last_buf) - 1, f);
+  last_buf[n] = '\0';
+  fclose(f);
+  ASSERT_TRUE(strstr(last_buf, "\"workloads\"") != NULL);
+  ASSERT_TRUE(strstr(last_buf, "\"median\"") != NULL);
+  ASSERT_TRUE(strstr(last_buf, "\"p95\"") != NULL);
+  ASSERT_TRUE(strstr(last_buf, "\"stddev\"") != NULL);
+
+  f = fopen("build/test_bench_stats/compare.json", "r");
+  ASSERT_TRUE(f != NULL);
+  char compare_buf[8192] = {0};
+  n = fread(compare_buf, 1, sizeof(compare_buf) - 1, f);
+  compare_buf[n] = '\0';
+  fclose(f);
+  ASSERT_TRUE(strstr(compare_buf, "\"baselineProfile\"") != NULL);
+  ASSERT_TRUE(strstr(compare_buf, "\"candidateProfile\"") != NULL);
+  ASSERT_TRUE(strstr(compare_buf, "\"deltaPct\"") != NULL);
+
+  system("rm -rf build/test_bench_stats");
+}
+
 void register_benchmark_output_tests(void) {
   register_test("test_benchmark_output_jsonl_contract",
                 test_benchmark_output_jsonl_contract, "benchmark");
+  register_test("test_benchmark_stats_and_comparison_report",
+                test_benchmark_stats_and_comparison_report, "benchmark");
 }

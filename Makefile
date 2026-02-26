@@ -32,7 +32,7 @@ BENCHMARK_BIN = $(TEST_BIN_DIR)/benchmark_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
 
-.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare models help
+.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models help
 
 all: $(TARGET)
 
@@ -55,8 +55,14 @@ benchmark-compare: $(BENCHMARK_BIN)
 		echo "[*] Dataset not found via lockfile. Attempting to download..."; \
 		./scripts/download_stress_dataset.sh; \
 	fi
-	@./$(BENCHMARK_BIN) --profile uncompressed
-	@./$(BENCHMARK_BIN) --profile zstd-l3
+	@./$(BENCHMARK_BIN) --profile uncompressed --compare-profile zstd-l3 --comparison-path build/benchmark_compare.json
+
+benchmark-stats: $(BENCHMARK_BIN)
+	@if [ -z "$$BENCHMARK_DATASET" ] && [ ! -f "build/stress_data/.downloaded" ]; then \
+		echo "[*] Dataset not found via lockfile. Attempting to download..."; \
+		./scripts/download_stress_dataset.sh; \
+	fi
+	@./$(BENCHMARK_BIN) --runs $${BENCHMARK_RUNS:-5} --warmup-runs $${BENCHMARK_WARMUP_RUNS:-1}
 
 benchmark-sim-memory-compare: $(BENCHMARK_BIN)
 	@if [ -z "$$BENCHMARK_DATASET" ] && [ ! -f "build/stress_data/.downloaded" ]; then \
@@ -117,6 +123,7 @@ help:
 	@echo "  make clean-all  - Recursively remove the entire build directory (including datasets)"
 	@echo "  make help       - Show this help message"
 	@echo "  make benchmark  - Run benchmark workloads and append JSONL output"
-	@echo "  make benchmark-compare - Run benchmark profiles (uncompressed + zstd)"
+	@echo "  make benchmark-compare - Run baseline vs candidate profiles with JSON comparison export"
+	@echo "  make benchmark-stats - Run repeated benchmark samples with warmups and summary stats"
 	@echo "  make benchmark-sim-memory-compare - Compare similarity_search RSS in eager vs chunked modes"
 	@echo "  make models     - Download and verify ML model artifacts into build/models"

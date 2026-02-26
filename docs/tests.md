@@ -19,6 +19,9 @@ make benchmark
 # Run baseline + compressed profile
 make benchmark-compare
 
+# Run repeated stats mode (defaults: 5 measured + 1 warmup)
+make benchmark-stats
+
 # Compare similarity memory modes
 make benchmark-sim-memory-compare
 
@@ -140,6 +143,14 @@ Expected:
 - `build/benchmark_history.jsonl` appended with one JSON object.
 - `build/benchmark_last.json` refreshed.
 - each record includes `simMemoryMode` (`chunked` or `eager`).
+
+Optional reproducibility command:
+```bash
+BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile uncompressed --workload cache_metadata_only --runs 5 --warmup-runs 1 --compare-profile zstd-l3 --comparison-path build/benchmark_compare.json
+```
+Expected:
+- `build/benchmark_last.json` contains median/p95/min/max/stddev stats per workload.
+- `build/benchmark_compare.json` contains per-workload `deltaPct` fields for median metrics.
 
 ## Notes on Test Fragility
 

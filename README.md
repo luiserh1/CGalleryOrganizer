@@ -111,22 +111,31 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 ```bash
 make benchmark
 make benchmark-compare
+make benchmark-stats
 make benchmark-sim-memory-compare
 ```
 
 Outputs:
 - `build/benchmark_history.jsonl`
 - `build/benchmark_last.json`
+- `build/benchmark_compare.json` (when compare mode is used)
 
 `benchmark_history.jsonl` records:
 - `timestampUtc`, `gitCommit`, `profile`, `workload`
 - `simMemoryMode` (`chunked` by default, `eager` for parity/diagnostics)
+- `runIndex`, `runCount`, `warmupRuns`
 - `datasetPath`, `datasetFileCount`
 - `cachePath`, `cacheBytes`
 - `timeMs`
 - `rssStartBytes`, `rssEndBytes`, `rssDeltaBytes`, `peakRssBytes`
 - `success`, `error`
 - optional `similarityReportBytes` for `similarity_search`
+
+`benchmark_runner` methodology flags:
+- `--runs <N>`: number of measured runs per workload (default `1`).
+- `--warmup-runs <N>`: number of pre-measurement warmup runs (default `0`).
+- `--compare-profile <profile>`: execute baseline and candidate profiles in one run.
+- `--comparison-path <path>`: output JSON comparison report path.
 
 Suggested comparison rubric (zstd vs uncompressed):
 - `win`: disk reduction >= 25% and latency increase <= 15%
