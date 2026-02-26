@@ -9,6 +9,14 @@
 #include "gallery_cache.h"
 #include "similarity_engine.h"
 
+#define APP_MODEL_ID_CLASSIFICATION "clf-default"
+#define APP_MODEL_ID_TEXT_DETECTION "text-default"
+#define APP_MODEL_ID_EMBEDDING "embed-default"
+
+#define APP_MODEL_FILE_CLASSIFICATION "clf-default.onnx"
+#define APP_MODEL_FILE_TEXT_DETECTION "text-default.onnx"
+#define APP_MODEL_FILE_EMBEDDING "embed-default.onnx"
+
 struct AppContext {
   char models_root[APP_MAX_PATH];
   bool cache_initialized;

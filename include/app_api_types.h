@@ -53,6 +53,31 @@ typedef struct {
 } AppRuntimeOptions;
 
 typedef struct {
+  // Optional cache environment root. If missing, cache/manifest probes are skipped.
+  const char *env_dir;
+  // Optional models root override. NULL uses context/default root.
+  const char *models_root_override;
+} AppRuntimeStateRequest;
+
+typedef struct {
+  bool classification_present;
+  bool text_detection_present;
+  bool embedding_present;
+  int missing_count;
+  char missing_ids[3][32];
+} AppModelAvailability;
+
+typedef struct {
+  bool cache_exists;
+  int cache_entry_count;
+  bool rollback_manifest_exists;
+  int logical_cores;
+  int recommended_jobs;
+  char models_root[APP_MAX_PATH];
+  AppModelAvailability models;
+} AppRuntimeState;
+
+typedef struct {
   // Required for scan-like operations.
   const char *target_dir;
   // Required cache environment root.
@@ -163,5 +188,22 @@ typedef struct {
   int moved_count;
   int failed_count;
 } AppDuplicateMoveResult;
+
+typedef struct {
+  // Optional manifest override. NULL defaults to models/manifest.json.
+  const char *manifest_path_override;
+  // Optional models root override. NULL uses context/default root.
+  const char *models_root_override;
+  bool force_redownload;
+  AppOperationHooks hooks;
+} AppModelInstallRequest;
+
+typedef struct {
+  int manifest_model_count;
+  int installed_count;
+  int skipped_count;
+  char models_root[APP_MAX_PATH];
+  char lockfile_path[APP_MAX_PATH];
+} AppModelInstallResult;
 
 #endif // APP_API_TYPES_H

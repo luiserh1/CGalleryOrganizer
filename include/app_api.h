@@ -23,6 +23,12 @@ const char *AppStatusToString(AppStatus status);
 // Pointer is owned by context and is invalid after the next App* call.
 const char *AppGetLastError(const AppContext *ctx);
 
+// Inspect cache/model/runtime prerequisites for frontend task gating.
+// This call does not execute scan/ML/organize actions.
+AppStatus AppInspectRuntimeState(AppContext *ctx,
+                                 const AppRuntimeStateRequest *request,
+                                 AppRuntimeState *out_state);
+
 // Scan media in target_dir and update env_dir cache.
 // Optional ML/similarity pre-work can be requested via request flags.
 // Callers should run this before organize/duplicates/similarity operations when
@@ -64,6 +70,11 @@ AppStatus AppFindDuplicates(AppContext *ctx,
 AppStatus AppMoveDuplicates(AppContext *ctx,
                             const AppDuplicateMoveRequest *request,
                             AppDuplicateMoveResult *out_result);
+
+// Download/install model artifacts from manifest into models_root.
+AppStatus AppInstallModels(AppContext *ctx,
+                           const AppModelInstallRequest *request,
+                           AppModelInstallResult *out_result);
 
 // Free memory owned by an AppOrganizePlanResult produced by AppPreviewOrganize().
 void AppFreeOrganizePlanResult(AppOrganizePlanResult *result);
