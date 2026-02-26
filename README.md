@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.5.2)
+## Key Features (v0.5.3)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -23,6 +23,13 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 - GUI frontend with background tasks, progress/cancel, and persisted last-used
   gallery/environment paths.
 - Functional fixed GUI baseline (`1280x820`, non-resizable, deterministic layout).
+- Runtime inspection API for frontend action gating (`AppInspectRuntimeState`).
+- Native model install API with manifest validation and checksum verification (`AppInstallModels`).
+- Guided GUI behavior:
+  - action dependency locking with explicit reason messages
+  - always-visible panel hints + hover tooltips
+  - in-app **Download Models** workflow
+  - strict numeric range validation with inline clamp feedback
 
 ## Build
 
@@ -75,6 +82,8 @@ make models
 
 Default install location: `build/models/`.
 Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
+The GUI also supports in-app model installation via **Download Models** on the
+Scan tab.
 
 ## CLI Usage
 
@@ -115,11 +124,17 @@ The GUI exposes the same backend capabilities as the CLI:
 - rollback
 - duplicate analysis + move
 
-Additional 0.5.2 behavior:
+Additional 0.5.3 behavior:
 - fixed window shell (`1280x820`) focused on functional operation parity
 - deterministic non-responsive panel geometry
 - selected tabs/mode toggles are highlighted for clarity
+- guided action locking:
+  - actions that need prerequisites are disabled until satisfied
+  - blocked clicks surface explicit reasons in status/help text
 - task action buttons are disabled while a background task is running
+- in-app model installation button (**Download Models**) wired to backend API
+- always-visible guidance labels and hover tooltips for fields/actions
+- strict numeric validation for jobs/threshold/topK/compression level with range hints
 
 Initial GUI path inputs are manual text fields (no native file picker in 0.5.x).
 
@@ -196,6 +211,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.5.0`: unified app API + CLI/GUI dual frontends.
 - `v0.5.1`: responsive GUI layout + scalable typography + persisted zoom/window state.
 - `v0.5.2`: fixed functional GUI baseline + language-agnostic frontend contract docs.
+- `v0.5.3`: guided functional GUI (dependency-locked actions, help hints/tooltips, in-app model install).
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

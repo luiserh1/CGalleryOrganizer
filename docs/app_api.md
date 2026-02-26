@@ -48,6 +48,8 @@ The API remains synchronous. Frontends can run calls in worker threads.
 
 | Operation | Required prior state | Typical predecessor |
 | --- | --- | --- |
+| `AppInspectRuntimeState` | none (optional `env_dir` for cache/manifest probes) | frontend startup or before task dispatch |
+| `AppInstallModels` | valid manifest and writable models root | frontend startup or before ML/similarity tasks |
 | `AppRunScan` | valid `target_dir`, `env_dir` | none |
 | `AppGenerateSimilarityReport` | cache in `env_dir`; embeddings available or producible from cache state | `AppRunScan` with similarity/ML path enabled |
 | `AppPreviewOrganize` | cache in `env_dir` | `AppRunScan` |
@@ -57,6 +59,13 @@ The API remains synchronous. Frontends can run calls in worker threads.
 | `AppMoveDuplicates` | duplicate report generated in memory | `AppFindDuplicates` |
 
 ## Typical Call Sequences
+
+### Guided GUI startup
+
+1. `AppInspectRuntimeState(...)`
+2. if required models are missing: `AppInstallModels(...)`
+3. refresh `AppInspectRuntimeState(...)`
+4. enable/disable frontend actions based on returned state
 
 ### Scan -> Similarity
 
@@ -113,6 +122,16 @@ The API remains synchronous. Frontends can run calls in worker threads.
 ### `const char *AppGetLastError(const AppContext *ctx)`
 - Returns latest context-local error detail string.
 
+### `AppStatus AppInspectRuntimeState(AppContext *ctx, const AppRuntimeStateRequest *request, AppRuntimeState *out_state)`
+- Lightweight runtime probe used by frontends for dependency gating.
+- Optional probes:
+  - cache and manifest presence/counts when `request->env_dir` is provided
+  - models root and required model availability
+- Always reports:
+  - `logical_cores`
+  - `recommended_jobs`
+- Side effects: none on cache/ML/organizer state.
+
 ## Scan/Cache and ML
 
 ### `AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request, AppScanResult *out_result)`
@@ -152,6 +171,22 @@ The API remains synchronous. Frontends can run calls in worker threads.
 ### `AppStatus AppMoveDuplicates(AppContext *ctx, const AppDuplicateMoveRequest *request, AppDuplicateMoveResult *out_result)`
 - Moves duplicate files to `target_dir` based on the supplied report.
 - `request->report` must come from `AppFindDuplicates()`.
+
+## Model Management
+
+### `AppStatus AppInstallModels(AppContext *ctx, const AppModelInstallRequest *request, AppModelInstallResult *out_result)`
+- Validates manifest shape and required license/attribution fields.
+- Installs model files into resolved models root.
+- Verifies SHA-256 for each installed artifact.
+- Writes lockfile metadata at `<models_root>/.installed.json`.
+- Supports cancellation/progress via `AppOperationHooks`.
+- Returns counts for manifest entries, installed files, and skipped files.
+
+Note:
+- In this build, native app install currently supports manifest entries using
+  `data:application/octet-stream;base64,...` URLs.
+- Non-data URLs should be handled by external tooling (e.g., `make models`)
+  until HTTP download support is introduced in app-level installer.
 
 ## Free Helpers
 

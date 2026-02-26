@@ -87,6 +87,7 @@ Model binaries are downloaded to `build/models/` and are not tracked in git.
 - Manifest: `models/manifest.json`
 - Downloader: `scripts/download_models.sh`
 - Helper target: `make models`
+- Native app API installer: `AppInstallModels` (used by GUI **Download Models**)
 - Attribution registry: `docs/model_assets.md`
 
 Mandatory model metadata fields (enforced by downloader):
@@ -96,6 +97,11 @@ Supported `task` values:
 - `classification`
 - `text_detection`
 - `embedding`
+
+Current installer notes:
+- `scripts/download_models.sh` supports both data URLs and HTTP(S) URLs.
+- `AppInstallModels` in 0.5.3 installs from manifest entries encoded as
+  `data:application/octet-stream;base64,...` and validates SHA-256.
 
 ## Optional Stress-Test Utilities
 

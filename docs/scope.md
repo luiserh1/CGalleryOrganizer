@@ -406,3 +406,50 @@ integrations (native and web adapter paths).
   - CLI behavior and flags remain unchanged.
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone.
+
+---
+
+## v0.5.3 Scope: Guided Functional GUI + In-App Model Management (Completed)
+
+### Primary Goal
+Keep the fixed functional GUI baseline while improving guided usability:
+clear action prerequisites, built-in model installation flow, contextual help,
+and tighter numeric validation feedback.
+
+### Features
+- Added runtime inspection API for frontend dependency gating:
+  - `AppInspectRuntimeState()`
+  - reports cache/manifest presence, model availability, logical cores, and
+    recommended jobs.
+- Added native model installation API:
+  - `AppInstallModels()`
+  - manifest field validation
+  - SHA-256 verification
+  - lockfile write to `<models_root>/.installed.json`.
+- Improved ML readiness error handling:
+  - missing-model errors now surfaced through app status/error channels for
+    frontend rendering.
+  - removed provider console-only noise for missing model paths.
+- Added GUI action dependency locking:
+  - invalid actions are disabled until prerequisites are met
+  - blocked actions provide explicit reason text.
+- Added GUI hybrid help system:
+  - always-visible hints
+  - hover tooltips for fields/actions.
+- Added GUI **Download Models** task:
+  - wired to app API installer
+  - reports installed/skipped counts and lockfile path.
+- Polished numeric controls:
+  - strict parse + clamped range enforcement
+  - inline/banner validation feedback for constrained fields.
+
+### Release Notes
+- Behavior changes:
+  - guided action gating and contextual help are now part of the functional GUI
+    baseline.
+  - models can be installed directly from the GUI via app API.
+- Migration/compat notes:
+  - CLI behavior remains unchanged.
+  - GUI window/layout/state model from 0.5.2 remains intact.
+- Benchmark impact summary:
+  - no benchmark methodology/schema changes in this milestone.

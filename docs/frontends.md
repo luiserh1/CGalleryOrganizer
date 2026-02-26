@@ -46,7 +46,7 @@ Examples: browser or remote UI.
 - Must not call C APIs directly from browser code.
 - Adapter owns translation between transport formats and `App*` types.
 
-No adapter service is shipped in 0.5.2; this is the required boundary contract
+No adapter service is shipped in 0.5.3; this is the required boundary contract
 for future work.
 
 ## Data Flow
@@ -65,13 +65,17 @@ Long-running operations expose callbacks through `AppOperationHooks`.
 - GUI runs synchronous API calls in a worker thread.
 - CLI runs calls on main thread.
 
-## Functional GUI Baseline (0.5.2)
+## Functional GUI Baseline (0.5.3)
 
 The GUI intentionally targets a functional baseline:
 - fixed window size: `1280x820`
 - no responsive resizing behavior
 - no runtime zoom controls
 - full operation parity with CLI workflows
+- dependency-gated actions with explicit reason feedback
+- always-visible hints + hover tooltips
+- in-app model installation action (`Download Models`)
+- strict numeric validation for constrained fields
 
 Persisted GUI state:
 - `galleryDir`

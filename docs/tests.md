@@ -66,8 +66,12 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
+- Runtime-state/model-management app API checks:
+  - runtime prerequisite inspection
+  - native model install manifest + checksum paths
 - GUI state persistence and reset behavior (`src/gui/gui_state.c`)
 - Functional GUI fixed-layout invariants (`src/gui/frontends/functional/gui_fixed_layout.c`)
+- GUI action dependency rules (`src/gui/core/gui_action_rules.c`)
 
 ## Manual Smoke Checklist
 
@@ -172,7 +176,11 @@ Expected:
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.
-- GUI window starts fixed at `1280x820` (non-resizable baseline in 0.5.2).
+- actions with unmet prerequisites are disabled and report an explicit reason when clicked.
+- each panel exposes hint text and hover tooltip help for inputs/actions.
+- Scan panel includes **Download Models** and completes model install workflow.
+- jobs/compression level/threshold/topK fields enforce documented numeric ranges.
+- GUI window starts fixed at `1280x820` (non-resizable baseline in 0.5.3).
 - panel controls remain aligned with no overlaps in the fixed shell.
 - saved gallery/env paths persist between runs.
 - `--reset-state` clears saved GUI state.
