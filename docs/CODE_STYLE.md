@@ -43,15 +43,26 @@ This document defines practical coding conventions used in CGalleryOrganizer.
 ## 6. Size and Modularity Guidance
 
 - Prefer small focused helpers (`static` unless shared).
-- Consider splitting files that grow significantly beyond ~500 lines.
+- Avoid god-files; keep module boundaries explicit and single-purpose.
+- Prefer module-private headers for internal contracts.
+- Production files (`.c/.cpp`) target <= 500 LOC; hard warning above 650.
+- Test files target <= 800 LOC; hard warning above 1000.
 
-## 7. Testing Guidelines
+## 7. Low Technical Debt Policy
+
+- No dead code or abandoned paths in mainline.
+- No avoidable duplication: extract shared helpers when logic repeats.
+- Be explicit about ownership/lifetime for allocated memory in interfaces.
+- Prefer behavior-preserving refactors over quick patches when complexity rises.
+- Keep internals modular even when public API remains stable.
+
+## 8. Testing Guidelines
 
 - Add unit tests for module-level behavior.
 - Add integration tests for end-to-end or cross-module flows.
 - Run all tests with `make test`.
 
-## 8. Build Strictness
+## 9. Build Strictness
 
 - Keep clean builds under strict flags in `Makefile`:
   - `-Wall -Wextra -Werror -pedantic`

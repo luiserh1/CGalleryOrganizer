@@ -2,7 +2,7 @@
 
 CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, organizing files, enriching metadata with local ML inference, and generating similarity reports.
 
-## Key Features (v0.4.2)
+## Key Features (v0.4.5)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -18,6 +18,9 @@ CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extract
 - Incremental similarity reuse toggle (`--sim-incremental on|off`, default `on`).
 
 ## Build
+
+Engineering standards (style, modularity, low technical debt): see
+`docs/CODE_STYLE.md`.
 
 ### Prerequisites
 - Clang or GCC
@@ -147,6 +150,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.4.2`: incremental similarity + cache compression `auto` mode.
 - `v0.4.3`: similarity memory optimization (`chunked` default).
 - `v0.4.4`: parallel scan/inference pipeline (`--jobs`, `CGO_JOBS`).
+- `v0.4.5`: cleanup-only modularization + low technical debt hardening.
 - `codex/benchmark-methodology`: benchmark-only improvements merged without version bump.
 
 ### Preview with compound grouping
