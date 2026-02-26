@@ -78,80 +78,231 @@ static inline bool GuiButton(Rectangle bounds, const char *text) {
 }
 
 static inline bool GuiCheckBox(Rectangle bounds, const char *text, bool checked) {
-  Rectangle box = {bounds.x, bounds.y + 2, 18, 18};
+  Font font = GuiFontResolved();
+  float font_size = GuiFontSizeResolved();
+  float box_size = font_size + 4.0f;
+  float max_box_size = bounds.height - 4.0f;
+  if (box_size > max_box_size) {
+    box_size = max_box_size;
+  }
+  if (box_size < 14.0f) {
+    box_size = 14.0f;
+  }
+
+  float box_y = bounds.y + (bounds.height - box_size) / 2.0f;
+  Rectangle box = {bounds.x, box_y, box_size, box_size};
+  Vector2 text_size = {0};
+  Rectangle text_rect = {0};
+  Rectangle text_hit_rect = {0};
+  if (text && text[0] != '\0') {
+    text_size = MeasureTextEx(font, text, font_size, 1.0f);
+    text_rect = (Rectangle){box.x + box_size + 8.0f,
+                            bounds.y + (bounds.height - text_size.y) / 2.0f,
+                            text_size.x, text_size.y};
+    text_hit_rect = (Rectangle){text_rect.x - 2.0f,
+                                text_rect.y - 2.0f,
+                                text_rect.width + 4.0f,
+                                text_rect.height + 4.0f};
+  }
+
   Vector2 mouse = GetMousePosition();
-  bool hover = CheckCollisionPointRec(mouse, box);
-  bool toggle = hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+  bool hover_box = CheckCollisionPointRec(mouse, box);
+  bool hover_text = text_hit_rect.width > 0.0f &&
+                    CheckCollisionPointRec(mouse, text_hit_rect);
+  bool hovered = hover_box || hover_text;
+  bool toggle = hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+  if (toggle) {
+    checked = !checked;
+  }
 
   DrawRectangleRec(box, WHITE);
   DrawRectangleLinesEx(box, 1, GRAY);
   if (checked) {
-    DrawLine((int)box.x + 3, (int)box.y + 10, (int)box.x + 8, (int)box.y + 15,
+    DrawLine((int)(box.x + box_size * 0.20f), (int)(box.y + box_size * 0.55f),
+             (int)(box.x + box_size * 0.45f), (int)(box.y + box_size * 0.80f),
              DARKGREEN);
-    DrawLine((int)box.x + 8, (int)box.y + 15, (int)box.x + 15,
-             (int)box.y + 4, DARKGREEN);
+    DrawLine((int)(box.x + box_size * 0.45f), (int)(box.y + box_size * 0.80f),
+             (int)(box.x + box_size * 0.82f), (int)(box.y + box_size * 0.22f),
+             DARKGREEN);
   }
 
   if (text) {
-    Font font = GuiFontResolved();
-    float font_size = GuiFontSizeResolved();
-    DrawTextEx(font, text, (Vector2){bounds.x + 24, bounds.y + 4}, font_size,
-               1.0f, DARKGRAY);
+    DrawTextEx(font, text, (Vector2){text_rect.x, text_rect.y}, font_size, 1.0f,
+               DARKGRAY);
   }
 
-  return toggle;
+  return checked;
 }
 
 static inline bool GuiTextBox(Rectangle bounds, char *text, int text_size,
                               bool edit_mode) {
   static char *active_text = NULL;
+  static int active_cursor_pos = 0;
   Vector2 mouse = GetMousePosition();
   bool hover = CheckCollisionPointRec(mouse, bounds);
   bool clicked = hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
   bool active = (active_text == text);
 
+  int text_len = 0;
+  if (text) {
+    text_len = (int)strlen(text);
+    if (text_len >= text_size) {
+      text_len = text_size - 1;
+    }
+  }
+
   if (clicked && edit_mode) {
     active_text = text;
+    active_cursor_pos = text_len;
+    if (text && text_len > 0) {
+      Font click_font = GuiFontResolved();
+      float click_font_size = GuiFontSizeResolved();
+      float local_x = mouse.x - (bounds.x + 6.0f);
+      if (local_x <= 0.0f) {
+        active_cursor_pos = 0;
+      } else {
+        active_cursor_pos = text_len;
+        for (int i = 0; i <= text_len; ++i) {
+          char saved = text[i];
+          text[i] = '\0';
+          Vector2 prefix = MeasureTextEx(click_font, text, click_font_size, 1.0f);
+          text[i] = saved;
+          if (prefix.x >= local_x) {
+            active_cursor_pos = i;
+            break;
+          }
+        }
+      }
+    }
     active = true;
   }
 
   if (!hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && active) {
     active_text = NULL;
+    active_cursor_pos = 0;
     active = false;
   }
 
   DrawRectangleRec(bounds, WHITE);
   DrawRectangleLinesEx(bounds, 1, active ? BLUE : GRAY);
 
+  Font font = GuiFontResolved();
+  float font_size = GuiFontSizeResolved();
   if (text) {
-    Font font = GuiFontResolved();
-    float font_size = GuiFontSizeResolved();
     DrawTextEx(font, text, (Vector2){bounds.x + 6, bounds.y + 6}, font_size,
                1.0f, BLACK);
   }
 
+  if (active && edit_mode) {
+    if (active_cursor_pos < 0) {
+      active_cursor_pos = 0;
+    }
+    if (active_cursor_pos > text_len) {
+      active_cursor_pos = text_len;
+    }
+
+    int blink = ((int)(GetTime() * 2.0)) % 2;
+    if (blink == 0) {
+      float caret_offset = 0.0f;
+      if (text && active_cursor_pos > 0) {
+        char saved = text[active_cursor_pos];
+        text[active_cursor_pos] = '\0';
+        Vector2 prefix = MeasureTextEx(font, text, font_size, 1.0f);
+        text[active_cursor_pos] = saved;
+        caret_offset = prefix.x;
+      }
+
+      float caret_x = bounds.x + 6.0f + caret_offset;
+      float max_caret_x = bounds.x + bounds.width - 4.0f;
+      if (caret_x > max_caret_x) {
+        caret_x = max_caret_x;
+      }
+
+      DrawLine((int)caret_x, (int)(bounds.y + 6.0f), (int)caret_x,
+               (int)(bounds.y + bounds.height - 6.0f), BLACK);
+    }
+  }
+
   bool submitted = false;
   if (active && edit_mode && text && text_size > 1) {
+    bool modifier_down = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
+                         IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
+
+    if (modifier_down && IsKeyPressed(KEY_C)) {
+      SetClipboardText(text);
+    }
+
+    if (modifier_down && IsKeyPressed(KEY_V)) {
+      const char *clipboard = GetClipboardText();
+      if (clipboard) {
+        const unsigned char *src = (const unsigned char *)clipboard;
+        while (*src != '\0' && text_len < text_size - 1) {
+          unsigned char ch = *src++;
+          if (ch == '\r' || ch == '\n' || ch == '\t') {
+            continue;
+          }
+          if (ch < 32 || ch == 127) {
+            continue;
+          }
+          memmove(text + active_cursor_pos + 1, text + active_cursor_pos,
+                  (size_t)(text_len - active_cursor_pos + 1));
+          text[active_cursor_pos] = (char)ch;
+          active_cursor_pos += 1;
+          text_len += 1;
+        }
+      }
+    }
+
     int key = GetCharPressed();
     while (key > 0) {
-      int len = (int)strlen(text);
-      if (key >= 32 && key <= 126 && len < text_size - 1) {
-        text[len] = (char)key;
-        text[len + 1] = '\0';
+      if (key >= 32 && key <= 126 && text_len < text_size - 1) {
+        memmove(text + active_cursor_pos + 1, text + active_cursor_pos,
+                (size_t)(text_len - active_cursor_pos + 1));
+        text[active_cursor_pos] = (char)key;
+        active_cursor_pos += 1;
+        text_len += 1;
       }
       key = GetCharPressed();
     }
 
     if (IsKeyPressed(KEY_BACKSPACE)) {
-      int len = (int)strlen(text);
-      if (len > 0) {
-        text[len - 1] = '\0';
+      if (active_cursor_pos > 0 && text_len > 0) {
+        memmove(text + active_cursor_pos - 1, text + active_cursor_pos,
+                (size_t)(text_len - active_cursor_pos + 1));
+        active_cursor_pos -= 1;
+        text_len -= 1;
       }
+    }
+
+    if (IsKeyPressed(KEY_DELETE)) {
+      if (active_cursor_pos < text_len) {
+        memmove(text + active_cursor_pos, text + active_cursor_pos + 1,
+                (size_t)(text_len - active_cursor_pos));
+        text_len -= 1;
+      }
+    }
+
+    if (IsKeyPressed(KEY_LEFT) && active_cursor_pos > 0) {
+      active_cursor_pos -= 1;
+    }
+
+    if (IsKeyPressed(KEY_RIGHT) && active_cursor_pos < text_len) {
+      active_cursor_pos += 1;
+    }
+
+    if (IsKeyPressed(KEY_HOME)) {
+      active_cursor_pos = 0;
+    }
+
+    if (IsKeyPressed(KEY_END)) {
+      active_cursor_pos = text_len;
     }
 
     if (IsKeyPressed(KEY_ENTER)) {
       submitted = true;
       active_text = NULL;
+      active_cursor_pos = 0;
     }
   }
 
