@@ -6,6 +6,11 @@
 
 #define METADATA_MAX_STRING 256
 
+typedef enum {
+  CACHE_COMPRESSION_NONE = 0,
+  CACHE_COMPRESSION_ZSTD = 1
+} CacheCompressionMode;
+
 typedef struct {
   char *path;              // Absolute path (owned dynamically)
   double modificationDate; // Unix timestamp (from filesystem)
@@ -45,6 +50,7 @@ typedef struct {
 // Caching interface
 bool CacheInit(const char *cache_path);
 void CacheShutdown(void);
+bool CacheSetCompression(CacheCompressionMode mode, int level);
 
 // Saves the entire cache to disk
 bool CacheSave(void);
