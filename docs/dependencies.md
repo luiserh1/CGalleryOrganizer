@@ -79,7 +79,7 @@ Supported `task` values:
 
 ## Optional Stress-Test Utilities
 
-These are only needed for `make stress` dataset acquisition and benchmark runs.
+These are only needed for benchmark dataset acquisition and benchmark runs.
 
 ### Tools
 - `curl`

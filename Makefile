@@ -32,7 +32,7 @@ BENCHMARK_BIN = $(TEST_BIN_DIR)/benchmark_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
 
-.PHONY: all clean clean-all test stress benchmark benchmark-compare models help
+.PHONY: all clean clean-all test benchmark benchmark-compare models help
 
 all: $(TARGET)
 
@@ -57,8 +57,6 @@ benchmark-compare: $(BENCHMARK_BIN)
 	fi
 	@./$(BENCHMARK_BIN) --profile uncompressed
 	@./$(BENCHMARK_BIN) --profile zstd-l3
-
-stress: benchmark
 
 models:
 	@./scripts/download_models.sh
@@ -112,5 +110,4 @@ help:
 	@echo "  make help       - Show this help message"
 	@echo "  make benchmark  - Run benchmark workloads and append JSONL output"
 	@echo "  make benchmark-compare - Run benchmark profiles (uncompressed + zstd)"
-	@echo "  make stress     - Alias for make benchmark"
 	@echo "  make models     - Download and verify ML model artifacts into build/models"
