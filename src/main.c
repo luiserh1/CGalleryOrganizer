@@ -96,7 +96,7 @@ static void PrintAppError(AppContext *app, const char *prefix) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.5.0\n");
+  printf("CGalleryOrganizer v0.5.1\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
