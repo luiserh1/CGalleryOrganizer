@@ -204,6 +204,7 @@ int main(int argc, char **argv) {
   GuiUiState state;
   GuiUiInitDefaults(&state);
   GuiUiSyncFromStateFile(&state);
+  GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
              "CGalleryOrganizer v0.5.2 GUI");
@@ -214,6 +215,7 @@ int main(int argc, char **argv) {
 
   bool exit_requested = false;
   bool show_exit_dialog = false;
+  double last_runtime_refresh = 0.0;
   while (!exit_requested) {
     bool close_requested = WindowShouldClose();
     if (close_requested && !show_exit_dialog) {
@@ -226,6 +228,14 @@ int main(int argc, char **argv) {
     }
 
     GuiWorkerGetSnapshot(&state.worker_snapshot);
+    if (!state.worker_snapshot.busy) {
+      double now = GetTime();
+      if (now - last_runtime_refresh >= 0.5) {
+        GuiUiRefreshRuntimeState(&state);
+        last_runtime_refresh = now;
+      }
+    }
+
     if (state.worker_snapshot.has_result) {
       if (state.worker_snapshot.message[0] != '\0') {
         strncpy(state.banner_message, state.worker_snapshot.message,
@@ -242,6 +252,10 @@ int main(int argc, char **argv) {
       }
 
       GuiWorkerClearResult();
+      if (!state.worker_snapshot.busy) {
+        GuiUiRefreshRuntimeState(&state);
+        last_runtime_refresh = GetTime();
+      }
     }
 
     BeginDrawing();

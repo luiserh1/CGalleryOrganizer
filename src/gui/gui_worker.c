@@ -230,6 +230,7 @@ static void WorkerRunFindDuplicates(const GuiTaskInput *input) {
     AppFreeDuplicateReport(&g_worker.duplicate_report);
     memset(&g_worker.duplicate_report, 0, sizeof(g_worker.duplicate_report));
     g_worker.duplicate_report_ready = false;
+    g_worker.snapshot.duplicate_report_ready = false;
   }
 
   AppDuplicateFindRequest request = {
@@ -249,6 +250,7 @@ static void WorkerRunFindDuplicates(const GuiTaskInput *input) {
   g_worker.duplicate_report = report;
   g_worker.duplicate_report_ready = true;
   g_worker.snapshot.duplicate_group_count = report.group_count;
+  g_worker.snapshot.duplicate_report_ready = true;
   g_worker.snapshot.detail_text[0] = '\0';
   pthread_mutex_unlock(&g_worker.mutex);
 
@@ -285,6 +287,11 @@ static void WorkerRunMoveDuplicates(const GuiTaskInput *input) {
 
   pthread_mutex_lock(&g_worker.mutex);
   g_worker.snapshot.duplicate_move_result = result;
+  AppFreeDuplicateReport(&g_worker.duplicate_report);
+  memset(&g_worker.duplicate_report, 0, sizeof(g_worker.duplicate_report));
+  g_worker.duplicate_report_ready = false;
+  g_worker.snapshot.duplicate_report_ready = false;
+  g_worker.snapshot.duplicate_group_count = 0;
   pthread_mutex_unlock(&g_worker.mutex);
 
   WorkerSetResult(APP_STATUS_OK, "Duplicate move completed", true);
@@ -347,6 +354,7 @@ bool GuiWorkerInit(AppContext *app) {
   pthread_mutex_init(&g_worker.mutex, NULL);
   g_worker.app = app;
   g_worker.initialized = true;
+  g_worker.snapshot.duplicate_report_ready = false;
   return true;
 }
 
@@ -393,6 +401,7 @@ bool GuiWorkerStartTask(const GuiTaskInput *input) {
   g_worker.snapshot.status = APP_STATUS_OK;
   g_worker.snapshot.message[0] = '\0';
   g_worker.snapshot.detail_text[0] = '\0';
+  g_worker.snapshot.duplicate_report_ready = g_worker.duplicate_report_ready;
   pthread_mutex_unlock(&g_worker.mutex);
 
   if (pthread_create(&g_worker.worker_thread, NULL, WorkerThreadMain, NULL) !=
@@ -447,4 +456,53 @@ void GuiWorkerClearResult(void) {
     pthread_join(g_worker.worker_thread, NULL);
     g_worker.thread_started = false;
   }
+}
+
+bool GuiWorkerInspectRuntimeState(const AppRuntimeStateRequest *request,
+                                  AppRuntimeState *out_state, char *out_error,
+                                  size_t out_error_size) {
+  if (out_error && out_error_size > 0) {
+    out_error[0] = '\0';
+  }
+  if (!request || !out_state) {
+    return false;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  bool initialized = g_worker.initialized;
+  bool busy = g_worker.busy;
+  AppContext *app = g_worker.app;
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  if (!initialized || !app) {
+    if (out_error && out_error_size > 0) {
+      snprintf(out_error, out_error_size, "Worker is not initialized");
+    }
+    return false;
+  }
+
+  if (busy) {
+    if (out_error && out_error_size > 0) {
+      snprintf(out_error, out_error_size,
+               "Runtime state refresh is blocked while a task is running");
+    }
+    return false;
+  }
+
+  AppStatus status = AppInspectRuntimeState(app, request, out_state);
+  if (status != APP_STATUS_OK) {
+    if (out_error && out_error_size > 0) {
+      const char *last_error = AppGetLastError(app);
+      if (last_error && last_error[0] != '\0') {
+        strncpy(out_error, last_error, out_error_size - 1);
+        out_error[out_error_size - 1] = '\0';
+      } else {
+        snprintf(out_error, out_error_size, "Runtime inspection failed: %s",
+                 AppStatusToString(status));
+      }
+    }
+    return false;
+  }
+
+  return true;
 }

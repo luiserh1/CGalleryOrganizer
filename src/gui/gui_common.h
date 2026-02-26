@@ -32,8 +32,11 @@ typedef struct {
 
   int active_tab;
   GuiTaskSnapshot worker_snapshot;
+  AppRuntimeState runtime_state;
+  bool runtime_state_valid;
 
   char banner_message[APP_MAX_ERROR];
+  char runtime_error[APP_MAX_ERROR];
   char detail_text[32768];
 } GuiUiState;
 
@@ -41,6 +44,7 @@ void GuiUiInitDefaults(GuiUiState *state);
 void GuiUiSyncFromStateFile(GuiUiState *state);
 bool GuiUiPersistState(GuiUiState *state);
 bool GuiUiHasUnsavedChanges(const GuiUiState *state);
+void GuiUiRefreshRuntimeState(GuiUiState *state);
 
 bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type);
 

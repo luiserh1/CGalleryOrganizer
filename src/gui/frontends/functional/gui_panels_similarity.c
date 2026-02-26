@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "raygui.h"
+#include "raylib.h"
 
+#include "gui/core/gui_action_rules.h"
 #include "gui/frontends/functional/gui_fixed_layout.h"
 #include "gui/gui_common.h"
 
@@ -11,9 +14,19 @@ static Rectangle ToRayRect(GuiRect rect) {
   return out;
 }
 
-static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
-  bool enabled = !state->worker_snapshot.busy;
-  return GuiButtonStyled(bounds, text, enabled, false);
+static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
+                         GuiActionId action_id) {
+  GuiActionAvailability availability = {0};
+  GuiResolveActionAvailability(state, action_id, &availability);
+  bool clicked = GuiButtonStyled(bounds, text, availability.enabled, false);
+  if (!availability.enabled &&
+      CheckCollisionPointRec(GetMousePosition(), bounds) &&
+      IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+      availability.reason[0] != '\0') {
+    strncpy(state->banner_message, availability.reason,
+            sizeof(state->banner_message) - 1);
+  }
+  return availability.enabled && clicked;
 }
 
 void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
@@ -62,7 +75,8 @@ void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds) {
     state->sim_memory_mode = APP_SIM_MEMORY_EAGER;
   }
 
-  if (ActionButton(state, ToRayRect(layout.run_button), "Run Similarity Report")) {
+  if (ActionButton(state, ToRayRect(layout.run_button), "Run Similarity Report",
+                   GUI_ACTION_SIMILARITY_REPORT)) {
     GuiUiStartTask(state, GUI_TASK_SIMILARITY);
   }
 

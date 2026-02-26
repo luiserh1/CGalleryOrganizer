@@ -48,6 +48,7 @@ typedef struct {
   AppRollbackResult rollback_result;
   AppDuplicateMoveResult duplicate_move_result;
   int duplicate_group_count;
+  bool duplicate_report_ready;
   char detail_text[32768];
 } GuiTaskSnapshot;
 
@@ -59,5 +60,9 @@ void GuiWorkerRequestCancel(void);
 
 void GuiWorkerGetSnapshot(GuiTaskSnapshot *out_snapshot);
 void GuiWorkerClearResult(void);
+
+bool GuiWorkerInspectRuntimeState(const AppRuntimeStateRequest *request,
+                                  AppRuntimeState *out_state, char *out_error,
+                                  size_t out_error_size);
 
 #endif // GUI_WORKER_H

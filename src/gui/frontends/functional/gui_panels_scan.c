@@ -5,6 +5,7 @@
 #include "raygui.h"
 #include "raylib.h"
 
+#include "gui/core/gui_action_rules.h"
 #include "gui/frontends/functional/gui_fixed_layout.h"
 #include "gui/gui_common.h"
 
@@ -13,9 +14,19 @@ static Rectangle ToRayRect(GuiRect rect) {
   return out;
 }
 
-static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
-  bool enabled = !state->worker_snapshot.busy;
-  return GuiButtonStyled(bounds, text, enabled, false);
+static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
+                         GuiActionId action_id) {
+  GuiActionAvailability availability = {0};
+  GuiResolveActionAvailability(state, action_id, &availability);
+  bool clicked = GuiButtonStyled(bounds, text, availability.enabled, false);
+  if (!availability.enabled &&
+      CheckCollisionPointRec(GetMousePosition(), bounds) &&
+      IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+      availability.reason[0] != '\0') {
+    strncpy(state->banner_message, availability.reason,
+            sizeof(state->banner_message) - 1);
+  }
+  return availability.enabled && clicked;
 }
 
 void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
@@ -80,13 +91,16 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                        layout.actions_divider.y},
              1.0f, (Color){192, 192, 192, 255});
 
-  if (ActionButton(state, ToRayRect(layout.scan_button), "Scan/Cache")) {
+  if (ActionButton(state, ToRayRect(layout.scan_button), "Scan/Cache",
+                   GUI_ACTION_SCAN_CACHE)) {
     GuiUiStartTask(state, GUI_TASK_SCAN);
   }
-  if (ActionButton(state, ToRayRect(layout.ml_button), "ML Enrich")) {
+  if (ActionButton(state, ToRayRect(layout.ml_button), "ML Enrich",
+                   GUI_ACTION_ML_ENRICH)) {
     GuiUiStartTask(state, GUI_TASK_ML_ENRICH);
   }
-  if (ActionButton(state, ToRayRect(layout.save_paths_button), "Save Paths")) {
+  if (ActionButton(state, ToRayRect(layout.save_paths_button), "Save Paths",
+                   GUI_ACTION_SAVE_PATHS)) {
     if (GuiUiPersistState(state)) {
       strncpy(state->banner_message, "Paths saved",
               sizeof(state->banner_message) - 1);
@@ -95,7 +109,8 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
               sizeof(state->banner_message) - 1);
     }
   }
-  if (ActionButton(state, ToRayRect(layout.reset_paths_button), "Reset Saved Paths")) {
+  if (ActionButton(state, ToRayRect(layout.reset_paths_button),
+                   "Reset Saved Paths", GUI_ACTION_RESET_PATHS)) {
     GuiStateReset();
     state->gallery_dir[0] = '\0';
     state->env_dir[0] = '\0';

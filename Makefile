@@ -34,7 +34,8 @@ CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 # Generate object file paths in the OBJ_DIR
 OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 
-TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/gui/gui_state.c src/gui/frontends/functional/gui_fixed_layout.c
+TEST_GUI_SRCS = src/gui/gui_state.c src/gui/frontends/functional/gui_fixed_layout.c src/gui/core/gui_action_rules.c
+TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) $(TEST_GUI_SRCS)
 TEST_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
 # Generate test object file paths in TEST_OBJ_DIR
@@ -54,6 +55,7 @@ GUI_SRCS = $(wildcard $(addsuffix /*.c, $(GUI_SRC_DIRS)))
 GUI_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(COMMON_C_SRCS) $(GUI_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 GUI_BIN = $(BIN_DIR)/gallery_organizer_gui
 $(GUI_OBJS): CFLAGS += $(RAYLIB_CFLAGS)
+$(TEST_OBJ_DIR)/tests/test_gui_action_rules.o $(TEST_OBJ_DIR)/src/gui/core/gui_action_rules.o: CFLAGS += $(RAYLIB_CFLAGS)
 APP_API_LIB = $(BUILD_DIR)/lib/libcgallery_app_api.$(APP_API_LIB_EXT)
 APP_API_SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/app
 APP_API_LIB_SRCS = $(wildcard $(addsuffix /*.c, $(APP_API_SRC_DIRS))) vendor/cJSON.c vendor/md5.c vendor/sha256.c

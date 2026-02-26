@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "gui/core/gui_action_rules.h"
 #include "gui/gui_common.h"
 
 static void SyncNumericInputBuffers(GuiUiState *state) {
@@ -31,6 +32,7 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->sim_topk = 5;
   state->sim_memory_mode = APP_SIM_MEMORY_CHUNKED;
   strncpy(state->group_by, "date", sizeof(state->group_by) - 1);
+  state->runtime_state_valid = false;
   SyncNumericInputBuffers(state);
 }
 
@@ -83,6 +85,35 @@ bool GuiUiHasUnsavedChanges(const GuiUiState *state) {
   return false;
 }
 
+void GuiUiRefreshRuntimeState(GuiUiState *state) {
+  if (!state) {
+    return;
+  }
+
+  AppRuntimeStateRequest request = {
+      .env_dir = state->env_dir[0] != '\0' ? state->env_dir : NULL,
+      .models_root_override = NULL,
+  };
+
+  AppRuntimeState runtime_state = {0};
+  char error[APP_MAX_ERROR] = {0};
+  bool ok = GuiWorkerInspectRuntimeState(&request, &runtime_state, error,
+                                         sizeof(error));
+  if (!ok) {
+    state->runtime_state_valid = false;
+    if (error[0] != '\0') {
+      strncpy(state->runtime_error, error, sizeof(state->runtime_error) - 1);
+    } else {
+      state->runtime_error[0] = '\0';
+    }
+    return;
+  }
+
+  state->runtime_state = runtime_state;
+  state->runtime_state_valid = true;
+  state->runtime_error[0] = '\0';
+}
+
 bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
   if (!state) {
     return false;
@@ -91,6 +122,18 @@ bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
   if (state->worker_snapshot.busy) {
     strncpy(state->banner_message, "Another task is currently running",
             sizeof(state->banner_message) - 1);
+    return false;
+  }
+
+  GuiUiRefreshRuntimeState(state);
+  char reason[APP_MAX_ERROR] = {0};
+  if (!GuiActionCanStartTask(state, task_type, reason, sizeof(reason))) {
+    if (reason[0] != '\0') {
+      strncpy(state->banner_message, reason, sizeof(state->banner_message) - 1);
+    } else {
+      strncpy(state->banner_message, "Task prerequisites are not satisfied",
+              sizeof(state->banner_message) - 1);
+    }
     return false;
   }
 
@@ -107,23 +150,6 @@ bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
   input.sim_topk = state->sim_topk;
   input.sim_memory_mode = state->sim_memory_mode;
   strncpy(input.group_by, state->group_by, sizeof(input.group_by) - 1);
-
-  if ((task_type == GUI_TASK_SCAN || task_type == GUI_TASK_ML_ENRICH ||
-       task_type == GUI_TASK_SIMILARITY) &&
-      input.gallery_dir[0] == '\0') {
-    strncpy(state->banner_message, "Gallery directory is required",
-            sizeof(state->banner_message) - 1);
-    return false;
-  }
-
-  if ((task_type == GUI_TASK_SIMILARITY || task_type == GUI_TASK_PREVIEW_ORGANIZE ||
-       task_type == GUI_TASK_EXECUTE_ORGANIZE || task_type == GUI_TASK_ROLLBACK ||
-       task_type == GUI_TASK_FIND_DUPLICATES || task_type == GUI_TASK_MOVE_DUPLICATES) &&
-      input.env_dir[0] == '\0') {
-    strncpy(state->banner_message, "Environment directory is required",
-            sizeof(state->banner_message) - 1);
-    return false;
-  }
 
   if (GuiWorkerStartTask(&input)) {
     strncpy(state->banner_message, "Task started", sizeof(state->banner_message) - 1);
