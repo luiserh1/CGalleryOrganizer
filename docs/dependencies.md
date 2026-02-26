@@ -2,7 +2,7 @@
 
 This document lists third-party and system dependencies used by CGalleryOrganizer.
 
-**Last consulted:** 2026-02-25
+**Last consulted:** 2026-02-26
 
 ## Dependency Philosophy
 
@@ -61,7 +61,24 @@ Priority order for new integrations:
   - Linux (Debian/Ubuntu): `apt install libzstd-dev`
 - Integration points:
   - Cache codec: `src/core/cache_codec.c`
-  - Cache runtime: `src/core/gallery_cache.c`
+  - Cache runtime: `src/core/gallery_cache_io.c`
+
+### 4. raylib (C library, GUI frontend)
+- Purpose: lightweight multiplatform GUI runtime for `gallery_organizer_gui`.
+- Installation:
+  - macOS: `brew install raylib`
+  - Linux (Debian/Ubuntu): install package providing `raylib` + pkg-config metadata
+  - Windows: install raylib and ensure headers/libs are available to your toolchain
+- Integration points:
+  - GUI entry: `src/gui/gui_main.c`
+  - Build target: `make gui`
+
+## Vendored GUI Helper
+
+### raygui-style helper header
+- Purpose: lightweight immediate-mode controls used by the GUI frontend.
+- Location: `vendor/raygui.h`
+- Notes: repository-local helper shim used to keep GUI wiring lightweight.
 
 ## Model Assets (Not in Git)
 

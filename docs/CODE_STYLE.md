@@ -66,3 +66,16 @@ This document defines practical coding conventions used in CGalleryOrganizer.
 
 - Keep clean builds under strict flags in `Makefile`:
   - `-Wall -Wextra -Werror -pedantic`
+
+## 10. Frontend Boundary Rules
+
+- The backend-facing contract for frontends is the public app API:
+  - `include/app_api.h`
+  - `include/app_api_types.h`
+- Frontend entrypoints (`src/main.c`, `src/gui/*`) must call backend flows via
+  app API operations, not by directly orchestrating `Cache*`, `Organizer*`,
+  `Similarity*`, `Ml*`, or other subsystem internals.
+- Headers under `include/` must remain declarative and pure contracts:
+  no behavior implementation in headers.
+- Shared workflow logic must live once in backend/app service modules, then be
+  reused by all frontends.

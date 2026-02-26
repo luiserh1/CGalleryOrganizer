@@ -3,6 +3,8 @@ CXX = clang++
 CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "")
 CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "")
 LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "") $(shell pkg-config --libs libzstd 2>/dev/null || pkg-config --libs zstd 2>/dev/null || echo "") -lm -pthread
+RAYLIB_CFLAGS = $(shell pkg-config --cflags raylib 2>/dev/null || echo "")
+RAYLIB_LIBS = $(shell pkg-config --libs raylib 2>/dev/null || echo "")
 
 # Directories
 BUILD_DIR = build
@@ -11,14 +13,16 @@ TEST_OBJ_DIR = $(BUILD_DIR)/tests
 BIN_DIR = $(BUILD_DIR)/bin
 TEST_BIN_DIR = $(BUILD_DIR)/tests/bin
 
-SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/cli
-C_SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/main.c vendor/cJSON.c vendor/md5.c vendor/sha256.c src/systems/duplicate_finder.c
+SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/cli src/app
+COMMON_C_SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) vendor/cJSON.c vendor/md5.c vendor/sha256.c
+CLI_MAIN_SRCS = src/main.c
+C_SRCS = $(COMMON_C_SRCS) $(CLI_MAIN_SRCS)
 CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
 # Generate object file paths in the OBJ_DIR
 OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 
-TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/systems/duplicate_finder.c
+TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/gui/gui_state.c
 TEST_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
 # Generate test object file paths in TEST_OBJ_DIR
@@ -33,8 +37,12 @@ BENCH_SUPPORT_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(BENCH_SUPPORT_SRCS))
 BENCHMARK_BIN = $(TEST_BIN_DIR)/benchmark_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
+GUI_SRCS = $(wildcard src/gui/*.c)
+GUI_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(COMMON_C_SRCS) $(GUI_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
+GUI_BIN = $(BIN_DIR)/gallery_organizer_gui
+$(GUI_OBJS): CFLAGS += $(RAYLIB_CFLAGS)
 
-.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models help
+.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models gui run-gui check-gui-deps help
 
 all: $(TARGET)
 
@@ -77,6 +85,17 @@ benchmark-sim-memory-compare: $(BENCHMARK_BIN)
 models:
 	@./scripts/download_models.sh
 
+gui: check-gui-deps $(GUI_BIN)
+
+run-gui: check-gui-deps $(GUI_BIN)
+	@./$(GUI_BIN)
+
+check-gui-deps:
+	@if ! pkg-config --exists raylib; then \
+		echo "Error: raylib not found. Install raylib and ensure pkg-config can resolve it."; \
+		exit 1; \
+	fi
+
 $(TEST_BIN): $(TEST_OBJS) $(TEST_RUNNER_OBJ)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -84,6 +103,10 @@ $(TEST_BIN): $(TEST_OBJS) $(TEST_RUNNER_OBJ)
 $(BENCHMARK_BIN): $(TEST_OBJS) $(BENCHMARK_RUNNER_OBJ) $(BENCH_SUPPORT_OBJS)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
+
+$(GUI_BIN): $(GUI_OBJS)
+	@mkdir -p $(BIN_DIR)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(RAYLIB_LIBS)
 
 clean:
 	rm -rf $(OBJ_DIR)
@@ -129,3 +152,5 @@ help:
 	@echo "  make benchmark-stats - Run repeated benchmark samples with warmups and summary stats"
 	@echo "  make benchmark-sim-memory-compare - Compare similarity_search RSS in eager vs chunked modes"
 	@echo "  make models     - Download and verify ML model artifacts into build/models"
+	@echo "  make gui        - Build GUI frontend (requires raylib)"
+	@echo "  make run-gui    - Build and run GUI frontend"

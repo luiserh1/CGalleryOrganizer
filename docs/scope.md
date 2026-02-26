@@ -273,20 +273,45 @@ For every merged milestone branch:
 
 ---
 
-## Version Mapping (Corrected)
-
-- `v0.4.2`: incremental similarity + compression auto mode
-- `v0.4.3`: similarity memory optimization
-- `v0.4.4`: parallel pipeline
-- benchmark-methodology branch: non-versioned merge path
-
----
-
-## v0.5.0+ Scope: Interactive UI
+## v0.5.0 Scope: Unified Frontend API + CLI/GUI Dual Frontends (Completed)
 
 ### Primary Goal
-Provide a user-friendly way to visualize results, review discards, and manage the gallery.
+Introduce a pure frontend-facing backend API used by both CLI and a new
+cross-platform GUI frontend, with shared orchestration and no duplicated
+backend workflow logic.
 
 ### Features
-- Integrate a C-compatible GUI (Raylib, SDL) or macOS native UI via Objective-C.
-- Interactive grid/list for review.
+- Added public app service contract:
+  - `include/app_api.h`
+  - `include/app_api_types.h`
+- Added app service implementation layer (`src/app/*`) for:
+  - runtime context init/shutdown
+  - scan/cache workflows
+  - ML/similarity report generation
+  - organize preview/execute
+  - rollback
+  - duplicate discovery/move
+- Migrated CLI orchestration to call app API operations while preserving
+  existing flags and behavior.
+- Added initial multiplatform GUI frontend (`src/gui/*`) using raylib + raygui:
+  - manual gallery/env path inputs
+  - scan/cache controls
+  - ML enrich and similarity report actions
+  - organize preview/execute and rollback actions
+  - duplicate analysis/move actions
+  - background worker execution with progress + cancel
+- Added GUI persisted state for last-used path pair:
+  - `galleryDir`
+  - `envDir`
+  - stored in user config directory (`gui_state.json`)
+  - explicit reset behavior (not tied to `make clean` targets)
+
+### Release Notes
+- Behavior changes:
+  - introduced GUI frontend binary (`gallery_organizer_gui`)
+  - CLI orchestration now routes through app API service layer
+- Migration/compat notes:
+  - CLI flags/flows remain compatible with prior versions
+  - GUI state is stored outside repository build artifacts
+- Benchmark impact summary:
+  - no benchmark methodology/schema changes in this milestone

@@ -1,0 +1,152 @@
+#ifndef APP_API_TYPES_H
+#define APP_API_TYPES_H
+
+#include <stdbool.h>
+#include <stddef.h>
+
+#define APP_MAX_PATH 1024
+#define APP_MAX_ERROR 512
+
+typedef enum {
+  APP_STATUS_OK = 0,
+  APP_STATUS_INVALID_ARGUMENT = 1,
+  APP_STATUS_IO_ERROR = 2,
+  APP_STATUS_CACHE_ERROR = 3,
+  APP_STATUS_ML_ERROR = 4,
+  APP_STATUS_CANCELLED = 5,
+  APP_STATUS_INTERNAL_ERROR = 6
+} AppStatus;
+
+typedef enum {
+  APP_CACHE_COMPRESSION_NONE = 0,
+  APP_CACHE_COMPRESSION_ZSTD = 1,
+  APP_CACHE_COMPRESSION_AUTO = 2
+} AppCacheCompressionMode;
+
+typedef enum {
+  APP_SIM_MEMORY_EAGER = 0,
+  APP_SIM_MEMORY_CHUNKED = 1
+} AppSimilarityMemoryMode;
+
+typedef struct {
+  const char *stage;
+  int current;
+  int total;
+  const char *message;
+} AppProgressEvent;
+
+typedef void (*AppProgressCallback)(const AppProgressEvent *event,
+                                    void *user_data);
+typedef bool (*AppCancelCallback)(void *user_data);
+
+typedef struct {
+  AppProgressCallback progress_cb;
+  AppCancelCallback cancel_cb;
+  void *user_data;
+} AppOperationHooks;
+
+typedef struct {
+  const char *models_root;
+} AppRuntimeOptions;
+
+typedef struct {
+  const char *target_dir;
+  const char *env_dir;
+  bool exhaustive;
+  bool ml_enrich;
+  bool similarity_report;
+  bool sim_incremental;
+  int jobs;
+  AppCacheCompressionMode cache_compression_mode;
+  int cache_compression_level;
+  const char *models_root_override;
+  AppOperationHooks hooks;
+} AppScanRequest;
+
+typedef struct {
+  int files_scanned;
+  int files_cached;
+  int ml_files_evaluated;
+  int ml_files_classified;
+  int ml_files_with_text;
+  int ml_files_embedded;
+  int ml_failures;
+} AppScanResult;
+
+typedef struct {
+  const char *env_dir;
+  AppCacheCompressionMode cache_compression_mode;
+  int cache_compression_level;
+  float threshold;
+  int topk;
+  AppSimilarityMemoryMode memory_mode;
+  const char *output_path_override;
+  AppOperationHooks hooks;
+} AppSimilarityRequest;
+
+typedef struct {
+  char report_path[APP_MAX_PATH];
+} AppSimilarityResult;
+
+typedef struct {
+  const char *env_dir;
+  AppCacheCompressionMode cache_compression_mode;
+  int cache_compression_level;
+  const char *group_by_arg;
+  AppOperationHooks hooks;
+} AppOrganizePlanRequest;
+
+typedef struct {
+  char *plan_text;
+  int planned_moves;
+} AppOrganizePlanResult;
+
+typedef struct {
+  const char *env_dir;
+  AppCacheCompressionMode cache_compression_mode;
+  int cache_compression_level;
+  const char *group_by_arg;
+  AppOperationHooks hooks;
+} AppOrganizeExecuteRequest;
+
+typedef struct {
+  int planned_moves;
+  int executed_moves;
+} AppOrganizeExecuteResult;
+
+typedef struct {
+  const char *env_dir;
+} AppRollbackRequest;
+
+typedef struct {
+  int restored_count;
+} AppRollbackResult;
+
+typedef struct {
+  const char *env_dir;
+  AppCacheCompressionMode cache_compression_mode;
+  int cache_compression_level;
+} AppDuplicateFindRequest;
+
+typedef struct {
+  char *original_path;
+  char **duplicate_paths;
+  int duplicate_count;
+} AppDuplicateGroup;
+
+typedef struct {
+  AppDuplicateGroup *groups;
+  int group_count;
+} AppDuplicateReport;
+
+typedef struct {
+  const char *target_dir;
+  const AppDuplicateReport *report;
+} AppDuplicateMoveRequest;
+
+typedef struct {
+  int moved_count;
+  int failed_count;
+} AppDuplicateMoveResult;
+
+#endif // APP_API_TYPES_H

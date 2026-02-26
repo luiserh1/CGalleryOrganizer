@@ -1,8 +1,10 @@
 # CGalleryOrganizer
 
-CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, organizing files, enriching metadata with local ML inference, and generating similarity reports.
+CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
+CLI (`gallery_organizer`) and a lightweight multiplatform GUI
+(`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.4.5)
+## Key Features (v0.5.0)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -16,6 +18,9 @@ CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extract
 - Benchmark workloads with JSONL history output (`make benchmark`, `make benchmark-compare`).
 - Optional whole-file cache compression (`--cache-compress none|zstd|auto`).
 - Incremental similarity reuse toggle (`--sim-incremental on|off`, default `on`).
+- Unified frontend backend contract (`include/app_api.h`, `include/app_api_types.h`).
+- GUI frontend with background tasks, progress/cancel, and persisted last-used
+  gallery/environment paths.
 
 ## Build
 
@@ -27,6 +32,7 @@ Engineering standards (style, modularity, low technical debt): see
 - `make`
 - Exiv2 development package (`brew install exiv2` on macOS)
 - ONNX Runtime development package for ML provider (`brew install onnxruntime` on macOS)
+- Raylib (GUI build only): `brew install raylib` on macOS
 
 ### Compile
 ```bash
@@ -36,6 +42,21 @@ make
 ### Run tests
 ```bash
 make test
+```
+
+### Build GUI frontend
+```bash
+make gui
+```
+
+### Run GUI frontend
+```bash
+make run-gui
+```
+
+Reset GUI saved paths explicitly:
+```bash
+./build/bin/gallery_organizer_gui --reset-state
 ```
 
 ## Model Setup (0.4.x)
@@ -76,6 +97,18 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 ./build/bin/gallery_organizer <scan_dir> <env_dir> --rollback
 ./build/bin/gallery_organizer <env_dir> --rollback
 ```
+
+## GUI Usage
+
+The GUI exposes the same backend capabilities as the CLI:
+- scan/cache (jobs, exhaustive, compression options)
+- ML enrich
+- similarity report
+- organize preview/execute
+- rollback
+- duplicate analysis + move
+
+Initial GUI path inputs are manual text fields (no native file picker in 0.5.0).
 
 ## Examples
 
@@ -145,13 +178,10 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `mixed`: all other balanced outcomes
 - `loss`: latency increase > 30% and disk gain < 15%
 
-## 0.4.x Roadmap
+## Roadmap
 
-- `v0.4.2`: incremental similarity + cache compression `auto` mode.
-- `v0.4.3`: similarity memory optimization (`chunked` default).
-- `v0.4.4`: parallel scan/inference pipeline (`--jobs`, `CGO_JOBS`).
-- `v0.4.5`: cleanup-only modularization + low technical debt hardening.
-- `codex/benchmark-methodology`: benchmark-only improvements merged without version bump.
+- `v0.5.0`: unified app API + CLI/GUI dual frontends.
+- future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping
 ```bash
@@ -165,7 +195,10 @@ Suggested comparison rubric (zstd vs uncompressed):
 
 ## Project Layout
 - `src/`: core implementation.
+- `src/app/`: unified backend service API implementation for frontends.
+- `src/gui/`: GUI frontend implementation.
 - `include/`: public headers.
+- `docs/frontends.md`: frontend architecture and ownership boundaries.
 - `models/`: tracked ML model manifest metadata (not model binaries).
 - `tests/`: test framework and test suites.
 - `docs/test_assets.md`: canonical attribution/license registry for test fixtures.
