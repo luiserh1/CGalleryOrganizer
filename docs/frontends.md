@@ -65,7 +65,7 @@ Long-running operations expose callbacks through `AppOperationHooks`.
 - GUI runs synchronous API calls in a worker thread.
 - CLI runs calls on main thread.
 
-## Functional GUI Baseline (0.5.3)
+## Functional GUI Baseline (0.5.x)
 
 The GUI intentionally targets a functional baseline:
 - fixed window size: `1280x820`
@@ -73,7 +73,7 @@ The GUI intentionally targets a functional baseline:
 - no runtime zoom controls
 - full operation parity with CLI workflows
 - dependency-gated actions with explicit reason feedback
-- always-visible hints + hover tooltips
+- hover tooltips for fields/actions
 - in-app model installation action (`Download Models`)
 - strict numeric validation for constrained fields
 

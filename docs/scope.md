@@ -433,8 +433,7 @@ and tighter numeric validation feedback.
 - Added GUI action dependency locking:
   - invalid actions are disabled until prerequisites are met
   - blocked actions provide explicit reason text.
-- Added GUI hybrid help system:
-  - always-visible hints
+- Added GUI contextual help system:
   - hover tooltips for fields/actions.
 - Added GUI **Download Models** task:
   - wired to app API installer
@@ -451,5 +450,52 @@ and tighter numeric validation feedback.
 - Migration/compat notes:
   - CLI behavior remains unchanged.
   - GUI window/layout/state model from 0.5.2 remains intact.
+- Benchmark impact summary:
+  - no benchmark methodology/schema changes in this milestone.
+
+---
+
+## v0.5.4 Scope: Persistent Cache Profile + Parameter-Aware Recompute (Completed)
+
+### Primary Goal
+Make cache reuse deterministic across sessions by persisting scan semantics and
+automatically rebuilding cache only when tracked parameters change.
+
+### Features
+- Added persistent cache profile sidecar:
+  - `<env_dir>/.cache/gallery_cache.profile.json`
+  - fallback path when env dir omitted: `.cache/gallery_cache.profile.json`
+- Added strict profile comparison before scan:
+  - tracked fields:
+    - absolute source root
+    - exhaustive mode
+    - ML enrichment requested
+    - similarity-prep requested
+    - model fingerprint (SHA-256 over required model files)
+  - non-tracked fields:
+    - jobs
+    - cache compression mode/level
+    - similarity incremental flag
+- Added automatic rebuild behavior on profile mismatch:
+  - release active cache state
+  - remove cache artifact/profile sidecar
+  - reinitialize empty cache and continue scan
+- Added model fingerprint support for semantic ML/similarity profile checks:
+  - ML enrich path: classification + text model files
+  - similarity prep path: embedding model file
+- Extended scan result contract:
+  - `cache_profile_matched`
+  - `cache_profile_rebuilt`
+  - `cache_profile_reason`
+- Added focused tests for profile roundtrip/match/mismatch rules and
+  non-semantic parameter tolerance.
+
+### Release Notes
+- Behavior changes:
+  - scan now performs profile-aware cache reuse/rebuild automatically.
+  - missing or malformed profile sidecar is treated as mismatch and rebuilt safely.
+- Migration/compat notes:
+  - no CLI flag changes required.
+  - cache profile write is attempted only after successful cache save.
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone.

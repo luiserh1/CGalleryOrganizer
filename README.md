@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.5.3)
+## Key Features (v0.5.4)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -18,6 +18,8 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 - Benchmark workloads with JSONL history output (`make benchmark`, `make benchmark-compare`).
 - Optional whole-file cache compression (`--cache-compress none|zstd|auto`).
 - Incremental similarity reuse toggle (`--sim-incremental on|off`, default `on`).
+- Persistent cache computation profile sidecar (`.cache/gallery_cache.profile.json`).
+- Automatic cache rebuild on profile mismatch (strict equality on semantic parameters).
 - Unified frontend backend contract (`include/app_api.h`, `include/app_api_types.h`).
 - Canonical frontend API contract documentation (`docs/app_api.md`).
 - GUI frontend with background tasks, progress/cancel, and persisted last-used
@@ -27,7 +29,7 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 - Native model install API with manifest validation and checksum verification (`AppInstallModels`).
 - Guided GUI behavior:
   - action dependency locking with explicit reason messages
-  - always-visible panel hints + hover tooltips
+  - hover tooltips for fields/actions
   - in-app **Download Models** workflow
   - strict numeric range validation with inline clamp feedback
 
@@ -124,7 +126,7 @@ The GUI exposes the same backend capabilities as the CLI:
 - rollback
 - duplicate analysis + move
 
-Additional 0.5.3 behavior:
+Additional 0.5.4 behavior:
 - fixed window shell (`1280x820`) focused on functional operation parity
 - deterministic non-responsive panel geometry
 - selected tabs/mode toggles are highlighted for clarity
@@ -133,10 +135,26 @@ Additional 0.5.3 behavior:
   - blocked clicks surface explicit reasons in status/help text
 - task action buttons are disabled while a background task is running
 - in-app model installation button (**Download Models**) wired to backend API
-- always-visible guidance labels and hover tooltips for fields/actions
+- hover tooltips for fields/actions
 - strict numeric validation for jobs/threshold/topK/compression level with range hints
+- scan profile persistence and automatic cache rebuild on semantic mismatch
 
 Initial GUI path inputs are manual text fields (no native file picker in 0.5.x).
+
+Cache profile behavior:
+- sidecar file: `<env_dir>/.cache/gallery_cache.profile.json`
+- strict tracked fields:
+  - absolute source root path
+  - `--exhaustive` mode
+  - `--ml-enrich` requested
+  - similarity-prep requested (`--similarity-report`)
+  - model fingerprint (SHA-256 over required model files)
+- non-tracked fields (do not force rebuild):
+  - `--jobs`
+  - cache compression mode/level
+  - `--sim-incremental`
+- if profile differs from the current scan request, cache is automatically rebuilt before scan
+- missing/malformed profile is treated as mismatch and rebuilt safely
 
 ## Examples
 
@@ -212,6 +230,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.5.1`: responsive GUI layout + scalable typography + persisted zoom/window state.
 - `v0.5.2`: fixed functional GUI baseline + language-agnostic frontend contract docs.
 - `v0.5.3`: guided functional GUI (dependency-locked actions, help hints/tooltips, in-app model install).
+- `v0.5.4`: persistent cache profile with parameter-aware automatic recompute.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

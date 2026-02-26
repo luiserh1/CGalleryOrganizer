@@ -66,6 +66,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
+- Cache profile persistence + strict match/rebuild logic (`src/app/app_cache_profile.c`)
 - Runtime-state/model-management app API checks:
   - runtime prerequisite inspection
   - native model install manifest + checksum paths
@@ -92,7 +93,24 @@ make models
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env
 ```
-Expected: scan succeeds, cache stored in `build/smoke_env/.cache/gallery_cache.json`.
+Expected:
+- scan succeeds, cache stored in `build/smoke_env/.cache/gallery_cache.json`.
+- first run reports profile rebuild (`Cache profile: rebuilt (cache profile missing)`).
+
+Profile reuse check:
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env
+```
+Expected:
+- second run reports `Cache profile: matched`.
+- sidecar exists at `build/smoke_env/.cache/gallery_cache.profile.json`.
+
+Profile mismatch check:
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --exhaustive
+```
+Expected:
+- run reports cache profile rebuild with reason `exhaustive setting changed`.
 
 ### 4. ML enrichment
 ```bash
@@ -177,10 +195,11 @@ Expected:
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.
 - actions with unmet prerequisites are disabled and report an explicit reason when clicked.
-- each panel exposes hint text and hover tooltip help for inputs/actions.
+- each panel exposes hover tooltip help for inputs/actions.
 - Scan panel includes **Download Models** and completes model install workflow.
 - jobs/compression level/threshold/topK fields enforce documented numeric ranges.
 - GUI window starts fixed at `1280x820` (non-resizable baseline in 0.5.3).
+- GUI window starts fixed at `1280x820` (non-resizable functional baseline).
 - panel controls remain aligned with no overlaps in the fixed shell.
 - saved gallery/env paths persist between runs.
 - `--reset-state` clears saved GUI state.

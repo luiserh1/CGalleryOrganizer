@@ -50,7 +50,7 @@ The API remains synchronous. Frontends can run calls in worker threads.
 | --- | --- | --- |
 | `AppInspectRuntimeState` | none (optional `env_dir` for cache/manifest probes) | frontend startup or before task dispatch |
 | `AppInstallModels` | valid manifest and writable models root | frontend startup or before ML/similarity tasks |
-| `AppRunScan` | valid `target_dir`, `env_dir` | none |
+| `AppRunScan` | valid `target_dir`, `env_dir`; cache profile sidecar may trigger automatic rebuild | none |
 | `AppGenerateSimilarityReport` | cache in `env_dir`; embeddings available or producible from cache state | `AppRunScan` with similarity/ML path enabled |
 | `AppPreviewOrganize` | cache in `env_dir` | `AppRunScan` |
 | `AppExecuteOrganize` | cache in `env_dir` | `AppRunScan`, optionally `AppPreviewOrganize` |
@@ -71,6 +71,15 @@ The API remains synchronous. Frontends can run calls in worker threads.
 
 1. `AppRunScan(..., .similarity_report=true or .ml_enrich=true)`
 2. `AppGenerateSimilarityReport(...)`
+
+### Cache profile reuse flow
+
+1. `AppRunScan(...)` with desired semantic parameters.
+2. API compares requested profile with stored sidecar
+   (`<env_dir>/.cache/gallery_cache.profile.json`).
+3. If profile matches, cache is reused.
+4. If profile is missing/malformed/mismatched, cache is rebuilt automatically
+   before scan and a new sidecar is written after successful save.
 
 ### Scan -> Organize -> Rollback
 
@@ -137,7 +146,35 @@ The API remains synchronous. Frontends can run calls in worker threads.
 ### `AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request, AppScanResult *out_result)`
 - Scans media, updates cache, and optionally runs ML/similarity preparation.
 - Required request fields: `target_dir`, `env_dir`.
-- `out_result` returns scan/cache/ML counters.
+- `out_result` returns scan/cache/ML counters and cache profile status:
+  - `cache_profile_matched`
+  - `cache_profile_rebuilt`
+  - `cache_profile_reason`
+
+#### Cache Profile Contract (v1)
+
+Sidecar path:
+- `<env_dir>/.cache/gallery_cache.profile.json`
+- default (no env dir): `.cache/gallery_cache.profile.json`
+
+Tracked strict-equality fields:
+- `sourceRootAbs` (absolute source path)
+- `exhaustive`
+- `mlEnrichRequested`
+- `similarityPrepRequested`
+- `modelsFingerprint` (SHA-256 fingerprint computed from required model files)
+  - ML enrich requested: `clf-default.onnx`, `text-default.onnx`
+  - similarity prep requested: `embed-default.onnx`
+
+Non-tracked scan request fields:
+- `jobs`
+- cache compression mode/level
+- `sim_incremental`
+
+Behavior:
+- missing or malformed sidecar is treated as mismatch.
+- mismatch triggers automatic full cache rebuild before scan.
+- sidecar write happens only after successful cache save.
 
 ## Similarity
 
