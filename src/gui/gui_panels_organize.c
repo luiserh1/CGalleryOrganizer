@@ -14,6 +14,11 @@ static float LabelWidth(const char *text, const GuiLayoutMetrics *metrics) {
   return GuiLayoutMeasureTextWidth(text, metrics) + (float)(metrics->gap * 2);
 }
 
+static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
+  bool enabled = !state->worker_snapshot.busy;
+  return GuiButtonStyled(bounds, text, enabled, false);
+}
+
 void GuiDrawOrganizePanel(GuiUiState *state, GuiLayoutRect panel_bounds,
                           const GuiLayoutMetrics *metrics) {
   if (!state || !metrics) {
@@ -33,27 +38,33 @@ void GuiDrawOrganizePanel(GuiUiState *state, GuiLayoutRect panel_bounds,
 
   GuiLayoutNextLine(&ctx);
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("Preview Organize", metrics,
-                                               170.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "Preview Organize")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("Preview Organize", metrics,
+                                         170.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "Preview Organize")) {
     GuiUiStartTask(state, GUI_TASK_PREVIEW_ORGANIZE);
   }
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("Execute Organize", metrics,
-                                               170.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "Execute Organize")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("Execute Organize", metrics,
+                                         170.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "Execute Organize")) {
     GuiUiStartTask(state, GUI_TASK_EXECUTE_ORGANIZE);
   }
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("Rollback", metrics,
-                                               130.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "Rollback")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("Rollback", metrics,
+                                         130.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "Rollback")) {
     GuiUiStartTask(state, GUI_TASK_ROLLBACK);
   }
 

@@ -16,6 +16,11 @@ static float LabelWidth(const char *text, const GuiLayoutMetrics *metrics) {
   return GuiLayoutMeasureTextWidth(text, metrics) + (float)(metrics->gap * 2);
 }
 
+static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
+  bool enabled = !state->worker_snapshot.busy;
+  return GuiButtonStyled(bounds, text, enabled, false);
+}
+
 void GuiDrawSimilarityPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
                             const GuiLayoutMetrics *metrics) {
   if (!state || !metrics) {
@@ -33,8 +38,7 @@ void GuiDrawSimilarityPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
     char threshold_buf[32] = {0};
     snprintf(threshold_buf, sizeof(threshold_buf), "%.3f", state->sim_threshold);
     GuiLayoutRect threshold_input = GuiLayoutPlaceFixed(
-        &ctx, (float)metrics->min_numeric_input_w + (float)metrics->gap,
-        (float)metrics->input_h);
+        &ctx, (float)metrics->min_numeric_input_w, (float)metrics->input_h);
     if (GuiTextBox(ToRayRect(threshold_input), threshold_buf,
                    sizeof(threshold_buf), true)) {
       float parsed = strtof(threshold_buf, NULL);
@@ -77,28 +81,32 @@ void GuiDrawSimilarityPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
   GuiLayoutRect memory_label = GuiLayoutPlaceFixed(
       &ctx, LabelWidth("Memory mode", metrics), (float)metrics->label_h);
   GuiLabel(ToRayRect(memory_label), "Memory mode");
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("chunked", metrics,
-                                               96.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "chunked")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("chunked", metrics,
+                                         96.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "chunked", true, state->sim_memory_mode == APP_SIM_MEMORY_CHUNKED)) {
     state->sim_memory_mode = APP_SIM_MEMORY_CHUNKED;
   }
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("eager", metrics,
-                                               96.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "eager")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("eager", metrics,
+                                         96.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "eager", true, state->sim_memory_mode == APP_SIM_MEMORY_EAGER)) {
     state->sim_memory_mode = APP_SIM_MEMORY_EAGER;
   }
 
   GuiLayoutNextLine(&ctx);
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("Run Similarity Report", metrics,
-                                               220.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "Run Similarity Report")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("Run Similarity Report", metrics,
+                                         220.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "Run Similarity Report")) {
     GuiUiStartTask(state, GUI_TASK_SIMILARITY);
   }
 

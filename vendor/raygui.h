@@ -37,14 +37,29 @@ static inline void GuiLabel(Rectangle bounds, const char *text) {
              font_size, 1.0f, DARKGRAY);
 }
 
-static inline bool GuiButton(Rectangle bounds, const char *text) {
+static inline bool GuiButtonStyled(Rectangle bounds, const char *text, bool enabled,
+                                   bool selected) {
   Vector2 mouse = GetMousePosition();
-  bool hover = CheckCollisionPointRec(mouse, bounds);
+  bool hover = enabled && CheckCollisionPointRec(mouse, bounds);
   bool pressed = hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 
-  Color fill = hover ? (Color){220, 220, 220, 255} : (Color){240, 240, 240, 255};
+  Color fill = (Color){240, 240, 240, 255};
+  Color border = GRAY;
+  Color text_color = enabled ? BLACK : GRAY;
+
+  if (!enabled) {
+    fill = (Color){232, 232, 232, 255};
+    border = (Color){178, 178, 178, 255};
+    text_color = (Color){145, 145, 145, 255};
+  } else if (selected) {
+    fill = (Color){210, 224, 238, 255};
+    border = (Color){80, 110, 140, 255};
+  } else if (hover) {
+    fill = (Color){220, 220, 220, 255};
+  }
+
   DrawRectangleRec(bounds, fill);
-  DrawRectangleLinesEx(bounds, 1, GRAY);
+  DrawRectangleLinesEx(bounds, selected ? 2 : 1, border);
 
   Font font = GuiFontResolved();
   float font_size = GuiFontSizeResolved();
@@ -53,9 +68,13 @@ static inline bool GuiButton(Rectangle bounds, const char *text) {
       font, text ? text : "",
       (Vector2){bounds.x + (bounds.width - text_size.x) / 2.0f,
                 bounds.y + (bounds.height - text_size.y) / 2.0f},
-      font_size, 1.0f, BLACK);
+      font_size, 1.0f, text_color);
 
-  return pressed;
+  return enabled && pressed;
+}
+
+static inline bool GuiButton(Rectangle bounds, const char *text) {
+  return GuiButtonStyled(bounds, text, true, false);
 }
 
 static inline bool GuiCheckBox(Rectangle bounds, const char *text, bool checked) {

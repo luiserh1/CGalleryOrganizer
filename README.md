@@ -115,6 +115,8 @@ Additional 0.5.1 behavior:
 - window is resizable with enforced minimum size
 - controls and text scale with window size and user zoom
 - UI zoom and last window size persist in `gui_state.json`
+- selected tabs/mode toggles are highlighted for clarity
+- task action buttons are disabled while a background task is running
 
 Initial GUI path inputs are manual text fields (no native file picker in 0.5.x).
 

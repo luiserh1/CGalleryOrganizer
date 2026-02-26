@@ -11,6 +11,11 @@ static Rectangle ToRayRect(GuiLayoutRect rect) {
   return out;
 }
 
+static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
+  bool enabled = !state->worker_snapshot.busy;
+  return GuiButtonStyled(bounds, text, enabled, false);
+}
+
 void GuiDrawDuplicatesPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
                             const GuiLayoutMetrics *metrics) {
   if (!state || !metrics) {
@@ -27,19 +32,23 @@ void GuiDrawDuplicatesPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
 
   GuiLayoutNextLine(&ctx);
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("Analyze Duplicates", metrics,
-                                               185.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "Analyze Duplicates")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("Analyze Duplicates", metrics,
+                                         185.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "Analyze Duplicates")) {
     GuiUiStartTask(state, GUI_TASK_FIND_DUPLICATES);
   }
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("Move Duplicates to Env", metrics,
-                                               220.0f * metrics->effective_scale),
-                    (float)metrics->button_h)),
-                "Move Duplicates to Env")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("Move Duplicates to Env", metrics,
+                                         220.0f * metrics->effective_scale),
+              (float)metrics->button_h)),
+          "Move Duplicates to Env")) {
     GuiUiStartTask(state, GUI_TASK_MOVE_DUPLICATES);
   }
 

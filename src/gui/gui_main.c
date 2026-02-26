@@ -75,10 +75,10 @@ static void ShutdownGuiFont(void) {
   }
 }
 
-static void DrawMultilineTextInRect(const char *text, GuiLayoutRect area,
-                                    int font_size, Color color) {
+static bool DrawMultilineTextInRect(const char *text, GuiLayoutRect area, int font_size,
+                                    Color color) {
   if (!text || text[0] == '\0' || area.width < 2.0f || area.height < 2.0f) {
-    return;
+    return false;
   }
 
   int draw_size = font_size;
@@ -88,14 +88,19 @@ static void DrawMultilineTextInRect(const char *text, GuiLayoutRect area,
   int line_stride = draw_size + 6;
   int max_lines = (int)(area.height / (float)line_stride);
   if (max_lines < 1) {
-    return;
+    return false;
   }
 
   int line = 0;
   const char *cursor = text;
   const char *line_start = text;
+  bool truncated = false;
 
-  while (*cursor != '\0' && line < max_lines) {
+  while (*cursor != '\0') {
+    if (line >= max_lines) {
+      truncated = true;
+      break;
+    }
     if (*cursor == '\n') {
       int len = (int)(cursor - line_start);
       if (len > 0) {
@@ -115,11 +120,14 @@ static void DrawMultilineTextInRect(const char *text, GuiLayoutRect area,
     cursor++;
   }
 
-  if (line < max_lines && line_start && *line_start != '\0') {
+  if (!truncated && line < max_lines && line_start && *line_start != '\0') {
     DrawTextEx(GuiGetFont(), line_start,
                (Vector2){area.x, area.y + (float)(line * line_stride)},
                (float)draw_size, 1.0f, color);
+  } else if (!truncated && line_start && *line_start != '\0' && line >= max_lines) {
+    truncated = true;
   }
+  return truncated;
 }
 
 static void HandleZoomControls(GuiUiState *state, const GuiLayoutMetrics *metrics,
@@ -273,7 +281,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 4; i++) {
       GuiLayoutRect tab_rect = {tab_x, tabs_y, tab_labels_width[i],
                                 (float)metrics.button_h};
-      if (GuiButton(ToRayRect(tab_rect), tab_labels[i])) {
+      bool selected = (state.active_tab == i);
+      if (GuiButtonStyled(ToRayRect(tab_rect), tab_labels[i], true, selected)) {
         state.active_tab = i;
       }
       tab_x += tab_rect.width + (float)metrics.gap;
@@ -343,6 +352,10 @@ int main(int argc, char **argv) {
                             (float)metrics.label_h);
     GuiLabel(ToRayRect(status_label), "Task status:");
 
+    Color status_color = DARKGRAY;
+    const char *status_text =
+        state.banner_message[0] != '\0' ? state.banner_message : "Idle";
+
     if (state.worker_snapshot.busy) {
       char progress[256] = {0};
       snprintf(progress, sizeof(progress), "Running [%s] %d/%d",
@@ -358,7 +371,9 @@ int main(int argc, char **argv) {
 
       GuiLayoutRect progress_rect = GuiLayoutPlaceFlex(
           &status_ctx, 160.0f * metrics.effective_scale, (float)metrics.label_h);
-      GuiLabel(ToRayRect(progress_rect), progress);
+      DrawTextEx(GuiGetFont(), progress,
+                 (Vector2){progress_rect.x + 4.0f, progress_rect.y + 6.0f},
+                 (float)metrics.font_size, 1.0f, (Color){40, 80, 140, 255});
 
       GuiLayoutRect cancel_rect =
           GuiLayoutPlaceFixed(&status_ctx, cancel_w, (float)metrics.button_h);
@@ -366,10 +381,20 @@ int main(int argc, char **argv) {
         GuiWorkerRequestCancel();
       }
     } else {
+      if (state.worker_snapshot.status == APP_STATUS_CANCELLED) {
+        status_color = (Color){175, 120, 30, 255};
+      } else if (state.worker_snapshot.success) {
+        status_color = (Color){35, 120, 55, 255};
+      } else if (state.worker_snapshot.has_result ||
+                 state.worker_snapshot.status != APP_STATUS_OK) {
+        status_color = (Color){160, 50, 40, 255};
+      }
+
       GuiLayoutRect idle_rect = GuiLayoutPlaceFlex(
           &status_ctx, 180.0f * metrics.effective_scale, (float)metrics.label_h);
-      GuiLabel(ToRayRect(idle_rect),
-               state.banner_message[0] != '\0' ? state.banner_message : "Idle");
+      DrawTextEx(GuiGetFont(), status_text,
+                 (Vector2){idle_rect.x + 4.0f, idle_rect.y + 6.0f},
+                 (float)metrics.font_size, 1.0f, status_color);
     }
 
     GuiLayoutNextLine(&status_ctx);
@@ -387,7 +412,19 @@ int main(int argc, char **argv) {
                               log_rect.y + (float)metrics.gap,
                               log_rect.width - (float)(metrics.gap * 2),
                               log_rect.height - (float)(metrics.gap * 2)};
-    DrawMultilineTextInRect(state.detail_text, log_text, metrics.font_size - 2, DARKGRAY);
+    bool truncated =
+        DrawMultilineTextInRect(state.detail_text, log_text, metrics.font_size - 3,
+                                (Color){64, 64, 64, 255});
+    if (truncated) {
+      const char *truncated_text = "... (truncated)";
+      Vector2 size = MeasureTextEx(GuiGetFont(), truncated_text,
+                                   (float)(metrics.font_size - 3), 1.0f);
+      DrawTextEx(
+          GuiGetFont(), truncated_text,
+          (Vector2){log_text.x + log_text.width - size.x - 2.0f,
+                    log_text.y + log_text.height - size.y - 2.0f},
+          (float)(metrics.font_size - 3), 1.0f, (Color){120, 120, 120, 255});
+    }
 
 #if defined(CGO_GUI_LAYOUT_DEBUG)
     if (!GuiLayoutContextIsValid(&status_ctx)) {

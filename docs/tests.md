@@ -167,6 +167,8 @@ Expected:
 - manual gallery/env path inputs are editable.
 - scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
 - background tasks show progress and can be cancelled.
+- active tab and selected mode controls are visually highlighted.
+- while a task is running, task-start action buttons are disabled until completion/cancel.
 - resizing down to minimum window size keeps controls readable and non-overlapping.
 - maximizing/fullscreen keeps panel layout stable (no overlaps).
 - zoom controls (`A-`, `A+`, `Reset`) change effective UI scale.

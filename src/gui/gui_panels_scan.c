@@ -20,6 +20,11 @@ static float ActionButtonWidth(const char *text, const GuiLayoutMetrics *metrics
   return GuiLayoutButtonWidth(text, metrics, 120.0f * metrics->effective_scale);
 }
 
+static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
+  bool enabled = !state->worker_snapshot.busy;
+  return GuiButtonStyled(bounds, text, enabled, false);
+}
+
 void GuiUiInitDefaults(GuiUiState *state) {
   if (!state) {
     return;
@@ -187,22 +192,25 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
   GuiLabel(ToRayRect(cache_label), "Cache compression");
 
   float mode_min_width = 64.0f * metrics->effective_scale;
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("none", metrics, mode_min_width),
-                    (float)metrics->button_h)),
-                "none")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("none", metrics, mode_min_width),
+              (float)metrics->button_h)),
+          "none", true, state->cache_mode == APP_CACHE_COMPRESSION_NONE)) {
     state->cache_mode = APP_CACHE_COMPRESSION_NONE;
   }
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("zstd", metrics, mode_min_width),
-                    (float)metrics->button_h)),
-                "zstd")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("zstd", metrics, mode_min_width),
+              (float)metrics->button_h)),
+          "zstd", true, state->cache_mode == APP_CACHE_COMPRESSION_ZSTD)) {
     state->cache_mode = APP_CACHE_COMPRESSION_ZSTD;
   }
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, GuiLayoutButtonWidth("auto", metrics, mode_min_width),
-                    (float)metrics->button_h)),
-                "auto")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("auto", metrics, mode_min_width),
+              (float)metrics->button_h)),
+          "auto", true, state->cache_mode == APP_CACHE_COMPRESSION_AUTO)) {
     state->cache_mode = APP_CACHE_COMPRESSION_AUTO;
   }
 
@@ -224,29 +232,34 @@ void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
 
   GuiLayoutNextLine(&ctx);
 
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, ActionButtonWidth("Scan/Cache", metrics),
-                    (float)metrics->button_h)),
-                "Scan/Cache")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(&ctx, ActionButtonWidth("Scan/Cache", metrics),
+                                        (float)metrics->button_h)),
+          "Scan/Cache")) {
     GuiUiStartTask(state, GUI_TASK_SCAN);
   }
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, ActionButtonWidth("ML Enrich", metrics),
-                    (float)metrics->button_h)),
-                "ML Enrich")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(&ctx, ActionButtonWidth("ML Enrich", metrics),
+                                        (float)metrics->button_h)),
+          "ML Enrich")) {
     GuiUiStartTask(state, GUI_TASK_ML_ENRICH);
   }
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, ActionButtonWidth("Save Paths", metrics),
-                    (float)metrics->button_h)),
-                "Save Paths")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(&ctx, ActionButtonWidth("Save Paths", metrics),
+                                        (float)metrics->button_h)),
+          "Save Paths")) {
     GuiUiPersistState(state);
     strncpy(state->banner_message, "Paths saved", sizeof(state->banner_message) - 1);
   }
-  if (GuiButton(ToRayRect(GuiLayoutPlaceFixed(
-                    &ctx, ActionButtonWidth("Reset Saved Paths", metrics),
-                    (float)metrics->button_h)),
-                "Reset Saved Paths")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, ActionButtonWidth("Reset Saved Paths", metrics),
+              (float)metrics->button_h)),
+          "Reset Saved Paths")) {
     GuiStateReset();
     state->gallery_dir[0] = '\0';
     state->env_dir[0] = '\0';
