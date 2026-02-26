@@ -82,6 +82,23 @@ bool AppBuildCachePaths(const char *env_dir, char *out_cache_dir,
   return true;
 }
 
+bool AppBuildCacheProfilePath(const char *env_dir, char *out_profile_path,
+                              size_t profile_path_size) {
+  if (!out_profile_path || profile_path_size == 0) {
+    return false;
+  }
+
+  if (env_dir && env_dir[0] != '\0') {
+    snprintf(out_profile_path, profile_path_size,
+             "%s/.cache/gallery_cache.profile.json", env_dir);
+  } else {
+    snprintf(out_profile_path, profile_path_size,
+             ".cache/gallery_cache.profile.json");
+  }
+
+  return true;
+}
+
 CacheCompressionMode AppMapCompressionMode(AppCacheCompressionMode mode) {
   switch (mode) {
   case APP_CACHE_COMPRESSION_NONE:

@@ -41,6 +41,8 @@ bool AppShouldCancel(const AppOperationHooks *hooks);
 bool AppBuildCachePaths(const char *env_dir, char *out_cache_dir,
                         size_t cache_dir_size, char *out_cache_path,
                         size_t cache_path_size);
+bool AppBuildCacheProfilePath(const char *env_dir, char *out_profile_path,
+                              size_t profile_path_size);
 
 AppStatus AppEnsureCacheReady(AppContext *ctx, const char *env_dir,
                               AppCacheCompressionMode mode, int level,

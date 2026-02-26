@@ -101,6 +101,12 @@ typedef struct {
   int ml_files_with_text;
   int ml_files_embedded;
   int ml_failures;
+  // True when persisted cache profile exactly matches request semantics.
+  bool cache_profile_matched;
+  // True when cache was rebuilt due to missing/malformed/mismatched profile.
+  bool cache_profile_rebuilt;
+  // Human-readable reason for match/mismatch/rebuild decision.
+  char cache_profile_reason[APP_MAX_ERROR];
 } AppScanResult;
 
 typedef struct {

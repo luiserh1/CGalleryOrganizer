@@ -341,6 +341,14 @@ int main(int argc, char **argv) {
   printf("Scan complete.\n");
   printf("Files scanned: %d\n", scan_result.files_scanned);
   printf("Media files cached: %d\n", scan_result.files_cached);
+  if (scan_result.cache_profile_matched) {
+    printf("Cache profile: matched\n");
+  } else if (scan_result.cache_profile_rebuilt) {
+    printf("Cache profile: rebuilt (%s)\n",
+           scan_result.cache_profile_reason[0] != '\0'
+               ? scan_result.cache_profile_reason
+               : "mismatch");
+  }
   if (ml_enrich || similarity_report) {
     printf("ML evaluated: %d\n", scan_result.ml_files_evaluated);
     if (ml_enrich) {
