@@ -2,6 +2,7 @@ CC = clang
 CXX = clang++
 CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "")
 CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "")
+DEPFLAGS = -MMD -MP
 LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "") $(shell pkg-config --libs libzstd 2>/dev/null || pkg-config --libs zstd 2>/dev/null || echo "") -lm -pthread
 RAYLIB_CFLAGS = $(shell pkg-config --cflags raylib 2>/dev/null || echo "")
 RAYLIB_LIBS = $(shell pkg-config --libs raylib 2>/dev/null || echo "")
@@ -22,7 +23,7 @@ CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 # Generate object file paths in the OBJ_DIR
 OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 
-TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/gui/gui_state.c
+TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/gui/gui_state.c src/gui/gui_layout.c
 TEST_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
 # Generate test object file paths in TEST_OBJ_DIR
@@ -122,22 +123,24 @@ clean-all: clean
 # Compile C files
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile C++ files
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile test C files
 $(TEST_OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Compile test C++ files
 $(TEST_OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+-include $(OBJS:.o=.d) $(TEST_ALL_OBJS:.o=.d) $(BENCH_SUPPORT_OBJS:.o=.d) $(GUI_OBJS:.o=.d)
 
 help:
 	@echo "Available commands:"

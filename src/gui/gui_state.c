@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #include "cJSON.h"
 #include "fs_utils.h"
 
+#include "gui/gui_layout.h"
 #include "gui/gui_state.h"
 
 static bool GetConfigDirectory(char *out_dir, size_t out_size) {
@@ -84,6 +86,9 @@ bool GuiStateLoad(GuiState *out_state) {
   }
 
   memset(out_state, 0, sizeof(*out_state));
+  out_state->ui_scale_percent = GUI_STATE_DEFAULT_UI_SCALE_PERCENT;
+  out_state->window_width = GUI_STATE_DEFAULT_WINDOW_WIDTH;
+  out_state->window_height = GUI_STATE_DEFAULT_WINDOW_HEIGHT;
 
   char path[GUI_STATE_MAX_PATH] = {0};
   if (!GuiStateResolvePath(path, sizeof(path))) {
@@ -124,6 +129,10 @@ bool GuiStateLoad(GuiState *out_state) {
 
   cJSON *gallery = cJSON_GetObjectItem(json, "galleryDir");
   cJSON *env = cJSON_GetObjectItem(json, "envDir");
+  cJSON *ui_scale = cJSON_GetObjectItem(json, "uiScalePercent");
+  cJSON *window_width = cJSON_GetObjectItem(json, "windowWidth");
+  cJSON *window_height = cJSON_GetObjectItem(json, "windowHeight");
+  cJSON *updated_at = cJSON_GetObjectItem(json, "updatedAt");
 
   if (cJSON_IsString(gallery)) {
     strncpy(out_state->gallery_dir, gallery->valuestring,
@@ -131,6 +140,19 @@ bool GuiStateLoad(GuiState *out_state) {
   }
   if (cJSON_IsString(env)) {
     strncpy(out_state->env_dir, env->valuestring, sizeof(out_state->env_dir) - 1);
+  }
+  if (cJSON_IsNumber(ui_scale)) {
+    out_state->ui_scale_percent = GuiLayoutClampUiScalePercent(ui_scale->valueint);
+  }
+  if (cJSON_IsNumber(window_width) && window_width->valueint > 0) {
+    out_state->window_width = window_width->valueint;
+  }
+  if (cJSON_IsNumber(window_height) && window_height->valueint > 0) {
+    out_state->window_height = window_height->valueint;
+  }
+  if (cJSON_IsString(updated_at)) {
+    strncpy(out_state->updated_at, updated_at->valuestring,
+            sizeof(out_state->updated_at) - 1);
   }
 
   cJSON_Delete(json);
@@ -163,8 +185,27 @@ bool GuiStateSave(const GuiState *state) {
     return false;
   }
 
+  char updated_at[GUI_STATE_UPDATED_AT_MAX] = {0};
+  time_t now = time(NULL);
+  struct tm *utc = gmtime(&now);
+  if (utc) {
+    strftime(updated_at, sizeof(updated_at), "%Y-%m-%dT%H:%M:%SZ", utc);
+  }
+
   cJSON_AddStringToObject(json, "galleryDir", state->gallery_dir);
   cJSON_AddStringToObject(json, "envDir", state->env_dir);
+  cJSON_AddNumberToObject(
+      json, "uiScalePercent",
+      GuiLayoutClampUiScalePercent(state->ui_scale_percent));
+  cJSON_AddNumberToObject(
+      json, "windowWidth",
+      state->window_width > 0 ? state->window_width : GUI_STATE_DEFAULT_WINDOW_WIDTH);
+  cJSON_AddNumberToObject(
+      json, "windowHeight",
+      state->window_height > 0 ? state->window_height : GUI_STATE_DEFAULT_WINDOW_HEIGHT);
+  if (updated_at[0] != '\0') {
+    cJSON_AddStringToObject(json, "updatedAt", updated_at);
+  }
 
   char *text = cJSON_Print(json);
   cJSON_Delete(json);

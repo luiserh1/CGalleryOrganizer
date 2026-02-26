@@ -3,8 +3,27 @@
 #include <string.h>
 
 #include "raygui.h"
+#include "raylib.h"
 
 #include "gui/gui_common.h"
+
+static Rectangle ToRayRect(GuiLayoutRect rect) {
+  Rectangle out = {rect.x, rect.y, rect.width, rect.height};
+  return out;
+}
+
+static float LabelWidth(const char *text, const GuiLayoutMetrics *metrics) {
+  return GuiLayoutMeasureTextWidth(text, metrics) + (float)(metrics->gap * 2);
+}
+
+static float ActionButtonWidth(const char *text, const GuiLayoutMetrics *metrics) {
+  return GuiLayoutButtonWidth(text, metrics, 120.0f * metrics->effective_scale);
+}
+
+static bool ActionButton(const GuiUiState *state, Rectangle bounds, const char *text) {
+  bool enabled = !state->worker_snapshot.busy;
+  return GuiButtonStyled(bounds, text, enabled, false);
+}
 
 void GuiUiInitDefaults(GuiUiState *state) {
   if (!state) {
@@ -19,6 +38,9 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->sim_threshold = 0.92f;
   state->sim_topk = 5;
   state->sim_memory_mode = APP_SIM_MEMORY_CHUNKED;
+  state->ui_scale_percent = GUI_STATE_DEFAULT_UI_SCALE_PERCENT;
+  state->window_width = GUI_STATE_DEFAULT_WINDOW_WIDTH;
+  state->window_height = GUI_STATE_DEFAULT_WINDOW_HEIGHT;
   strncpy(state->group_by, "date", sizeof(state->group_by) - 1);
 }
 
@@ -34,10 +56,13 @@ void GuiUiSyncFromStateFile(GuiUiState *state) {
 
   strncpy(state->gallery_dir, loaded.gallery_dir, sizeof(state->gallery_dir) - 1);
   strncpy(state->env_dir, loaded.env_dir, sizeof(state->env_dir) - 1);
+  state->ui_scale_percent = loaded.ui_scale_percent;
+  state->window_width = loaded.window_width;
+  state->window_height = loaded.window_height;
   state->persisted_state = loaded;
 }
 
-void GuiUiPersistPaths(const GuiUiState *state) {
+void GuiUiPersistState(const GuiUiState *state) {
   if (!state) {
     return;
   }
@@ -45,6 +70,9 @@ void GuiUiPersistPaths(const GuiUiState *state) {
   GuiState to_save = {0};
   strncpy(to_save.gallery_dir, state->gallery_dir, sizeof(to_save.gallery_dir) - 1);
   strncpy(to_save.env_dir, state->env_dir, sizeof(to_save.env_dir) - 1);
+  to_save.ui_scale_percent = GuiLayoutClampUiScalePercent(state->ui_scale_percent);
+  to_save.window_width = state->window_width;
+  to_save.window_height = state->window_height;
   GuiStateSave(&to_save);
 }
 
@@ -91,7 +119,7 @@ bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
   }
 
   if (GuiWorkerStartTask(&input)) {
-    GuiUiPersistPaths(state);
+    GuiUiPersistState(state);
     strncpy(state->banner_message, "Task started", sizeof(state->banner_message) - 1);
     return true;
   }
@@ -101,30 +129,56 @@ bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type) {
   return false;
 }
 
-void GuiDrawScanPanel(GuiUiState *state) {
-  if (!state) {
+void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
+                      const GuiLayoutMetrics *metrics) {
+  if (!state || !metrics) {
     return;
   }
 
-  GuiLabel((Rectangle){30, 120, 120, 24}, "Gallery Directory");
-  GuiTextBox((Rectangle){170, 116, 760, 30}, state->gallery_dir,
+  GuiLayoutContext ctx = {0};
+  GuiLayoutInit(&ctx, panel_bounds, metrics);
+
+  GuiLayoutRect label_gallery =
+      GuiLayoutPlaceFixed(&ctx, LabelWidth("Gallery Directory", metrics),
+                          (float)metrics->label_h);
+  GuiLabel(ToRayRect(label_gallery), "Gallery Directory");
+  GuiLayoutRect input_gallery =
+      GuiLayoutPlaceFlex(&ctx, (float)metrics->min_text_input_w, (float)metrics->input_h);
+  GuiTextBox(ToRayRect(input_gallery), state->gallery_dir,
              (int)sizeof(state->gallery_dir), true);
 
-  GuiLabel((Rectangle){30, 160, 120, 24}, "Environment Dir");
-  GuiTextBox((Rectangle){170, 156, 760, 30}, state->env_dir,
-             (int)sizeof(state->env_dir), true);
+  GuiLayoutNextLine(&ctx);
 
-  if (GuiCheckBox((Rectangle){30, 200, 240, 24}, "Exhaustive metadata",
+  GuiLayoutRect label_env =
+      GuiLayoutPlaceFixed(&ctx, LabelWidth("Environment Dir", metrics),
+                          (float)metrics->label_h);
+  GuiLabel(ToRayRect(label_env), "Environment Dir");
+  GuiLayoutRect input_env =
+      GuiLayoutPlaceFlex(&ctx, (float)metrics->min_text_input_w, (float)metrics->input_h);
+  GuiTextBox(ToRayRect(input_env), state->env_dir, (int)sizeof(state->env_dir), true);
+
+  GuiLayoutNextLine(&ctx);
+
+  GuiLayoutRect exhaustive_rect =
+      GuiLayoutPlaceFixed(&ctx, GuiLayoutButtonWidth("Exhaustive metadata", metrics,
+                                                     210.0f * metrics->effective_scale),
+                          (float)metrics->label_h);
+  if (GuiCheckBox(ToRayRect(exhaustive_rect), "Exhaustive metadata",
                   state->exhaustive)) {
     state->exhaustive = !state->exhaustive;
   }
 
-  GuiLabel((Rectangle){30, 236, 120, 24}, "Jobs");
+  GuiLayoutNextLine(&ctx);
+
+  GuiLayoutRect jobs_label =
+      GuiLayoutPlaceFixed(&ctx, LabelWidth("Jobs", metrics), (float)metrics->label_h);
+  GuiLabel(ToRayRect(jobs_label), "Jobs");
   {
     char jobs_buf[16] = {0};
     snprintf(jobs_buf, sizeof(jobs_buf), "%d", state->jobs);
-    if (GuiTextBox((Rectangle){170, 232, 90, 30}, jobs_buf, sizeof(jobs_buf),
-                   true)) {
+    GuiLayoutRect jobs_input = GuiLayoutPlaceFixed(
+        &ctx, (float)metrics->min_numeric_input_w, (float)metrics->input_h);
+    if (GuiTextBox(ToRayRect(jobs_input), jobs_buf, sizeof(jobs_buf), true)) {
       int parsed = atoi(jobs_buf);
       if (parsed > 0 && parsed <= 256) {
         state->jobs = parsed;
@@ -132,23 +186,43 @@ void GuiDrawScanPanel(GuiUiState *state) {
     }
   }
 
-  GuiLabel((Rectangle){290, 236, 180, 24}, "Cache compression");
-  if (GuiButton((Rectangle){440, 232, 70, 30}, "none")) {
+  GuiLayoutRect cache_label =
+      GuiLayoutPlaceFixed(&ctx, LabelWidth("Cache compression", metrics),
+                          (float)metrics->label_h);
+  GuiLabel(ToRayRect(cache_label), "Cache compression");
+
+  float mode_min_width = 64.0f * metrics->effective_scale;
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("none", metrics, mode_min_width),
+              (float)metrics->button_h)),
+          "none", true, state->cache_mode == APP_CACHE_COMPRESSION_NONE)) {
     state->cache_mode = APP_CACHE_COMPRESSION_NONE;
   }
-  if (GuiButton((Rectangle){520, 232, 70, 30}, "zstd")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("zstd", metrics, mode_min_width),
+              (float)metrics->button_h)),
+          "zstd", true, state->cache_mode == APP_CACHE_COMPRESSION_ZSTD)) {
     state->cache_mode = APP_CACHE_COMPRESSION_ZSTD;
   }
-  if (GuiButton((Rectangle){600, 232, 70, 30}, "auto")) {
+  if (GuiButtonStyled(
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, GuiLayoutButtonWidth("auto", metrics, mode_min_width),
+              (float)metrics->button_h)),
+          "auto", true, state->cache_mode == APP_CACHE_COMPRESSION_AUTO)) {
     state->cache_mode = APP_CACHE_COMPRESSION_AUTO;
   }
 
-  GuiLabel((Rectangle){690, 236, 80, 24}, "Level");
+  GuiLayoutRect level_label =
+      GuiLayoutPlaceFixed(&ctx, LabelWidth("Level", metrics), (float)metrics->label_h);
+  GuiLabel(ToRayRect(level_label), "Level");
   {
     char lvl_buf[8] = {0};
     snprintf(lvl_buf, sizeof(lvl_buf), "%d", state->cache_level);
-    if (GuiTextBox((Rectangle){760, 232, 60, 30}, lvl_buf, sizeof(lvl_buf),
-                   true)) {
+    GuiLayoutRect level_input = GuiLayoutPlaceFixed(
+        &ctx, (float)metrics->min_numeric_input_w, (float)metrics->input_h);
+    if (GuiTextBox(ToRayRect(level_input), lvl_buf, sizeof(lvl_buf), true)) {
       int parsed = atoi(lvl_buf);
       if (parsed >= 1 && parsed <= 19) {
         state->cache_level = parsed;
@@ -156,21 +230,50 @@ void GuiDrawScanPanel(GuiUiState *state) {
     }
   }
 
-  if (GuiButton((Rectangle){30, 282, 140, 36}, "Scan/Cache")) {
+  GuiLayoutNextLine(&ctx);
+
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(&ctx, ActionButtonWidth("Scan/Cache", metrics),
+                                        (float)metrics->button_h)),
+          "Scan/Cache")) {
     GuiUiStartTask(state, GUI_TASK_SCAN);
   }
-  if (GuiButton((Rectangle){190, 282, 140, 36}, "ML Enrich")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(&ctx, ActionButtonWidth("ML Enrich", metrics),
+                                        (float)metrics->button_h)),
+          "ML Enrich")) {
     GuiUiStartTask(state, GUI_TASK_ML_ENRICH);
   }
-  if (GuiButton((Rectangle){350, 282, 180, 36}, "Save Paths")) {
-    GuiUiPersistPaths(state);
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(&ctx, ActionButtonWidth("Save Paths", metrics),
+                                        (float)metrics->button_h)),
+          "Save Paths")) {
+    GuiUiPersistState(state);
     strncpy(state->banner_message, "Paths saved", sizeof(state->banner_message) - 1);
   }
-  if (GuiButton((Rectangle){550, 282, 180, 36}, "Reset Saved Paths")) {
+  if (ActionButton(
+          state,
+          ToRayRect(GuiLayoutPlaceFixed(
+              &ctx, ActionButtonWidth("Reset Saved Paths", metrics),
+              (float)metrics->button_h)),
+          "Reset Saved Paths")) {
     GuiStateReset();
     state->gallery_dir[0] = '\0';
     state->env_dir[0] = '\0';
+    state->ui_scale_percent = GUI_STATE_DEFAULT_UI_SCALE_PERCENT;
+    state->window_width = GUI_STATE_DEFAULT_WINDOW_WIDTH;
+    state->window_height = GUI_STATE_DEFAULT_WINDOW_HEIGHT;
     strncpy(state->banner_message, "Saved GUI state reset",
             sizeof(state->banner_message) - 1);
   }
+
+#if defined(CGO_GUI_LAYOUT_DEBUG)
+  if (!GuiLayoutContextIsValid(&ctx)) {
+    strncpy(state->banner_message, "Layout warning: scan panel overlap/bounds",
+            sizeof(state->banner_message) - 1);
+  }
+#endif
 }

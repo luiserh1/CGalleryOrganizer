@@ -64,6 +64,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--cache-compress auto` threshold selection
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
 - GUI state persistence and reset behavior (`src/gui/gui_state.c`)
+- GUI layout math and no-overlap behavior (`src/gui/gui_layout.c`)
 
 ## Manual Smoke Checklist
 
@@ -166,8 +167,13 @@ Expected:
 - manual gallery/env path inputs are editable.
 - scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
 - background tasks show progress and can be cancelled.
-- saved paths persist between runs.
-- `--reset-state` clears saved paths.
+- active tab and selected mode controls are visually highlighted.
+- while a task is running, task-start action buttons are disabled until completion/cancel.
+- resizing down to minimum window size keeps controls readable and non-overlapping.
+- maximizing/fullscreen keeps panel layout stable (no overlaps).
+- zoom controls (`A-`, `A+`, `Reset`) change effective UI scale.
+- saved paths, zoom, and last window size persist between runs.
+- `--reset-state` clears saved GUI state.
 
 ## Notes on Test Fragility
 
