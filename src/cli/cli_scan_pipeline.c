@@ -54,7 +54,6 @@ static bool IsCancelled(AppScanContext *ctx) {
   }
   return false;
 }
-
 static void ApplyMlResultToMetadata(ImageMetadata *md, const MlResult *ml) {
   if (!md || !ml) {
     return;
@@ -107,7 +106,6 @@ static void ApplyMlResultToMetadata(ImageMetadata *md, const MlResult *ml) {
     md->mlModelEmbedding[sizeof(md->mlModelEmbedding) - 1] = '\0';
   }
 }
-
 static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *md,
                                       ScanPipelineContext *pipeline) {
   AppScanContext *ctx = pipeline->scan_ctx;
@@ -149,7 +147,6 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
   }
 
   MlResult result = {0};
-
   if (!MlInferImage(absolute_path, requested, requested_count, &result)) {
     pthread_mutex_lock(&pipeline->stats_mutex);
     ctx->ml_failures++;
@@ -284,7 +281,6 @@ static bool ProcessMediaPath(const char *absolute_path,
   }
   return true;
 }
-
 static bool PathListReserve(PathList *list, int new_capacity) {
   if (!list || new_capacity <= list->capacity) {
     return true;
@@ -297,7 +293,6 @@ static bool PathListReserve(PathList *list, int new_capacity) {
   list->capacity = new_capacity;
   return true;
 }
-
 static bool PathListPush(PathList *list, const char *path) {
   if (!list || !path) {
     return false;
@@ -315,7 +310,6 @@ static bool PathListPush(PathList *list, const char *path) {
   list->count++;
   return true;
 }
-
 static void PathListFree(PathList *list) {
   if (!list) {
     return;
@@ -328,7 +322,6 @@ static void PathListFree(PathList *list) {
   list->count = 0;
   list->capacity = 0;
 }
-
 static int ComparePathStrings(const void *a, const void *b) {
   const char *const *pa = (const char *const *)a;
   const char *const *pb = (const char *const *)b;
