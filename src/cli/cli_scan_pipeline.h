@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+typedef bool (*ScanCancelCallback)(void *user_data);
+typedef void (*ScanProgressCallback)(const char *stage, int current, int total,
+                                     void *user_data);
+
 typedef struct {
   bool exhaustive;
   bool ml_enrich;
@@ -14,6 +18,11 @@ typedef struct {
   int ml_files_with_text;
   int ml_files_embedded;
   int ml_failures;
+  bool cancelled;
+  int total_files;
+  ScanCancelCallback cancel_cb;
+  ScanProgressCallback progress_cb;
+  void *callback_user_data;
 } AppScanContext;
 
 typedef struct {

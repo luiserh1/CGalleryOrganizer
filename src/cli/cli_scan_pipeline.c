@@ -33,6 +33,28 @@ typedef struct {
   pthread_mutex_t *failed_mutex;
 } ScanWorkerContext;
 
+static void EmitProgress(AppScanContext *ctx, int current, int total,
+                         const char *message) {
+  if (!ctx || !ctx->progress_cb) {
+    return;
+  }
+  ctx->progress_cb("scan", current, total, ctx->callback_user_data);
+  if (message) {
+    ctx->progress_cb("scan_detail", current, total, ctx->callback_user_data);
+  }
+}
+
+static bool IsCancelled(AppScanContext *ctx) {
+  if (!ctx || !ctx->cancel_cb) {
+    return false;
+  }
+  if (ctx->cancel_cb(ctx->callback_user_data)) {
+    ctx->cancelled = true;
+    return true;
+  }
+  return false;
+}
+
 static void ApplyMlResultToMetadata(ImageMetadata *md, const MlResult *ml) {
   if (!md || !ml) {
     return;
@@ -103,6 +125,10 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
        md->mlEmbeddingBase64 == NULL || md->mlModelEmbedding[0] == '\0');
 
   if (!need_classification && !need_text && !need_embedding) {
+    return;
+  }
+
+  if (IsCancelled(ctx)) {
     return;
   }
 
@@ -332,6 +358,10 @@ static bool WorkerShouldStop(ScanWorkerContext *ctx) {
   bool failed = false;
   pthread_mutex_lock(ctx->failed_mutex);
   failed = *ctx->failed;
+  if (!failed && IsCancelled(ctx->pipeline->scan_ctx)) {
+    *ctx->failed = true;
+    failed = true;
+  }
   pthread_mutex_unlock(ctx->failed_mutex);
   return failed;
 }
@@ -340,6 +370,20 @@ static void WorkerMarkFailed(ScanWorkerContext *ctx) {
   pthread_mutex_lock(ctx->failed_mutex);
   *ctx->failed = true;
   pthread_mutex_unlock(ctx->failed_mutex);
+}
+
+static void WorkerEmitProgress(ScanWorkerContext *ctx) {
+  AppScanContext *scan_ctx = ctx->pipeline->scan_ctx;
+  if (!scan_ctx || !scan_ctx->progress_cb) {
+    return;
+  }
+
+  int scanned = 0;
+  pthread_mutex_lock(&ctx->pipeline->stats_mutex);
+  scanned = ctx->pipeline->stats->files_scanned;
+  pthread_mutex_unlock(&ctx->pipeline->stats_mutex);
+
+  EmitProgress(scan_ctx, scanned, scan_ctx->total_files, NULL);
 }
 
 static void *ScanWorkerRun(void *arg) {
@@ -352,6 +396,8 @@ static void *ScanWorkerRun(void *arg) {
     pthread_mutex_lock(&ctx->pipeline->stats_mutex);
     ctx->pipeline->stats->files_scanned++;
     pthread_mutex_unlock(&ctx->pipeline->stats_mutex);
+
+    WorkerEmitProgress(ctx);
 
     if (!ProcessMediaPath(ctx->paths->items[i], ctx->pipeline)) {
       WorkerMarkFailed(ctx);
@@ -369,6 +415,8 @@ bool CliRunScanPipeline(const char *target_dir, AppScanContext *ctx,
 
   out_stats->files_scanned = 0;
   out_stats->files_cached = 0;
+  ctx->cancelled = false;
+  ctx->total_files = 0;
 
   ScanPipelineContext pipeline = {
       .cache_mutex = PTHREAD_MUTEX_INITIALIZER,
@@ -382,12 +430,22 @@ bool CliRunScanPipeline(const char *target_dir, AppScanContext *ctx,
     return false;
   }
 
+  ctx->total_files = scan_paths.count;
+  EmitProgress(ctx, 0, ctx->total_files, NULL);
+
   bool scan_failed = false;
   if (resolved_jobs <= 1 || scan_paths.count <= 1) {
     for (int i = 0; i < scan_paths.count; i++) {
+      if (IsCancelled(ctx)) {
+        scan_failed = true;
+        break;
+      }
+
       pthread_mutex_lock(&pipeline.stats_mutex);
       pipeline.stats->files_scanned++;
       pthread_mutex_unlock(&pipeline.stats_mutex);
+
+      EmitProgress(ctx, pipeline.stats->files_scanned, ctx->total_files, NULL);
 
       if (!ProcessMediaPath(scan_paths.items[i], &pipeline)) {
         scan_failed = true;
