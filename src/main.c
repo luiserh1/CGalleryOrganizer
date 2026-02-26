@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "duplicate_finder.h"
 #include "fs_utils.h"
@@ -14,6 +15,7 @@
 
 static int g_files_scanned = 0;
 static int g_files_cached = 0;
+static const int k_default_max_jobs = 8;
 
 static const char *k_group_keys[] = {"date", "camera", "format", "orientation",
                                      "resolution"};
@@ -31,6 +33,12 @@ typedef struct {
   int ml_failures;
 } AppScanContext;
 
+typedef struct {
+  char **items;
+  int count;
+  int capacity;
+} PathList;
+
 static void PrintUsage(const char *argv0) {
   printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv0);
   printf("\n");
@@ -45,6 +53,7 @@ static void PrintUsage(const char *argv0) {
          "(default: chunked)\n");
   printf("  --sim-threshold <0..1> Similarity threshold (default: 0.92)\n");
   printf("  --sim-topk <n>    Max neighbors per anchor (default: 5)\n");
+  printf("  --jobs <n|auto>   Worker count for scan/inference (default: auto)\n");
   printf("  --cache-compress <mode> Cache compression mode: none|zstd|auto\n");
   printf("  --cache-compress-level <1..19> Compression level when using zstd "
          "(default: 3)\n");
@@ -328,11 +337,107 @@ static bool BuildSimilarityReportFromCache(const char *report_path,
   return ok;
 }
 
-static bool ScanCallback(const char *absolute_path, void *user_data) {
-  AppScanContext *ctx = (AppScanContext *)user_data;
-  g_files_scanned++;
+static bool PathListReserve(PathList *list, int new_capacity) {
+  if (!list || new_capacity <= list->capacity) {
+    return true;
+  }
+  char **resized = realloc(list->items, sizeof(char *) * (size_t)new_capacity);
+  if (!resized) {
+    return false;
+  }
+  list->items = resized;
+  list->capacity = new_capacity;
+  return true;
+}
 
-  if (FsIsSupportedMedia(absolute_path)) {
+static bool PathListPush(PathList *list, const char *path) {
+  if (!list || !path) {
+    return false;
+  }
+  if (list->count == list->capacity) {
+    int next = list->capacity == 0 ? 128 : list->capacity * 2;
+    if (!PathListReserve(list, next)) {
+      return false;
+    }
+  }
+  list->items[list->count] = strdup(path);
+  if (!list->items[list->count]) {
+    return false;
+  }
+  list->count++;
+  return true;
+}
+
+static void PathListFree(PathList *list) {
+  if (!list) {
+    return;
+  }
+  for (int i = 0; i < list->count; i++) {
+    free(list->items[i]);
+  }
+  free(list->items);
+  list->items = NULL;
+  list->count = 0;
+  list->capacity = 0;
+}
+
+static int ComparePathStrings(const void *a, const void *b) {
+  const char *const *pa = (const char *const *)a;
+  const char *const *pb = (const char *const *)b;
+  return strcmp(*pa, *pb);
+}
+
+static bool CollectPathCallback(const char *absolute_path, void *user_data) {
+  PathList *list = (PathList *)user_data;
+  return PathListPush(list, absolute_path);
+}
+
+static bool CollectSortedPaths(const char *root_dir, PathList *out_paths) {
+  if (!root_dir || !out_paths) {
+    return false;
+  }
+  memset(out_paths, 0, sizeof(PathList));
+  if (!FsWalkDirectory(root_dir, CollectPathCallback, out_paths)) {
+    PathListFree(out_paths);
+    return false;
+  }
+  qsort(out_paths->items, (size_t)out_paths->count, sizeof(char *),
+        ComparePathStrings);
+  return true;
+}
+
+static int ResolveJobsFromString(const char *raw_value, bool *out_valid) {
+  if (out_valid) {
+    *out_valid = true;
+  }
+  if (!raw_value || raw_value[0] == '\0' || strcmp(raw_value, "auto") == 0) {
+    long cores = sysconf(_SC_NPROCESSORS_ONLN);
+    int resolved = (cores > 0) ? (int)cores : 1;
+    if (resolved > k_default_max_jobs) {
+      resolved = k_default_max_jobs;
+    }
+    if (resolved < 1) {
+      resolved = 1;
+    }
+    return resolved;
+  }
+
+  char *endptr = NULL;
+  long parsed = strtol(raw_value, &endptr, 10);
+  if (!endptr || *endptr != '\0' || parsed <= 0 || parsed > 256) {
+    if (out_valid) {
+      *out_valid = false;
+    }
+    return 1;
+  }
+  return (int)parsed;
+}
+
+static bool ProcessMediaPath(const char *absolute_path, AppScanContext *ctx) {
+  if (!FsIsSupportedMedia(absolute_path)) {
+    return true;
+  }
+
     double mod_date = 0;
     long size = 0;
 
@@ -422,8 +527,6 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
       CacheFreeMetadata(&md);
       CacheFreeMetadata(&extracted);
     }
-  }
-
   return true;
 }
 
@@ -437,6 +540,8 @@ int main(int argc, char **argv) {
   bool organize = false;
   bool preview = false;
   bool rollback = false;
+  const char *jobs_arg = "auto";
+  bool jobs_set_by_cli = false;
   float sim_threshold = 0.92f;
   int sim_topk = 5;
   SimilarityMemoryMode sim_memory_mode = SIM_MEMORY_MODE_CHUNKED;
@@ -498,6 +603,13 @@ int main(int argc, char **argv) {
         return 1;
       }
       sim_topk = (int)parsed;
+    } else if (strcmp(argv[i], "--jobs") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --jobs requires n|auto.\n");
+        return 1;
+      }
+      jobs_arg = argv[++i];
+      jobs_set_by_cli = true;
     } else if (strcmp(argv[i], "--sim-memory-mode") == 0) {
       if (i + 1 >= argc) {
         printf("Error: --sim-memory-mode requires eager|chunked.\n");
@@ -621,6 +733,19 @@ int main(int argc, char **argv) {
     printf("Error: --similarity-report requires an environment directory.\n");
     return 1;
   }
+  if (!jobs_set_by_cli) {
+    const char *jobs_env = getenv("CGO_JOBS");
+    if (jobs_env && jobs_env[0] != '\0') {
+      jobs_arg = jobs_env;
+    }
+  }
+
+  bool jobs_valid = false;
+  int resolved_jobs = ResolveJobsFromString(jobs_arg, &jobs_valid);
+  if (!jobs_valid) {
+    printf("Error: --jobs/CGO_JOBS must be 'auto' or a positive integer.\n");
+    return 1;
+  }
 
   char cache_dir[1024];
   char cache_path[1024];
@@ -671,6 +796,7 @@ int main(int argc, char **argv) {
 
   printf("Scanning directory: %s (Exhaustive: %s)\n", target_dir,
          exhaustive ? "ON" : "OFF");
+  printf("Jobs: %d\n", resolved_jobs);
 
   AppScanContext scan_ctx = {.exhaustive = exhaustive,
                              .ml_enrich = ml_enrich,
@@ -683,14 +809,27 @@ int main(int argc, char **argv) {
                              .ml_files_embedded = 0,
                              .ml_failures = 0};
 
-  if (!FsWalkDirectory(target_dir, ScanCallback, &scan_ctx)) {
-    printf("Error: Failed to walk directory '%s'.\n", target_dir);
+  PathList scan_paths = {0};
+  if (!CollectSortedPaths(target_dir, &scan_paths)) {
+    printf("Error: Failed to collect directory paths for '%s'.\n", target_dir);
     if (ml_initialized) {
       MlShutdown();
     }
     CacheShutdown();
     return 1;
   }
+  for (int i = 0; i < scan_paths.count; i++) {
+    g_files_scanned++;
+    if (!ProcessMediaPath(scan_paths.items[i], &scan_ctx)) {
+      PathListFree(&scan_paths);
+      if (ml_initialized) {
+        MlShutdown();
+      }
+      CacheShutdown();
+      return 1;
+    }
+  }
+  PathListFree(&scan_paths);
 
   if (!CacheSave()) {
     printf("Error: Failed to save cache.\n");

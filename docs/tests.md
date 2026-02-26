@@ -54,6 +54,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--similarity-report` generation path
   - `--sim-incremental` reuse/force behavior
   - `--sim-memory-mode` validation + parity path coverage
+  - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
 
 ## Manual Smoke Checklist

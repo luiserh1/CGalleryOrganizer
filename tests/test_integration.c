@@ -652,6 +652,44 @@ void test_cli_similarity_memory_mode_validation(void) {
   ASSERT_TRUE(strstr(output, "--sim-memory-mode must be eager|chunked") != NULL);
 }
 
+void test_cli_jobs_validation(void) {
+  char output[2048];
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer tests/assets/png build/test_cli_jobs_env "
+      "--jobs 0 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output,
+                     "--jobs/CGO_JOBS must be 'auto' or a positive integer") !=
+              NULL);
+}
+
+void test_cli_jobs_env_and_override(void) {
+  system("rm -rf build/test_cli_jobs_src build/test_cli_jobs_env");
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_env"));
+  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
+                      "build/test_cli_jobs_src/a.png"));
+
+  char output[4096] = {0};
+  int code = RunCommandCapture(
+      "CGO_JOBS=3 ./build/bin/gallery_organizer build/test_cli_jobs_src "
+      "build/test_cli_jobs_env 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Jobs: 3") != NULL);
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "CGO_JOBS=3 ./build/bin/gallery_organizer build/test_cli_jobs_src "
+      "build/test_cli_jobs_env --jobs 1 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Jobs: 1") != NULL);
+
+  system("rm -rf build/test_cli_jobs_src build/test_cli_jobs_env");
+}
+
 void test_cli_similarity_memory_mode_parity(void) {
   system("rm -rf build/test_cli_sim_mode_src build/test_cli_sim_mode_env "
          "build/test_cli_sim_mode_models");
@@ -886,6 +924,10 @@ void register_integration_tests(void) {
                 test_cli_similarity_report_requires_env, "integration");
   register_test("test_cli_similarity_memory_mode_validation",
                 test_cli_similarity_memory_mode_validation, "integration");
+  register_test("test_cli_jobs_validation", test_cli_jobs_validation,
+                "integration");
+  register_test("test_cli_jobs_env_and_override",
+                test_cli_jobs_env_and_override, "integration");
   register_test("test_cli_similarity_memory_mode_parity",
                 test_cli_similarity_memory_mode_parity, "integration");
   register_test("test_cli_cache_compress_flag_validation",
