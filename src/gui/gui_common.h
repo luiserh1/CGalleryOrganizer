@@ -4,8 +4,8 @@
 #include <stdbool.h>
 
 #include "app_api.h"
+#include "raylib.h"
 
-#include "gui/gui_layout.h"
 #include "gui/gui_state.h"
 #include "gui/gui_worker.h"
 
@@ -15,6 +15,10 @@ typedef struct {
   char gallery_dir[GUI_STATE_MAX_PATH];
   char env_dir[GUI_STATE_MAX_PATH];
   char group_by[256];
+  char jobs_input[16];
+  char cache_level_input[8];
+  char sim_threshold_input[32];
+  char sim_topk_input[16];
 
   bool exhaustive;
   int jobs;
@@ -25,9 +29,6 @@ typedef struct {
   float sim_threshold;
   int sim_topk;
   AppSimilarityMemoryMode sim_memory_mode;
-  int ui_scale_percent;
-  int window_width;
-  int window_height;
 
   int active_tab;
   GuiTaskSnapshot worker_snapshot;
@@ -38,17 +39,14 @@ typedef struct {
 
 void GuiUiInitDefaults(GuiUiState *state);
 void GuiUiSyncFromStateFile(GuiUiState *state);
-void GuiUiPersistState(const GuiUiState *state);
+bool GuiUiPersistState(GuiUiState *state);
+bool GuiUiHasUnsavedChanges(const GuiUiState *state);
 
 bool GuiUiStartTask(GuiUiState *state, GuiTaskType task_type);
 
-void GuiDrawScanPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
-                      const GuiLayoutMetrics *metrics);
-void GuiDrawSimilarityPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
-                            const GuiLayoutMetrics *metrics);
-void GuiDrawOrganizePanel(GuiUiState *state, GuiLayoutRect panel_bounds,
-                          const GuiLayoutMetrics *metrics);
-void GuiDrawDuplicatesPanel(GuiUiState *state, GuiLayoutRect panel_bounds,
-                            const GuiLayoutMetrics *metrics);
+void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds);
+void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds);
+void GuiDrawOrganizePanel(GuiUiState *state, Rectangle panel_bounds);
+void GuiDrawDuplicatesPanel(GuiUiState *state, Rectangle panel_bounds);
 
 #endif // GUI_COMMON_H

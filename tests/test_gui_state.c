@@ -5,6 +5,18 @@
 #include "gui/gui_state.h"
 #include "test_framework.h"
 
+static void ReadFileText(const char *path, char *out, size_t out_size) {
+  ASSERT_TRUE(path != NULL);
+  ASSERT_TRUE(out != NULL);
+  ASSERT_TRUE(out_size > 0);
+
+  FILE *f = fopen(path, "rb");
+  ASSERT_TRUE(f != NULL);
+  size_t read = fread(out, 1, out_size - 1, f);
+  fclose(f);
+  out[read] = '\0';
+}
+
 void test_gui_state_roundtrip_with_override(void) {
   system("rm -rf build/test_gui_state");
   system("mkdir -p build/test_gui_state");
@@ -13,9 +25,6 @@ void test_gui_state_roundtrip_with_override(void) {
   GuiState in = {0};
   strncpy(in.gallery_dir, "/tmp/gallery_a", sizeof(in.gallery_dir) - 1);
   strncpy(in.env_dir, "/tmp/env_a", sizeof(in.env_dir) - 1);
-  in.ui_scale_percent = 130;
-  in.window_width = 1440;
-  in.window_height = 900;
 
   ASSERT_TRUE(GuiStateSave(&in));
 
@@ -23,9 +32,14 @@ void test_gui_state_roundtrip_with_override(void) {
   ASSERT_TRUE(GuiStateLoad(&out));
   ASSERT_STR_EQ(in.gallery_dir, out.gallery_dir);
   ASSERT_STR_EQ(in.env_dir, out.env_dir);
-  ASSERT_EQ(130, out.ui_scale_percent);
-  ASSERT_EQ(1440, out.window_width);
-  ASSERT_EQ(900, out.window_height);
+
+  char saved_json[2048] = {0};
+  ReadFileText("build/test_gui_state/state.json", saved_json, sizeof(saved_json));
+  ASSERT_TRUE(strstr(saved_json, "\"galleryDir\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "\"envDir\"") != NULL);
+  ASSERT_TRUE(strstr(saved_json, "uiScalePercent") == NULL);
+  ASSERT_TRUE(strstr(saved_json, "windowWidth") == NULL);
+  ASSERT_TRUE(strstr(saved_json, "windowHeight") == NULL);
 
   ASSERT_TRUE(GuiStateReset());
   ASSERT_FALSE(GuiStateLoad(&out));
@@ -49,39 +63,24 @@ void test_gui_state_legacy_defaults(void) {
 
   FILE *f = fopen("build/test_gui_state/state.json", "wb");
   ASSERT_TRUE(f != NULL);
-  fputs("{\"galleryDir\":\"/tmp/g\",\"envDir\":\"/tmp/e\"}", f);
+  fputs("{\"galleryDir\":\"/tmp/g\",\"envDir\":\"/tmp/e\","
+        "\"uiScalePercent\":140,\"windowWidth\":1500,\"windowHeight\":900}",
+        f);
   fclose(f);
 
   GuiState loaded = {0};
   ASSERT_TRUE(GuiStateLoad(&loaded));
   ASSERT_STR_EQ("/tmp/g", loaded.gallery_dir);
   ASSERT_STR_EQ("/tmp/e", loaded.env_dir);
-  ASSERT_EQ(GUI_STATE_DEFAULT_UI_SCALE_PERCENT, loaded.ui_scale_percent);
-  ASSERT_EQ(GUI_STATE_DEFAULT_WINDOW_WIDTH, loaded.window_width);
-  ASSERT_EQ(GUI_STATE_DEFAULT_WINDOW_HEIGHT, loaded.window_height);
 
-  unsetenv("CGO_GUI_STATE_PATH");
-  system("rm -rf build/test_gui_state");
-}
+  ASSERT_TRUE(GuiStateSave(&loaded));
 
-void test_gui_state_clamps_invalid_values(void) {
-  system("rm -rf build/test_gui_state");
-  system("mkdir -p build/test_gui_state");
-  ASSERT_EQ(0, setenv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json", 1));
-
-  GuiState in = {0};
-  strncpy(in.gallery_dir, "/tmp/gallery_invalid", sizeof(in.gallery_dir) - 1);
-  strncpy(in.env_dir, "/tmp/env_invalid", sizeof(in.env_dir) - 1);
-  in.ui_scale_percent = 999;
-  in.window_width = 0;
-  in.window_height = -20;
-  ASSERT_TRUE(GuiStateSave(&in));
-
-  GuiState out = {0};
-  ASSERT_TRUE(GuiStateLoad(&out));
-  ASSERT_EQ(GUI_STATE_MAX_UI_SCALE_PERCENT, out.ui_scale_percent);
-  ASSERT_EQ(GUI_STATE_DEFAULT_WINDOW_WIDTH, out.window_width);
-  ASSERT_EQ(GUI_STATE_DEFAULT_WINDOW_HEIGHT, out.window_height);
+  char rewritten_json[2048] = {0};
+  ReadFileText("build/test_gui_state/state.json", rewritten_json,
+               sizeof(rewritten_json));
+  ASSERT_TRUE(strstr(rewritten_json, "uiScalePercent") == NULL);
+  ASSERT_TRUE(strstr(rewritten_json, "windowWidth") == NULL);
+  ASSERT_TRUE(strstr(rewritten_json, "windowHeight") == NULL);
 
   unsetenv("CGO_GUI_STATE_PATH");
   system("rm -rf build/test_gui_state");
@@ -94,6 +93,4 @@ void register_gui_state_tests(void) {
                 test_gui_state_resolve_default_path, "unit");
   register_test("test_gui_state_legacy_defaults",
                 test_gui_state_legacy_defaults, "unit");
-  register_test("test_gui_state_clamps_invalid_values",
-                test_gui_state_clamps_invalid_values, "unit");
 }

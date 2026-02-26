@@ -6,6 +6,17 @@ DEPFLAGS = -MMD -MP
 LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "") $(shell pkg-config --libs libzstd 2>/dev/null || pkg-config --libs zstd 2>/dev/null || echo "") -lm -pthread
 RAYLIB_CFLAGS = $(shell pkg-config --cflags raylib 2>/dev/null || echo "")
 RAYLIB_LIBS = $(shell pkg-config --libs raylib 2>/dev/null || echo "")
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Darwin)
+APP_API_LIB_EXT = dylib
+APP_API_LIB_LDFLAGS = -dynamiclib
+else
+APP_API_LIB_EXT = so
+APP_API_LIB_LDFLAGS = -shared
+CFLAGS += -fPIC
+CXXFLAGS += -fPIC
+endif
 
 # Directories
 BUILD_DIR = build
@@ -23,7 +34,7 @@ CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 # Generate object file paths in the OBJ_DIR
 OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 
-TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/gui/gui_state.c src/gui/gui_layout.c
+TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/gui/gui_state.c src/gui/frontends/functional/gui_fixed_layout.c
 TEST_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
 # Generate test object file paths in TEST_OBJ_DIR
@@ -38,12 +49,19 @@ BENCH_SUPPORT_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(BENCH_SUPPORT_SRCS))
 BENCHMARK_BIN = $(TEST_BIN_DIR)/benchmark_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
-GUI_SRCS = $(wildcard src/gui/*.c)
+GUI_SRC_DIRS = src/gui src/gui/core src/gui/frontends/functional
+GUI_SRCS = $(wildcard $(addsuffix /*.c, $(GUI_SRC_DIRS)))
 GUI_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(COMMON_C_SRCS) $(GUI_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 GUI_BIN = $(BIN_DIR)/gallery_organizer_gui
 $(GUI_OBJS): CFLAGS += $(RAYLIB_CFLAGS)
+APP_API_LIB = $(BUILD_DIR)/lib/libcgallery_app_api.$(APP_API_LIB_EXT)
+APP_API_SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/app
+APP_API_LIB_SRCS = $(wildcard $(addsuffix /*.c, $(APP_API_SRC_DIRS))) vendor/cJSON.c vendor/md5.c vendor/sha256.c
+APP_API_LIB_SRCS += src/cli/cli_scan_pipeline.c
+APP_API_LIB_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(APP_API_SRC_DIRS)))
+APP_API_LIB_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(APP_API_LIB_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(APP_API_LIB_CXX_SRCS))
 
-.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models gui run-gui check-gui-deps help
+.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models gui run-gui check-gui-deps app-api-lib help
 
 all: $(TARGET)
 
@@ -91,6 +109,8 @@ gui: check-gui-deps $(GUI_BIN)
 run-gui: check-gui-deps $(GUI_BIN)
 	@./$(GUI_BIN)
 
+app-api-lib: $(APP_API_LIB)
+
 check-gui-deps:
 	@if ! pkg-config --exists raylib; then \
 		echo "Error: raylib not found. Install raylib and ensure pkg-config can resolve it."; \
@@ -108,6 +128,10 @@ $(BENCHMARK_BIN): $(TEST_OBJS) $(BENCHMARK_RUNNER_OBJ) $(BENCH_SUPPORT_OBJS)
 $(GUI_BIN): $(GUI_OBJS)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(RAYLIB_LIBS)
+
+$(APP_API_LIB): $(APP_API_LIB_OBJS)
+	@mkdir -p $(BUILD_DIR)/lib
+	$(CXX) $(APP_API_LIB_LDFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
 	rm -rf $(OBJ_DIR)
@@ -157,3 +181,4 @@ help:
 	@echo "  make models     - Download and verify ML model artifacts into build/models"
 	@echo "  make gui        - Build GUI frontend (requires raylib)"
 	@echo "  make run-gui    - Build and run GUI frontend"
+	@echo "  make app-api-lib - Build shared app API library for native frontends"
