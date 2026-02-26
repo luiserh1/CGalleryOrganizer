@@ -273,15 +273,6 @@ For every merged milestone branch:
 
 ---
 
-## Version Mapping (Corrected)
-
-- `v0.4.2`: incremental similarity + compression auto mode
-- `v0.4.3`: similarity memory optimization
-- `v0.4.4`: parallel pipeline
-- benchmark-methodology branch: non-versioned merge path
-
----
-
 ## v0.5.0+ Scope: Interactive UI
 
 ### Primary Goal
