@@ -51,6 +51,15 @@ Priority order for new integrations:
   - Provider abstraction: `include/ml_provider.h`
   - ONNX provider: `src/ml/providers/onnx_provider.c`
 
+### 3. zstd (C library, optional)
+- Purpose: optional whole-file cache compression (`--cache-compress zstd`).
+- Installation:
+  - macOS: `brew install zstd`
+  - Linux (Debian/Ubuntu): `apt install libzstd-dev`
+- Integration points:
+  - Cache codec: `src/core/cache_codec.c`
+  - Cache runtime: `src/core/gallery_cache.c`
+
 ## Model Assets (Not in Git)
 
 Model binaries are downloaded to `build/models/` and are not tracked in git.

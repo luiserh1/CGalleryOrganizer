@@ -13,6 +13,12 @@ make test
 # Build binaries only
 make
 
+# Run benchmark workloads (appends JSONL entries)
+make benchmark
+
+# Run baseline + compressed profile
+make benchmark-compare
+
 # Clean binaries and generated build artifacts
 make clean
 ```
@@ -100,6 +106,14 @@ Expected: `build/smoke_env/similarity_report.json` exists and includes `groupCou
 python3 -m http.server 8000
 ```
 Then open `/tools/similarity_viewer/`, click **Load Default** (after copying report to `build/similarity_report.json`) or upload `build/smoke_env/similarity_report.json`.
+
+### 10. Benchmark smoke
+```bash
+BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile uncompressed --workload cache_metadata_only
+```
+Expected:
+- `build/benchmark_history.jsonl` appended with one JSON object.
+- `build/benchmark_last.json` refreshed.
 
 ## Notes on Test Fragility
 

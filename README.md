@@ -2,7 +2,7 @@
 
 CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extracting metadata, caching results, finding exact duplicates, organizing files, enriching metadata with local ML inference, and generating similarity reports.
 
-## Key Features (v0.4.0)
+## Key Features (v0.4.1)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -13,6 +13,8 @@ CGalleryOrganizer is a local-first C/C++ CLI for scanning media folders, extract
   - text detection
 - Similarity workflow (`--similarity-report`) using embedding vectors and cosine similarity grouping.
 - Manifest-driven model download and checksum validation (`make models`).
+- Benchmark workloads with JSONL history output (`make benchmark`, `make benchmark-compare`).
+- Optional whole-file cache compression (`--cache-compress zstd`).
 
 ## Build
 
@@ -32,7 +34,7 @@ make
 make test
 ```
 
-## Model Setup (0.3.0)
+## Model Setup (0.4.x)
 
 Download model artifacts locally:
 ```bash
@@ -55,6 +57,8 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 - `--similarity-report`: generate `<env_dir>/similarity_report.json` using embeddings.
 - `--sim-threshold <0..1>`: minimum cosine similarity (default `0.92`).
 - `--sim-topk <n>`: max neighbors per anchor group (default `5`).
+- `--cache-compress <mode>`: cache encoding mode (`none` or `zstd`).
+- `--cache-compress-level <1..19>`: zstd level (default `3`).
 - `--preview`: build and print organization plan without moving files.
 - `--organize`: execute organization plan after confirmation.
 - `--group-by <keys>`: grouping keys list. Allowed keys: `date,camera,format,orientation,resolution`.
@@ -87,6 +91,36 @@ Override at runtime with `CGO_MODELS_ROOT=/custom/path`.
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --similarity-report --sim-threshold 0.92 --sim-topk 5
 ```
+
+### Compressed cache
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --cache-compress zstd --cache-compress-level 3
+```
+
+## Benchmarking
+
+```bash
+make benchmark
+make benchmark-compare
+```
+
+Outputs:
+- `build/benchmark_history.jsonl`
+- `build/benchmark_last.json`
+
+`benchmark_history.jsonl` records:
+- `timestampUtc`, `gitCommit`, `profile`, `workload`
+- `datasetPath`, `datasetFileCount`
+- `cachePath`, `cacheBytes`
+- `timeMs`
+- `rssStartBytes`, `rssEndBytes`, `rssDeltaBytes`, `peakRssBytes`
+- `success`, `error`
+- optional `similarityReportBytes` for `similarity_search`
+
+Suggested comparison rubric (zstd vs uncompressed):
+- `win`: disk reduction >= 25% and latency increase <= 15%
+- `mixed`: all other balanced outcomes
+- `loss`: latency increase > 30% and disk gain < 15%
 
 ### Preview with compound grouping
 ```bash

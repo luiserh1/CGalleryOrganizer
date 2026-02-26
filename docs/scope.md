@@ -127,7 +127,7 @@ Introduce a modular local ML foundation with a provider-agnostic API so the core
 
 ---
 
-## v0.4.0 Scope: Similarity Engine + Dedicated Similarity Tool (Planned)
+## v0.4.0 Scope: Similarity Engine + Dedicated Similarity Tool (Completed)
 
 ### Primary Goal
 Deliver a minimal but complete similarity workflow on top of the local ML foundation: embeddings, report generation, and dedicated report exploration UI.
@@ -146,6 +146,32 @@ Deliver a minimal but complete similarity workflow on top of the local ML founda
   - default load from `build/similarity_report.json`
   - upload/filter/search/sort/export
 - Add embedding model entry in `models/manifest.json` and attribution in `docs/model_assets.md`.
+
+---
+
+## v0.4.1 Scope: Performance Baseline + Optional Cache Compression (Planned)
+
+### Primary Goal
+Measure and compare performance characteristics across key workloads, then introduce optional cache compression with quantified tradeoffs.
+
+### Features
+- Dedicated benchmark runner with three workloads:
+  - `cache_metadata_only`
+  - `cache_full_with_embeddings`
+  - `similarity_search`
+- Structured JSONL benchmark history:
+  - `build/benchmark_history.jsonl`
+  - `build/benchmark_last.json`
+- Metrics captured per workload:
+  - time
+  - disk cost
+  - main-memory cost (RSS start/end/delta + peak)
+- Optional cache compression:
+  - `--cache-compress none|zstd`
+  - `--cache-compress-level 1..19`
+- Compare modes via:
+  - `make benchmark`
+  - `make benchmark-compare`
 
 ---
 
