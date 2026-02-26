@@ -1,604 +1,19 @@
-#include <ctype.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
+#include "cli/cli_args.h"
+#include "cli/cli_commands.h"
+#include "cli/cli_scan_pipeline.h"
 #include "duplicate_finder.h"
 #include "fs_utils.h"
 #include "gallery_cache.h"
-#include "hash_utils.h"
-#include "metadata_parser.h"
 #include "ml_api.h"
 #include "organizer.h"
 #include "similarity_engine.h"
 
-static int g_files_scanned = 0;
-static int g_files_cached = 0;
-static const int k_default_max_jobs = 8;
-static pthread_mutex_t g_cache_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t g_stats_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-static const char *k_group_keys[] = {"date", "camera", "format", "orientation",
-                                     "resolution"};
-
-typedef struct {
-  bool exhaustive;
-  bool ml_enrich;
-  bool similarity_report;
-  bool sim_incremental;
-  bool ml_enabled;
-  int ml_files_evaluated;
-  int ml_files_classified;
-  int ml_files_with_text;
-  int ml_files_embedded;
-  int ml_failures;
-} AppScanContext;
-
-typedef struct {
-  char **items;
-  int count;
-  int capacity;
-} PathList;
-
-typedef struct {
-  PathList *paths;
-  int start;
-  int end;
-  AppScanContext *ctx;
-  bool *failed;
-  pthread_mutex_t *failed_mutex;
-} ScanWorkerContext;
-
-static int ComparePathStrings(const void *a, const void *b);
-
-static void PrintUsage(const char *argv0) {
-  printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv0);
-  printf("\n");
-  printf("Options:\n");
-  printf("  -h, --help        Show this help message and exit\n");
-  printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
-  printf("  --ml-enrich       Run local ML enrichment (classification + text detection)\n");
-  printf("  --similarity-report Build similarity report using embeddings\n");
-  printf("  --sim-incremental <on|off> Reuse valid embeddings on similarity runs "
-         "(default: on)\n");
-  printf("  --sim-memory-mode <eager|chunked> Similarity embedding decode mode "
-         "(default: chunked)\n");
-  printf("  --sim-threshold <0..1> Similarity threshold (default: 0.92)\n");
-  printf("  --sim-topk <n>    Max neighbors per anchor (default: 5)\n");
-  printf("  --jobs <n|auto>   Worker count for scan/inference (default: auto)\n");
-  printf("  --cache-compress <mode> Cache compression mode: none|zstd|auto\n");
-  printf("  --cache-compress-level <1..19> Compression level when using zstd "
-         "(default: 3)\n");
-  printf("  --organize        Execute metadata-based restructuring\n");
-  printf("  --group-by <keys> Set grouping fields (e.g. 'camera,date'). "
-         "Default: date\n");
-  printf("  --preview         Print restructuring plan without executing\n");
-  printf("  --rollback        Undo a restructuring operation using the manifest\n");
-  printf("\nRollback usage:\n");
-  printf("  %s <scan_dir> <env_dir> --rollback\n", argv0);
-  printf("  %s <env_dir> --rollback\n", argv0);
-}
-
-static bool IsValidGroupKey(const char *key) {
-  for (size_t i = 0; i < sizeof(k_group_keys) / sizeof(k_group_keys[0]); i++) {
-    if (strcmp(key, k_group_keys[i]) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static char *TrimInPlace(char *s) {
-  while (*s != '\0' && isspace((unsigned char)*s)) {
-    s++;
-  }
-
-  if (*s == '\0') {
-    return s;
-  }
-
-  char *end = s + strlen(s) - 1;
-  while (end > s && isspace((unsigned char)*end)) {
-    *end = '\0';
-    end--;
-  }
-  return s;
-}
-
-static bool ParseGroupByKeys(const char *group_by_arg, const char **out_keys,
-                             int max_keys, int *out_count,
-                             char **out_owned_buffer) {
-  if (!out_keys || !out_count || !out_owned_buffer || max_keys <= 0) {
-    return false;
-  }
-
-  *out_count = 0;
-  *out_owned_buffer = NULL;
-
-  if (!group_by_arg) {
-    out_keys[0] = "date";
-    *out_count = 1;
-    return true;
-  }
-
-  char *owned = strdup(group_by_arg);
-  if (!owned) {
-    return false;
-  }
-
-  char *cursor = owned;
-  while (true) {
-    char *comma = strchr(cursor, ',');
-    if (comma) {
-      *comma = '\0';
-    }
-
-    char *trimmed = TrimInPlace(cursor);
-    if (*trimmed == '\0') {
-      printf("Error: --group-by cannot include empty keys. "
-             "Allowed keys: date,camera,format,orientation,resolution\n");
-      free(owned);
-      return false;
-    }
-
-    if (!IsValidGroupKey(trimmed)) {
-      printf("Error: Invalid --group-by key '%s'. "
-             "Allowed keys: date,camera,format,orientation,resolution\n",
-             trimmed);
-      free(owned);
-      return false;
-    }
-
-    if (*out_count >= max_keys) {
-      printf("Error: Too many --group-by keys (max %d).\n", max_keys);
-      free(owned);
-      return false;
-    }
-
-    out_keys[*out_count] = trimmed;
-    (*out_count)++;
-
-    if (!comma) {
-      break;
-    }
-    cursor = comma + 1;
-  }
-
-  *out_owned_buffer = owned;
-  return true;
-}
-
-static const char *ResolveRollbackEnvDir(const char *first_positional,
-                                         const char *second_positional) {
-  if (second_positional && second_positional[0] != '\0') {
-    return second_positional;
-  }
-  if (first_positional && first_positional[0] != '\0') {
-    return first_positional;
-  }
-  return NULL;
-}
-
-static void ApplyMlResultToMetadata(ImageMetadata *md, const MlResult *ml) {
-  if (!md || !ml) {
-    return;
-  }
-
-  if (ml->has_classification && ml->topk_count > 0) {
-    strncpy(md->mlPrimaryClass, ml->topk[0].label,
-            sizeof(md->mlPrimaryClass) - 1);
-    md->mlPrimaryClass[sizeof(md->mlPrimaryClass) - 1] = '\0';
-    md->mlPrimaryClassConfidence = ml->topk[0].confidence;
-  }
-
-  md->mlHasText = ml->has_text_detection && ml->text_box_count > 0;
-  md->mlTextBoxCount = ml->text_box_count;
-
-  if (ml->model_id_classification[0] != '\0') {
-    strncpy(md->mlModelClassification, ml->model_id_classification,
-            sizeof(md->mlModelClassification) - 1);
-    md->mlModelClassification[sizeof(md->mlModelClassification) - 1] = '\0';
-  }
-
-  if (ml->model_id_text_detection[0] != '\0') {
-    strncpy(md->mlModelTextDetection, ml->model_id_text_detection,
-            sizeof(md->mlModelTextDetection) - 1);
-    md->mlModelTextDetection[sizeof(md->mlModelTextDetection) - 1] = '\0';
-  }
-
-  if (ml->provider_raw_json) {
-    if (md->mlRawJson) {
-      free(md->mlRawJson);
-    }
-    md->mlRawJson = strdup(ml->provider_raw_json);
-  }
-
-  if (ml->has_embedding && ml->embedding && ml->embedding_dim > 0) {
-    char *encoded = NULL;
-    if (SimilarityEncodeEmbeddingBase64(ml->embedding, ml->embedding_dim,
-                                        &encoded)) {
-      if (md->mlEmbeddingBase64) {
-        free(md->mlEmbeddingBase64);
-      }
-      md->mlEmbeddingBase64 = encoded;
-      md->mlEmbeddingDim = ml->embedding_dim;
-    }
-  }
-
-  if (ml->model_id_embedding[0] != '\0') {
-    strncpy(md->mlModelEmbedding, ml->model_id_embedding,
-            sizeof(md->mlModelEmbedding) - 1);
-    md->mlModelEmbedding[sizeof(md->mlModelEmbedding) - 1] = '\0';
-  }
-}
-
-static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *md,
-                                      AppScanContext *ctx) {
-  if (!ctx || !md || !ctx->ml_enabled ||
-      (!ctx->ml_enrich && !ctx->similarity_report)) {
-    return;
-  }
-
-  bool need_classification =
-      ctx->ml_enrich && md->mlModelClassification[0] == '\0';
-  bool need_text = ctx->ml_enrich && md->mlModelTextDetection[0] == '\0';
-  bool need_embedding =
-      ctx->similarity_report &&
-      (!ctx->sim_incremental || md->mlEmbeddingDim <= 0 ||
-       md->mlEmbeddingBase64 == NULL || md->mlModelEmbedding[0] == '\0');
-
-  if (!need_classification && !need_text && !need_embedding) {
-    return;
-  }
-
-  pthread_mutex_lock(&g_stats_mutex);
-  ctx->ml_files_evaluated++;
-  pthread_mutex_unlock(&g_stats_mutex);
-
-  MlFeature requested[3] = {0};
-  int requested_count = 0;
-  if (need_classification) {
-    requested[requested_count++] = ML_FEATURE_CLASSIFICATION;
-  }
-  if (need_text) {
-    requested[requested_count++] = ML_FEATURE_TEXT_DETECTION;
-  }
-  if (need_embedding) {
-    requested[requested_count++] = ML_FEATURE_EMBEDDING;
-  }
-
-  MlResult result = {0};
-
-  if (!MlInferImage(absolute_path, requested, requested_count, &result)) {
-    pthread_mutex_lock(&g_stats_mutex);
-    ctx->ml_failures++;
-    pthread_mutex_unlock(&g_stats_mutex);
-    return;
-  }
-
-  ApplyMlResultToMetadata(md, &result);
-  pthread_mutex_lock(&g_stats_mutex);
-  if (result.has_classification && result.topk_count > 0) {
-    ctx->ml_files_classified++;
-  }
-  if (result.has_text_detection && result.text_box_count > 0) {
-    ctx->ml_files_with_text++;
-  }
-  if (result.has_embedding && result.embedding_dim > 0) {
-    ctx->ml_files_embedded++;
-  }
-  pthread_mutex_unlock(&g_stats_mutex);
-
-  MlFreeResult(&result);
-}
-
-static bool BuildSimilarityReportFromCache(const char *report_path,
-                                           float threshold, int topk) {
-  if (!report_path) {
-    return false;
-  }
-
-  int key_count = 0;
-  char **keys = CacheGetAllKeys(&key_count);
-  if (key_count <= 0) {
-    SimilarityReport empty = {0};
-    if (!SimilarityBuildReport("embed-default", threshold, topk, NULL, 0,
-                               &empty)) {
-      CacheFreeKeys(keys, key_count);
-      return false;
-    }
-    bool written = SimilarityWriteReportJson(report_path, &empty);
-    SimilarityFreeReport(&empty);
-    CacheFreeKeys(keys, key_count);
-    return written;
-  }
-  if (!keys) {
-    return false;
-  }
-  qsort(keys, (size_t)key_count, sizeof(char *), ComparePathStrings);
-
-  ImageMetadata *entries = calloc((size_t)key_count, sizeof(ImageMetadata));
-  if (!entries) {
-    CacheFreeKeys(keys, key_count);
-    return false;
-  }
-
-  int usable_count = 0;
-  for (int i = 0; i < key_count; i++) {
-    ImageMetadata md = {0};
-    if (!CacheGetRawEntry(keys[i], &md)) {
-      continue;
-    }
-    if (md.mlEmbeddingDim > 0 && md.mlEmbeddingBase64 &&
-        md.mlModelEmbedding[0] != '\0') {
-      entries[usable_count++] = md;
-    } else {
-      CacheFreeMetadata(&md);
-    }
-  }
-
-  SimilarityReport report = {0};
-  const char *model_id =
-      usable_count > 0 ? entries[0].mlModelEmbedding : "embed-default";
-  bool ok = SimilarityBuildReport(model_id, threshold, topk, entries,
-                                  usable_count, &report);
-  if (ok) {
-    ok = SimilarityWriteReportJson(report_path, &report);
-  }
-
-  SimilarityFreeReport(&report);
-  for (int i = 0; i < usable_count; i++) {
-    CacheFreeMetadata(&entries[i]);
-  }
-
-  free(entries);
-  CacheFreeKeys(keys, key_count);
-  return ok;
-}
-
-static bool PathListReserve(PathList *list, int new_capacity) {
-  if (!list || new_capacity <= list->capacity) {
-    return true;
-  }
-  char **resized = realloc(list->items, sizeof(char *) * (size_t)new_capacity);
-  if (!resized) {
-    return false;
-  }
-  list->items = resized;
-  list->capacity = new_capacity;
-  return true;
-}
-
-static bool PathListPush(PathList *list, const char *path) {
-  if (!list || !path) {
-    return false;
-  }
-  if (list->count == list->capacity) {
-    int next = list->capacity == 0 ? 128 : list->capacity * 2;
-    if (!PathListReserve(list, next)) {
-      return false;
-    }
-  }
-  list->items[list->count] = strdup(path);
-  if (!list->items[list->count]) {
-    return false;
-  }
-  list->count++;
-  return true;
-}
-
-static void PathListFree(PathList *list) {
-  if (!list) {
-    return;
-  }
-  for (int i = 0; i < list->count; i++) {
-    free(list->items[i]);
-  }
-  free(list->items);
-  list->items = NULL;
-  list->count = 0;
-  list->capacity = 0;
-}
-
-static int ComparePathStrings(const void *a, const void *b) {
-  const char *const *pa = (const char *const *)a;
-  const char *const *pb = (const char *const *)b;
-  return strcmp(*pa, *pb);
-}
-
-static bool CollectPathCallback(const char *absolute_path, void *user_data) {
-  PathList *list = (PathList *)user_data;
-  return PathListPush(list, absolute_path);
-}
-
-static bool CollectSortedPaths(const char *root_dir, PathList *out_paths) {
-  if (!root_dir || !out_paths) {
-    return false;
-  }
-  memset(out_paths, 0, sizeof(PathList));
-  if (!FsWalkDirectory(root_dir, CollectPathCallback, out_paths)) {
-    PathListFree(out_paths);
-    return false;
-  }
-  qsort(out_paths->items, (size_t)out_paths->count, sizeof(char *),
-        ComparePathStrings);
-  return true;
-}
-
-static int ResolveJobsFromString(const char *raw_value, bool *out_valid) {
-  if (out_valid) {
-    *out_valid = true;
-  }
-  if (!raw_value || raw_value[0] == '\0' || strcmp(raw_value, "auto") == 0) {
-    long cores = sysconf(_SC_NPROCESSORS_ONLN);
-    int resolved = (cores > 0) ? (int)cores : 1;
-    if (resolved > k_default_max_jobs) {
-      resolved = k_default_max_jobs;
-    }
-    if (resolved < 1) {
-      resolved = 1;
-    }
-    return resolved;
-  }
-
-  char *endptr = NULL;
-  long parsed = strtol(raw_value, &endptr, 10);
-  if (!endptr || *endptr != '\0' || parsed <= 0 || parsed > 256) {
-    if (out_valid) {
-      *out_valid = false;
-    }
-    return 1;
-  }
-  return (int)parsed;
-}
-
-static bool ProcessMediaPath(const char *absolute_path, AppScanContext *ctx) {
-  if (!FsIsSupportedMedia(absolute_path)) {
-    return true;
-  }
-
-    double mod_date = 0;
-    long size = 0;
-
-    if (ExtractBasicMetadata(absolute_path, &mod_date, &size)) {
-      ImageMetadata md = {0};
-
-      bool exhaustive = (ctx != NULL) ? ctx->exhaustive : false;
-
-      pthread_mutex_lock(&g_cache_mutex);
-      bool valid_entry = CacheGetValidEntry(absolute_path, mod_date, size, &md);
-      pthread_mutex_unlock(&g_cache_mutex);
-      if (valid_entry) {
-        if (md.exactHashMd5[0] == '\0' ||
-            (exhaustive && md.allMetadataJson == NULL)) {
-          ImageMetadata full = ExtractMetadata(absolute_path, exhaustive);
-          md.width = full.width;
-          md.height = full.height;
-          strncpy(md.dateTaken, full.dateTaken, METADATA_MAX_STRING - 1);
-          md.dateTaken[METADATA_MAX_STRING - 1] = '\0';
-          strncpy(md.cameraMake, full.cameraMake, METADATA_MAX_STRING - 1);
-          md.cameraMake[METADATA_MAX_STRING - 1] = '\0';
-          strncpy(md.cameraModel, full.cameraModel, METADATA_MAX_STRING - 1);
-          md.cameraModel[METADATA_MAX_STRING - 1] = '\0';
-          md.orientation = full.orientation;
-          md.hasGps = full.hasGps;
-          md.gpsLatitude = full.gpsLatitude;
-          md.gpsLongitude = full.gpsLongitude;
-          if (full.allMetadataJson) {
-            if (md.allMetadataJson) {
-              free(md.allMetadataJson);
-            }
-            md.allMetadataJson = strdup(full.allMetadataJson);
-          }
-          if (md.exactHashMd5[0] == '\0') {
-            ComputeFileMd5(absolute_path, md.exactHashMd5);
-          }
-          CacheFreeMetadata(&full);
-        }
-
-        RunMlInferenceIfRequested(absolute_path, &md, ctx);
-        pthread_mutex_lock(&g_cache_mutex);
-        bool updated = CacheUpdateEntry(&md);
-        pthread_mutex_unlock(&g_cache_mutex);
-        if (updated) {
-          pthread_mutex_lock(&g_stats_mutex);
-          g_files_cached++;
-          pthread_mutex_unlock(&g_stats_mutex);
-        }
-        CacheFreeMetadata(&md);
-        return true;
-      }
-
-      md.path = strdup(absolute_path);
-      if (!md.path) {
-        return true;
-      }
-
-      md.modificationDate = mod_date;
-      md.fileSize = size;
-
-      ImageMetadata extracted = ExtractMetadata(absolute_path, exhaustive);
-      if (extracted.width > 0) {
-        md.width = extracted.width;
-      }
-      if (extracted.height > 0) {
-        md.height = extracted.height;
-      }
-      if (extracted.dateTaken[0] != '\0') {
-        strncpy(md.dateTaken, extracted.dateTaken, METADATA_MAX_STRING - 1);
-        md.dateTaken[METADATA_MAX_STRING - 1] = '\0';
-      }
-      if (extracted.cameraMake[0] != '\0') {
-        strncpy(md.cameraMake, extracted.cameraMake, METADATA_MAX_STRING - 1);
-        md.cameraMake[METADATA_MAX_STRING - 1] = '\0';
-      }
-      if (extracted.cameraModel[0] != '\0') {
-        strncpy(md.cameraModel, extracted.cameraModel, METADATA_MAX_STRING - 1);
-        md.cameraModel[METADATA_MAX_STRING - 1] = '\0';
-      }
-      md.orientation = extracted.orientation;
-      md.hasGps = extracted.hasGps;
-      md.gpsLatitude = extracted.gpsLatitude;
-      md.gpsLongitude = extracted.gpsLongitude;
-
-      if (extracted.allMetadataJson) {
-        md.allMetadataJson = strdup(extracted.allMetadataJson);
-      }
-
-      ComputeFileMd5(absolute_path, md.exactHashMd5);
-      RunMlInferenceIfRequested(absolute_path, &md, ctx);
-
-      pthread_mutex_lock(&g_cache_mutex);
-      bool updated = CacheUpdateEntry(&md);
-      pthread_mutex_unlock(&g_cache_mutex);
-      if (updated) {
-        pthread_mutex_lock(&g_stats_mutex);
-        g_files_cached++;
-        pthread_mutex_unlock(&g_stats_mutex);
-      }
-      CacheFreeMetadata(&md);
-      CacheFreeMetadata(&extracted);
-    }
-  return true;
-}
-
-static bool WorkerShouldStop(ScanWorkerContext *ctx) {
-  bool failed = false;
-  pthread_mutex_lock(ctx->failed_mutex);
-  failed = *ctx->failed;
-  pthread_mutex_unlock(ctx->failed_mutex);
-  return failed;
-}
-
-static void WorkerMarkFailed(ScanWorkerContext *ctx) {
-  pthread_mutex_lock(ctx->failed_mutex);
-  *ctx->failed = true;
-  pthread_mutex_unlock(ctx->failed_mutex);
-}
-
-static void *ScanWorkerRun(void *arg) {
-  ScanWorkerContext *ctx = (ScanWorkerContext *)arg;
-  for (int i = ctx->start; i < ctx->end; i++) {
-    if (WorkerShouldStop(ctx)) {
-      return NULL;
-    }
-
-    pthread_mutex_lock(&g_stats_mutex);
-    g_files_scanned++;
-    pthread_mutex_unlock(&g_stats_mutex);
-
-    if (!ProcessMediaPath(ctx->paths->items[i], ctx->ctx)) {
-      WorkerMarkFailed(ctx);
-      return NULL;
-    }
-  }
-  return NULL;
-}
-
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.4.4\n");
+  printf("CGalleryOrganizer v0.4.5\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -623,7 +38,7 @@ int main(int argc, char **argv) {
 
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-      PrintUsage(argv[0]);
+      CliPrintUsage(argv[0]);
       return 0;
     } else if (strcmp(argv[i], "-e") == 0 ||
                strcmp(argv[i], "--exhaustive") == 0) {
@@ -736,7 +151,7 @@ int main(int argc, char **argv) {
       rollback = true;
     } else if (argv[i][0] == '-') {
       printf("Error: Unknown option '%s'.\n", argv[i]);
-      PrintUsage(argv[0]);
+      CliPrintUsage(argv[0]);
       return 1;
     } else if (target_dir == NULL) {
       target_dir = argv[i];
@@ -744,7 +159,7 @@ int main(int argc, char **argv) {
       env_dir = argv[i];
     } else {
       printf("Error: Unexpected positional argument '%s'.\n", argv[i]);
-      PrintUsage(argv[0]);
+      CliPrintUsage(argv[0]);
       return 1;
     }
   }
@@ -774,10 +189,10 @@ int main(int argc, char **argv) {
   }
 
   if (rollback) {
-    const char *rollback_env = ResolveRollbackEnvDir(target_dir, env_dir);
+    const char *rollback_env = CliResolveRollbackEnvDir(target_dir, env_dir);
     if (!rollback_env) {
       printf("Error: --rollback requires an environment directory.\n");
-      PrintUsage(argv[0]);
+      CliPrintUsage(argv[0]);
       return 1;
     }
 
@@ -793,7 +208,7 @@ int main(int argc, char **argv) {
   }
 
   if (target_dir == NULL) {
-    PrintUsage(argv[0]);
+    CliPrintUsage(argv[0]);
     return 1;
   }
   if (similarity_report && !env_dir) {
@@ -808,7 +223,7 @@ int main(int argc, char **argv) {
   }
 
   bool jobs_valid = false;
-  int resolved_jobs = ResolveJobsFromString(jobs_arg, &jobs_valid);
+  int resolved_jobs = CliResolveJobsFromString(jobs_arg, &jobs_valid);
   if (!jobs_valid) {
     printf("Error: --jobs/CGO_JOBS must be 'auto' or a positive integer.\n");
     return 1;
@@ -875,71 +290,10 @@ int main(int argc, char **argv) {
                              .ml_files_with_text = 0,
                              .ml_files_embedded = 0,
                              .ml_failures = 0};
+  ScanRunStats run_stats = {0};
 
-  PathList scan_paths = {0};
-  if (!CollectSortedPaths(target_dir, &scan_paths)) {
+  if (!CliRunScanPipeline(target_dir, &scan_ctx, resolved_jobs, &run_stats)) {
     printf("Error: Failed to collect directory paths for '%s'.\n", target_dir);
-    if (ml_initialized) {
-      MlShutdown();
-    }
-    CacheShutdown();
-    return 1;
-  }
-  bool scan_failed = false;
-  if (resolved_jobs <= 1 || scan_paths.count <= 1) {
-    for (int i = 0; i < scan_paths.count; i++) {
-      pthread_mutex_lock(&g_stats_mutex);
-      g_files_scanned++;
-      pthread_mutex_unlock(&g_stats_mutex);
-      if (!ProcessMediaPath(scan_paths.items[i], &scan_ctx)) {
-        scan_failed = true;
-        break;
-      }
-    }
-  } else {
-    int worker_count = resolved_jobs;
-    if (worker_count > scan_paths.count) {
-      worker_count = scan_paths.count;
-    }
-    pthread_t *threads = calloc((size_t)worker_count, sizeof(pthread_t));
-    ScanWorkerContext *worker_ctx =
-        calloc((size_t)worker_count, sizeof(ScanWorkerContext));
-    pthread_mutex_t failed_mutex = PTHREAD_MUTEX_INITIALIZER;
-    bool failed = false;
-    if (!threads || !worker_ctx) {
-      free(threads);
-      free(worker_ctx);
-      scan_failed = true;
-    } else {
-      int base = scan_paths.count / worker_count;
-      int rem = scan_paths.count % worker_count;
-      int cursor = 0;
-      for (int i = 0; i < worker_count; i++) {
-        int span = base + (i < rem ? 1 : 0);
-        worker_ctx[i].paths = &scan_paths;
-        worker_ctx[i].start = cursor;
-        worker_ctx[i].end = cursor + span;
-        worker_ctx[i].ctx = &scan_ctx;
-        worker_ctx[i].failed = &failed;
-        worker_ctx[i].failed_mutex = &failed_mutex;
-        cursor += span;
-        if (pthread_create(&threads[i], NULL, ScanWorkerRun, &worker_ctx[i]) !=
-            0) {
-          failed = true;
-          worker_count = i;
-          break;
-        }
-      }
-      for (int i = 0; i < worker_count; i++) {
-        pthread_join(threads[i], NULL);
-      }
-      scan_failed = failed;
-    }
-    free(threads);
-    free(worker_ctx);
-  }
-  PathListFree(&scan_paths);
-  if (scan_failed) {
     if (ml_initialized) {
       MlShutdown();
     }
@@ -952,8 +306,8 @@ int main(int argc, char **argv) {
   }
 
   printf("Scan complete.\n");
-  printf("Files scanned: %d\n", g_files_scanned);
-  printf("Media files cached: %d\n", g_files_cached);
+  printf("Files scanned: %d\n", run_stats.files_scanned);
+  printf("Media files cached: %d\n", run_stats.files_cached);
   if (ml_enrich || similarity_report) {
     printf("ML evaluated: %d\n", scan_ctx.ml_files_evaluated);
     if (ml_enrich) {
@@ -972,7 +326,8 @@ int main(int argc, char **argv) {
     char report_path[1024] = {0};
     snprintf(report_path, sizeof(report_path), "%s/similarity_report.json",
              env_dir);
-    if (!BuildSimilarityReportFromCache(report_path, sim_threshold, sim_topk)) {
+    if (!CliBuildSimilarityReportFromCache(report_path, sim_threshold,
+                                           sim_topk)) {
       printf("Error: Failed to generate similarity report at %s.\n",
              report_path);
       if (ml_initialized) {
@@ -998,8 +353,8 @@ int main(int argc, char **argv) {
     const char *group_keys[16] = {0};
     int group_key_count = 0;
     char *group_keys_owned = NULL;
-    if (!ParseGroupByKeys(group_by_arg, group_keys, 16, &group_key_count,
-                          &group_keys_owned)) {
+    if (!CliParseGroupByKeys(group_by_arg, group_keys, 16, &group_key_count,
+                             &group_keys_owned)) {
       if (ml_initialized) {
         MlShutdown();
       }

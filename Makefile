@@ -11,7 +11,7 @@ TEST_OBJ_DIR = $(BUILD_DIR)/tests
 BIN_DIR = $(BUILD_DIR)/bin
 TEST_BIN_DIR = $(BUILD_DIR)/tests/bin
 
-SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers
+SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/cli
 C_SRCS = $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) src/main.c vendor/cJSON.c vendor/md5.c vendor/sha256.c src/systems/duplicate_finder.c
 CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
@@ -28,6 +28,8 @@ TEST_OBJS = $(filter-out $(TEST_RUNNER_OBJ), $(TEST_ALL_OBJS))
 TEST_BIN = $(TEST_BIN_DIR)/test_runner
 
 BENCHMARK_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/benchmark_runner.o
+BENCH_SUPPORT_SRCS = $(wildcard tests/bench/*.c)
+BENCH_SUPPORT_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(BENCH_SUPPORT_SRCS))
 BENCHMARK_BIN = $(TEST_BIN_DIR)/benchmark_runner
 
 TARGET = $(BIN_DIR)/gallery_organizer
@@ -79,7 +81,7 @@ $(TEST_BIN): $(TEST_OBJS) $(TEST_RUNNER_OBJ)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-$(BENCHMARK_BIN): $(TEST_OBJS) $(BENCHMARK_RUNNER_OBJ)
+$(BENCHMARK_BIN): $(TEST_OBJS) $(BENCHMARK_RUNNER_OBJ) $(BENCH_SUPPORT_OBJS)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
