@@ -73,14 +73,14 @@ async function loadDefaultCache() {
     try {
         const btn = document.getElementById('btn-load-default');
         btn.textContent = "Loading...";
-        const response = await fetch('../../build/perf_cache.json');
+        const response = await fetch('../../build/smoke_env/.cache/gallery_cache.json');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         processData(data);
-        btn.textContent = "Load Default (build/perf_cache.json)";
+        btn.textContent = "Load Default (build/smoke_env/.cache/gallery_cache.json)";
     } catch (error) {
         console.error('Error loading default cache:', error);
-        alert('Could not load default cache. Ensure you run from project root and have run "make stress".');
+        alert('Could not load default cache. Generate build/smoke_env/.cache/gallery_cache.json from the smoke scan flow or upload a cache JSON manually.');
     }
 }
 

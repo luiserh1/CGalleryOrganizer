@@ -59,6 +59,10 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--exhaustive`
   - rollback compatibility forms
   - `--group-by` validation
+  - duplicate flow safety:
+    - plain scan does not auto-move duplicates
+    - `--duplicates-report` is non-mutating
+    - `--duplicates-move` requires `env_dir` and performs explicit move
   - `--ml-enrich` success/failure paths
   - `--similarity-report` generation path
   - `--sim-incremental` reuse/force behavior
@@ -66,6 +70,9 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
+- App API workflow coverage for duplicate and organize operations:
+  - `AppFindDuplicates` + `AppMoveDuplicates`
+  - `AppPreviewOrganize` + `AppExecuteOrganize` + `AppRollback`
 - Cache profile persistence + strict match/rebuild logic (`src/app/app_cache_profile.c`)
 - Runtime-state/model-management app API checks:
   - runtime prerequisite inspection
@@ -120,31 +127,47 @@ Expected:
 ```
 Expected: ML summary counters are printed and cache entries include ML fields.
 
-### 5. Preview
+### 5. Duplicate report (explicit, non-mutating)
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --duplicates-report
+```
+Expected:
+- duplicate groups are printed as dry-run output.
+- no files are moved from `build/smoke_source`.
+
+### 6. Duplicate move (explicit)
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --duplicates-move
+```
+Expected:
+- duplicate copies are moved into `build/smoke_env`.
+- move only occurs when `--duplicates-move` is provided.
+
+### 7. Preview
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --preview --group-by date
 ```
 Expected: plan printed once per directory group, no file moves.
 
-### 6. Organize
+### 8. Organize
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --organize
 ```
 Expected: confirmation prompt, files moved after `y`, `manifest.json` created.
 
-### 7. Rollback (ergonomic)
+### 9. Rollback (ergonomic)
 ```bash
 ./build/bin/gallery_organizer build/smoke_env --rollback
 ```
 Expected: files restored according to manifest.
 
-### 8. Similarity report
+### 10. Similarity report
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report --sim-threshold 0.92 --sim-topk 5
 ```
 Expected: `build/smoke_env/similarity_report.json` exists and includes `groupCount` + `groups`.
 
-### 9. Incremental similarity smoke
+### 11. Incremental similarity smoke
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report
@@ -154,7 +177,7 @@ Expected:
 - second run reuses embeddings (`ML evaluated: 0`).
 - third run forces fresh embedding inference (`ML evaluated` increases).
 
-### 10. Parallel jobs parity smoke
+### 12. Parallel jobs parity smoke
 ```bash
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report --jobs 1
 cp build/smoke_env/similarity_report.json build/smoke_env/sim_jobs1_report.json
@@ -162,13 +185,13 @@ cp build/smoke_env/similarity_report.json build/smoke_env/sim_jobs1_report.json
 ```
 Expected: `similarity_report.json` remains semantically equivalent to the `--jobs 1` output (ignoring `generatedAt` timestamp).
 
-### 11. Similarity viewer smoke
+### 13. Similarity viewer smoke
 ```bash
 python3 -m http.server 8000
 ```
 Then open `/tools/similarity_viewer/`, click **Load Default** (after copying report to `build/similarity_report.json`) or upload `build/smoke_env/similarity_report.json`.
 
-### 12. Benchmark smoke
+### 14. Benchmark smoke
 ```bash
 BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile uncompressed --workload cache_metadata_only
 ```
@@ -185,7 +208,7 @@ Expected:
 - `build/benchmark_last.json` contains median/p95/min/max/stddev stats per workload.
 - `build/benchmark_compare.json` contains per-workload `deltaPct` fields for median metrics.
 
-### 13. GUI smoke
+### 15. GUI smoke
 ```bash
 make gui
 ./build/bin/gallery_organizer_gui
@@ -208,7 +231,7 @@ Expected:
 - scan-like actions show a rebuild confirmation dialog when profile mismatch would rebuild an existing cache.
 - `--reset-state` clears saved GUI state.
 
-### 14. GUI idle performance smoke (large cache)
+### 16. GUI idle performance smoke (large cache)
 Precondition: point GUI `Environment Dir` at an env containing a large cache file.
 
 Expected:

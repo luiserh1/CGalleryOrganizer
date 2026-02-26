@@ -21,11 +21,13 @@ Then navigate to `/tools/cache_viewer/`.
 ## Default file behavior
 
 The **Load Default** button tries to load:
-- `build/perf_cache.json`
+- `build/smoke_env/.cache/gallery_cache.json`
 
-Generate it via stress run:
+Generate it via scan smoke flow:
 ```bash
-make stress
+mkdir -p build/smoke_source build/smoke_env
+cp tests/assets/jpg/sample_exif.jpg build/smoke_source/test1.jpg
+./build/bin/gallery_organizer build/smoke_source build/smoke_env
 ```
 
 ## Sorting behavior (v0.2.4)
