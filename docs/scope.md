@@ -197,7 +197,7 @@ Speed up repeated similarity workflows by reusing valid embeddings, and simplify
 
 ---
 
-## v0.4.3 Scope: Similarity Memory Optimization (Planned)
+## v0.4.3 Scope: Similarity Memory Optimization (Completed)
 
 ### Primary Goal
 Reduce peak RSS during similarity computation by avoiding eager full-decoding of embeddings.
@@ -210,7 +210,7 @@ Reduce peak RSS during similarity computation by avoiding eager full-decoding of
 
 ---
 
-## v0.4.4 Scope: Parallel Scan/Inference Pipeline (Planned)
+## v0.4.4 Scope: Parallel Scan/Inference Pipeline (Completed)
 
 ### Primary Goal
 Improve throughput via parallel scan->metadata->inference processing while preserving deterministic output.
