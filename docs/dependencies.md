@@ -52,7 +52,10 @@ Priority order for new integrations:
   - ONNX provider: `src/ml/providers/onnx_provider.c`
 
 ### 3. zstd (C library, optional)
-- Purpose: optional whole-file cache compression (`--cache-compress zstd`).
+- Purpose: optional whole-file cache compression (`--cache-compress zstd|auto`).
+- Auto policy: when `--cache-compress auto` is used, caches below 8 MiB default
+  to plain JSON and caches at/above 8 MiB default to zstd (override with
+  `CGO_CACHE_AUTO_THRESHOLD_BYTES`).
 - Installation:
   - macOS: `brew install zstd`
   - Linux (Debian/Ubuntu): `apt install libzstd-dev`

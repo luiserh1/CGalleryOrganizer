@@ -49,6 +49,8 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--group-by` validation
   - `--ml-enrich` success/failure paths
   - `--similarity-report` generation path
+  - `--sim-incremental` reuse/force behavior
+  - `--cache-compress auto` threshold selection
 
 ## Manual Smoke Checklist
 
@@ -101,13 +103,23 @@ Expected: files restored according to manifest.
 ```
 Expected: `build/smoke_env/similarity_report.json` exists and includes `groupCount` + `groups`.
 
-### 9. Similarity viewer smoke
+### 9. Incremental similarity smoke
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --similarity-report --sim-incremental off
+```
+Expected:
+- second run reuses embeddings (`ML evaluated: 0`).
+- third run forces fresh embedding inference (`ML evaluated` increases).
+
+### 10. Similarity viewer smoke
 ```bash
 python3 -m http.server 8000
 ```
 Then open `/tools/similarity_viewer/`, click **Load Default** (after copying report to `build/similarity_report.json`) or upload `build/smoke_env/similarity_report.json`.
 
-### 10. Benchmark smoke
+### 11. Benchmark smoke
 ```bash
 BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile uncompressed --workload cache_metadata_only
 ```
@@ -120,11 +132,8 @@ Expected:
 - Some tests invoke shell commands (`system`/`popen`) and use temporary build directories.
 - Keep temp paths scoped under `build/` and clean them in each test to avoid cross-test interference.
 
-## Roadmap Test Gates (0.4.2+)
+## Roadmap Test Gates (0.4.3+)
 
-- `v0.4.2`:
-  - verify incremental similarity reuses embeddings on unchanged reruns.
-  - verify `--cache-compress auto` mode decision at threshold boundary.
 - `v0.4.3`:
   - verify `chunked` and `eager` similarity modes produce equivalent output.
   - verify peak RSS for similarity path is improved or justified.

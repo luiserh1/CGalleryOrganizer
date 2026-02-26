@@ -175,7 +175,7 @@ Measure and compare performance characteristics across key workloads, then intro
 
 ---
 
-## v0.4.2 Scope: Incremental Similarity + Compression Auto Mode (Planned)
+## v0.4.2 Scope: Incremental Similarity + Compression Auto Mode (Completed)
 
 ### Primary Goal
 Speed up repeated similarity workflows by reusing valid embeddings, and simplify compression behavior with an automatic mode.

@@ -12,6 +12,7 @@ static cJSON *g_cache_root = NULL;
 static char g_cache_path[1024] = {0};
 static CacheCompressionMode g_cache_compression_mode = CACHE_COMPRESSION_NONE;
 static int g_cache_compression_level = 3;
+static const size_t k_default_auto_threshold_bytes = 8u * 1024u * 1024u;
 
 static int CacheObjectSize(const cJSON *obj) {
   if (!obj) {
@@ -115,11 +116,36 @@ bool CacheSave(void) {
   if (!json_str)
     return false;
 
+  CacheCompressionMode effective_mode = g_cache_compression_mode;
+  if (effective_mode == CACHE_COMPRESSION_AUTO) {
+    size_t threshold = k_default_auto_threshold_bytes;
+    const char *threshold_override = getenv("CGO_CACHE_AUTO_THRESHOLD_BYTES");
+    if (threshold_override && threshold_override[0] != '\0') {
+      char *endptr = NULL;
+      unsigned long parsed = strtoul(threshold_override, &endptr, 10);
+      if (endptr && *endptr == '\0' && parsed > 0) {
+        threshold = (size_t)parsed;
+      }
+    }
+
+    if (strlen(json_str) < threshold) {
+      effective_mode = CACHE_COMPRESSION_NONE;
+    } else {
+      effective_mode = CACHE_COMPRESSION_ZSTD;
+      if (!CacheCodecIsAvailable(CACHE_COMPRESSION_ZSTD)) {
+        fprintf(stderr,
+                "Error: auto cache compression selected zstd but zstd is unavailable.\n");
+        free(json_str);
+        return false;
+      }
+    }
+  }
+
   unsigned char *encoded = NULL;
   size_t encoded_len = 0;
   char encode_error[256] = {0};
   if (!CacheCodecEncode((const unsigned char *)json_str, strlen(json_str),
-                        g_cache_compression_mode, g_cache_compression_level,
+                        effective_mode, g_cache_compression_level,
                         &encoded, &encoded_len, encode_error,
                         sizeof(encode_error))) {
     fprintf(stderr, "Error: Failed to encode cache '%s': %s\n", g_cache_path,
@@ -150,15 +176,17 @@ bool CacheSave(void) {
 }
 
 bool CacheSetCompression(CacheCompressionMode mode, int level) {
-  if (mode != CACHE_COMPRESSION_NONE && mode != CACHE_COMPRESSION_ZSTD) {
+  if (mode != CACHE_COMPRESSION_NONE && mode != CACHE_COMPRESSION_ZSTD &&
+      mode != CACHE_COMPRESSION_AUTO) {
     return false;
   }
 
-  if (mode == CACHE_COMPRESSION_ZSTD) {
+  if (mode == CACHE_COMPRESSION_ZSTD || mode == CACHE_COMPRESSION_AUTO) {
     if (level < 1 || level > 19) {
       return false;
     }
-    if (!CacheCodecIsAvailable(mode)) {
+    if (mode == CACHE_COMPRESSION_ZSTD &&
+        !CacheCodecIsAvailable(CACHE_COMPRESSION_ZSTD)) {
       return false;
     }
   }

@@ -22,6 +22,7 @@ typedef struct {
   bool exhaustive;
   bool ml_enrich;
   bool similarity_report;
+  bool sim_incremental;
   bool ml_enabled;
   int ml_files_evaluated;
   int ml_files_classified;
@@ -38,9 +39,11 @@ static void PrintUsage(const char *argv0) {
   printf("  -e, --exhaustive  Extract all metadata tags (larger cache)\n");
   printf("  --ml-enrich       Run local ML enrichment (classification + text detection)\n");
   printf("  --similarity-report Build similarity report using embeddings\n");
+  printf("  --sim-incremental <on|off> Reuse valid embeddings on similarity runs "
+         "(default: on)\n");
   printf("  --sim-threshold <0..1> Similarity threshold (default: 0.92)\n");
   printf("  --sim-topk <n>    Max neighbors per anchor (default: 5)\n");
-  printf("  --cache-compress <mode> Cache compression mode: none|zstd\n");
+  printf("  --cache-compress <mode> Cache compression mode: none|zstd|auto\n");
   printf("  --cache-compress-level <1..19> Compression level when using zstd "
          "(default: 3)\n");
   printf("  --organize        Execute metadata-based restructuring\n");
@@ -218,8 +221,8 @@ static void RunMlInferenceIfRequested(const char *absolute_path, ImageMetadata *
   bool need_text = ctx->ml_enrich && md->mlModelTextDetection[0] == '\0';
   bool need_embedding =
       ctx->similarity_report &&
-      (md->mlEmbeddingDim <= 0 || md->mlEmbeddingBase64 == NULL ||
-       md->mlModelEmbedding[0] == '\0');
+      (!ctx->sim_incremental || md->mlEmbeddingDim <= 0 ||
+       md->mlEmbeddingBase64 == NULL || md->mlModelEmbedding[0] == '\0');
 
   if (!need_classification && !need_text && !need_embedding) {
     return;
@@ -423,11 +426,12 @@ static bool ScanCallback(const char *absolute_path, void *user_data) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.4.1\n");
+  printf("CGalleryOrganizer v0.4.2\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
   bool similarity_report = false;
+  bool sim_incremental = true;
   bool organize = false;
   bool preview = false;
   bool rollback = false;
@@ -453,6 +457,20 @@ int main(int argc, char **argv) {
       ml_enrich = true;
     } else if (strcmp(argv[i], "--similarity-report") == 0) {
       similarity_report = true;
+    } else if (strcmp(argv[i], "--sim-incremental") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --sim-incremental requires on|off.\n");
+        return 1;
+      }
+      const char *value = argv[++i];
+      if (strcmp(value, "on") == 0) {
+        sim_incremental = true;
+      } else if (strcmp(value, "off") == 0) {
+        sim_incremental = false;
+      } else {
+        printf("Error: --sim-incremental must be on|off.\n");
+        return 1;
+      }
     } else if (strcmp(argv[i], "--sim-threshold") == 0) {
       if (i + 1 >= argc) {
         printf("Error: --sim-threshold requires a value in [0,1].\n");
@@ -479,7 +497,7 @@ int main(int argc, char **argv) {
       sim_topk = (int)parsed;
     } else if (strcmp(argv[i], "--cache-compress") == 0) {
       if (i + 1 >= argc) {
-        printf("Error: --cache-compress requires a mode: none|zstd.\n");
+        printf("Error: --cache-compress requires a mode: none|zstd|auto.\n");
         return 1;
       }
       const char *mode = argv[++i];
@@ -487,9 +505,12 @@ int main(int argc, char **argv) {
         cache_compression_mode = CACHE_COMPRESSION_NONE;
       } else if (strcmp(mode, "zstd") == 0) {
         cache_compression_mode = CACHE_COMPRESSION_ZSTD;
+      } else if (strcmp(mode, "auto") == 0) {
+        cache_compression_mode = CACHE_COMPRESSION_AUTO;
       } else {
-        printf("Error: Invalid --cache-compress mode '%s'. Allowed: none|zstd\n",
-               mode);
+        printf(
+            "Error: Invalid --cache-compress mode '%s'. Allowed: none|zstd|auto\n",
+            mode);
         return 1;
       }
     } else if (strcmp(argv[i], "--cache-compress-level") == 0) {
@@ -549,9 +570,10 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (cache_compression_level_set &&
-      cache_compression_mode != CACHE_COMPRESSION_ZSTD) {
+      cache_compression_mode != CACHE_COMPRESSION_ZSTD &&
+      cache_compression_mode != CACHE_COMPRESSION_AUTO) {
     printf("Error: --cache-compress-level is only valid with --cache-compress "
-           "zstd.\n");
+           "zstd|auto.\n");
     return 1;
   }
 
@@ -596,7 +618,8 @@ int main(int argc, char **argv) {
 
   FsMakeDirRecursive(cache_dir);
   if (!CacheSetCompression(cache_compression_mode, cache_compression_level)) {
-    if (cache_compression_mode == CACHE_COMPRESSION_ZSTD) {
+    if (cache_compression_mode == CACHE_COMPRESSION_ZSTD ||
+        cache_compression_mode == CACHE_COMPRESSION_AUTO) {
       printf("Error: zstd cache compression is unavailable or invalid.\n");
       printf("Hint: install zstd development package or use "
              "--cache-compress none.\n");
@@ -635,6 +658,7 @@ int main(int argc, char **argv) {
   AppScanContext scan_ctx = {.exhaustive = exhaustive,
                              .ml_enrich = ml_enrich,
                              .similarity_report = similarity_report,
+                             .sim_incremental = sim_incremental,
                              .ml_enabled = ml_initialized,
                              .ml_files_evaluated = 0,
                              .ml_files_classified = 0,

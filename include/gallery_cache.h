@@ -8,7 +8,8 @@
 
 typedef enum {
   CACHE_COMPRESSION_NONE = 0,
-  CACHE_COMPRESSION_ZSTD = 1
+  CACHE_COMPRESSION_ZSTD = 1,
+  CACHE_COMPRESSION_AUTO = 2
 } CacheCompressionMode;
 
 typedef struct {
