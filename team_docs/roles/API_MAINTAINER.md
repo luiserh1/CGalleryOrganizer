@@ -18,6 +18,7 @@ Protect and evolve the backend API contract in a controlled, backwards-aware way
 - PM scope and acceptance criteria.
 - Existing API docs and caller expectations.
 - Regression signals from QA.
+- Agent coordination protocol from `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Required Outputs
 - API-safe implementation updates.

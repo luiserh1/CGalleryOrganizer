@@ -6,6 +6,7 @@ Own delivery integrity: scope, sequencing, ownership, and acceptance criteria.
 ## Responsibilities
 - Maintain the audit backlog and priority stack.
 - Split implementation plans by actor, order, and dependencies.
+- Own communication workflow requirements and protocol quality (`team_docs/AGENT_COMMS_PROTOCOL.md`).
 - Define success criteria before implementation starts.
 - Coordinate merge readiness checks across roles.
 - Resolve role conflicts and unblock cross-team dependencies.
@@ -23,12 +24,14 @@ Own delivery integrity: scope, sequencing, ownership, and acceptance criteria.
 - Latest findings from `team_docs/audit/`.
 - Current branch/test status.
 - Role estimates and technical constraints.
+- Agent coordination protocol from `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Required Outputs
 - Decision-complete implementation plan.
 - Scope decisions with rationale.
 - Acceptance checklist per deliverable.
 - Role assignment map with sequencing dependencies.
+- Dated cycle plan artifact in `team_docs/plans/`.
 
 ## Agent Execution Rules
 - Prefer deterministic, testable increments.

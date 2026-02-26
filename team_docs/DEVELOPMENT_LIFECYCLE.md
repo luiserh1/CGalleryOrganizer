@@ -4,6 +4,7 @@
 - PM defines goal, scope, success criteria, and constraints.
 - PM assigns primary/secondary role ownership.
 - PM remains planning-only and does not implement code changes.
+- PM publishes a dated cycle implementation plan under `team_docs/plans/` before execution starts.
 
 ## 2. Design
 - API Maintainer validates contract impact.
@@ -35,3 +36,4 @@
 - Update audit backlog if residual risk remains.
 - Record follow-up actions by owner and target milestone.
 - Release tag/changelog decisions are executed by Main Maintainer.
+- PM updates cycle plan status in `team_docs/plans/` (open/closed/deferred tasks).

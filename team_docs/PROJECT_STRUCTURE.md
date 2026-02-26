@@ -32,5 +32,6 @@
 
 ## Team Docs Package
 - Audit records: `team_docs/audit/`
+- Cycle implementation plans: `team_docs/plans/`
 - Role playbooks: `team_docs/roles/`
 - Governance and lifecycle docs: `team_docs/*.md`

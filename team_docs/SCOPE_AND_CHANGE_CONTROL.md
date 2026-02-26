@@ -2,9 +2,11 @@
 
 ## Scope Ownership
 - PM owns in-scope/out-of-scope definitions.
+- PM owns agent communication workflow requirements and protocol contract.
 - API Maintainer owns API contract change approval.
 - Main Maintainer owns dependency and build policy changes.
 - Main Maintainer owns CI policy, release tags, and changelog governance.
+- Main Maintainer owns AgentComms server operational governance (runtime/config/security).
 
 ## Change Categories
 1. **Behavioral**: user-visible runtime/CLI/API behavior.

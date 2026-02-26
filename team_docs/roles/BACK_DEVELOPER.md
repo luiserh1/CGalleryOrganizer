@@ -18,6 +18,7 @@ Implement backend/core/system logic with correctness, modularity, and performanc
 - PM execution plan.
 - API constraints and caller behavior requirements.
 - Existing style/modularity guardrails (`docs/CODE_STYLE.md`).
+- Agent coordination protocol from `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Required Outputs
 - Backend implementation changes.
