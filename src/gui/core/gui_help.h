@@ -5,6 +5,7 @@
 
 void GuiHelpBeginFrame(void);
 void GuiHelpRegister(Rectangle bounds, const char *message);
+void GuiHelpSetFont(Font font, float font_size);
 void GuiHelpDrawHintLabel(Rectangle bounds, const char *default_message);
 void GuiHelpDrawTooltip(void);
 

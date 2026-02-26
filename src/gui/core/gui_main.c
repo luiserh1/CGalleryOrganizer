@@ -210,6 +210,7 @@ int main(int argc, char **argv) {
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
              "CGalleryOrganizer v0.5.2 GUI");
   InitGuiFont();
+  GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
 
   const char *tab_labels[4] = {"Scan", "Similarity", "Organize", "Duplicates"};

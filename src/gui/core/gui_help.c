@@ -7,6 +7,9 @@
 
 static char g_hover_message[512] = {0};
 static bool g_has_hover = false;
+static Font g_help_font = {0};
+static float g_help_font_size = 18.0f;
+static bool g_help_font_set = false;
 
 void GuiHelpBeginFrame(void) {
   g_hover_message[0] = '\0';
@@ -27,15 +30,18 @@ void GuiHelpRegister(Rectangle bounds, const char *message) {
   g_has_hover = true;
 }
 
+void GuiHelpSetFont(Font font, float font_size) {
+  g_help_font = font;
+  g_help_font_set = (font.texture.id != 0);
+  if (font_size >= 10.0f) {
+    g_help_font_size = font_size;
+  }
+}
+
 void GuiHelpDrawHintLabel(Rectangle bounds, const char *default_message) {
-  const char *text = default_message;
-  if (g_has_hover && g_hover_message[0] != '\0') {
-    text = g_hover_message;
-  }
-  if (!text) {
-    return;
-  }
-  GuiLabel(bounds, text);
+  (void)bounds;
+  (void)default_message;
+  // 0.5.3 UI preference: avoid duplicated hint text and keep tooltip-only help.
 }
 
 void GuiHelpDrawTooltip(void) {
@@ -43,14 +49,22 @@ void GuiHelpDrawTooltip(void) {
     return;
   }
 
-  Vector2 mouse = GetMousePosition();
-  int font_size = 18;
-  int text_width = MeasureText(g_hover_message, font_size);
-  float box_w = (float)text_width + 16.0f;
-  if (box_w < 180.0f) {
-    box_w = 180.0f;
+  Font font = g_help_font_set ? g_help_font : GetFontDefault();
+  float font_size = g_help_font_size;
+  if (font_size < 14.0f) {
+    font_size = 14.0f;
   }
-  float box_h = 30.0f;
+
+  Vector2 mouse = GetMousePosition();
+  Vector2 text_size = MeasureTextEx(font, g_hover_message, font_size, 1.0f);
+  float box_w = text_size.x + 16.0f;
+  if (box_w < 210.0f) {
+    box_w = 210.0f;
+  }
+  float box_h = text_size.y + 12.0f;
+  if (box_h < 34.0f) {
+    box_h = 34.0f;
+  }
   float x = mouse.x + 12.0f;
   float y = mouse.y + 12.0f;
 
@@ -70,6 +84,6 @@ void GuiHelpDrawTooltip(void) {
   Rectangle box = {x, y, box_w, box_h};
   DrawRectangleRec(box, (Color){250, 250, 235, 245});
   DrawRectangleLinesEx(box, 1.0f, (Color){156, 156, 120, 255});
-  DrawText(g_hover_message, (int)(x + 8.0f), (int)(y + 7.0f), font_size,
-           (Color){45, 45, 45, 255});
+  DrawTextEx(font, g_hover_message, (Vector2){x + 8.0f, y + 6.0f}, font_size,
+             1.0f, (Color){45, 45, 45, 255});
 }
