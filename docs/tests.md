@@ -72,6 +72,9 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
 - App API workflow coverage for duplicate and organize operations:
   - `AppFindDuplicates` + `AppMoveDuplicates`
+  - `AppRunScan` and `AppFindDuplicates` keep duplicate-source files non-mutated
+    until explicit move operation
+  - `AppMoveDuplicates` requires explicit duplicate report input
   - `AppPreviewOrganize` + `AppExecuteOrganize` + `AppRollback`
 - Cache profile persistence + strict match/rebuild logic (`src/app/app_cache_profile.c`)
 - Runtime-state/model-management app API checks:

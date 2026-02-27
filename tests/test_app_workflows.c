@@ -29,7 +29,10 @@ static int SumDuplicateCount(const AppDuplicateReport *report) {
 }
 
 void test_app_duplicate_find_and_move_workflow(void) {
-  system("rm -rf build/test_app_dup_workflow_src build/test_app_dup_workflow_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_dup_workflow_src",
+                       "build/test_app_dup_workflow_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_dup_workflow_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_dup_workflow_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
@@ -52,6 +55,10 @@ void test_app_duplicate_find_and_move_workflow(void) {
   AppScanResult scan_result = {0};
   AppStatus status = AppRunScan(ctx, &scan_request, &scan_result);
   ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(FileExists("build/test_app_dup_workflow_src/bird.JPG"));
+  ASSERT_TRUE(FileExists("build/test_app_dup_workflow_src/bird_duplicate.JPG"));
+  ASSERT_FALSE(FileExists("build/test_app_dup_workflow_env/bird.JPG"));
+  ASSERT_FALSE(FileExists("build/test_app_dup_workflow_env/bird_duplicate.JPG"));
 
   AppDuplicateFindRequest find_request = {
       .env_dir = "build/test_app_dup_workflow_env",
@@ -62,6 +69,8 @@ void test_app_duplicate_find_and_move_workflow(void) {
   status = AppFindDuplicates(ctx, &find_request, &report);
   ASSERT_EQ(APP_STATUS_OK, status);
   ASSERT_TRUE(report.group_count >= 1);
+  ASSERT_TRUE(FileExists("build/test_app_dup_workflow_src/bird.JPG"));
+  ASSERT_TRUE(FileExists("build/test_app_dup_workflow_src/bird_duplicate.JPG"));
 
   int expected_moved = SumDuplicateCount(&report);
   ASSERT_TRUE(expected_moved >= 1);
@@ -83,11 +92,17 @@ void test_app_duplicate_find_and_move_workflow(void) {
 
   AppFreeDuplicateReport(&report);
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_dup_workflow_src build/test_app_dup_workflow_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_dup_workflow_src",
+                       "build/test_app_dup_workflow_env"},
+      2));
 }
 
 void test_app_organize_execute_and_rollback_workflow(void) {
-  system("rm -rf build/test_app_org_workflow_src build/test_app_org_workflow_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_org_workflow_src",
+                       "build/test_app_org_workflow_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_org_workflow_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_org_workflow_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
@@ -144,7 +159,10 @@ void test_app_organize_execute_and_rollback_workflow(void) {
   ASSERT_EQ(execute_result.executed_moves, rollback_result.restored_count);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_org_workflow_src build/test_app_org_workflow_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_org_workflow_src",
+                       "build/test_app_org_workflow_env"},
+      2));
 }
 
 void register_app_workflow_tests(void) {

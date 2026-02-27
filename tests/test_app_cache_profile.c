@@ -6,6 +6,7 @@
 #include "app_api.h"
 #include "fs_utils.h"
 #include "test_framework.h"
+#include "integration_test_helpers.h"
 
 static bool WriteTextFile(const char *path, const char *content) {
   FILE *f = fopen(path, "wb");
@@ -58,7 +59,7 @@ static AppStatus RunScan(AppContext *ctx, const char *target_dir,
 }
 
 void test_app_cache_profile_roundtrip(void) {
-  system("rm -rf build/test_app_profile_roundtrip");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_roundtrip"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_roundtrip"));
 
   const char *path = "build/test_app_profile_roundtrip/profile.json";
@@ -85,7 +86,7 @@ void test_app_cache_profile_roundtrip(void) {
   ASSERT_TRUE(AppCompareCacheProfiles(&profile, &loaded, reason, sizeof(reason)));
   ASSERT_STR_EQ("cache profile matched", reason);
 
-  system("rm -rf build/test_app_profile_roundtrip");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_roundtrip"));
 }
 
 void test_app_cache_profile_entry_count_not_part_of_match_semantics(void) {
@@ -113,7 +114,8 @@ void test_app_cache_profile_entry_count_not_part_of_match_semantics(void) {
 }
 
 void test_app_cache_profile_optional_entry_count_absent_is_supported(void) {
-  system("rm -rf build/test_app_profile_optional_count");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_optional_count"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_optional_count"));
 
   const char *path = "build/test_app_profile_optional_count/profile.json";
@@ -134,11 +136,12 @@ void test_app_cache_profile_optional_entry_count_absent_is_supported(void) {
   ASSERT_FALSE(loaded.has_cache_entry_count);
   ASSERT_EQ(0, loaded.cache_entry_count);
 
-  system("rm -rf build/test_app_profile_optional_count");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_optional_count"));
 }
 
 void test_app_scan_profile_missing_triggers_rebuild_and_creation(void) {
-  system("rm -rf build/test_app_profile_missing_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_missing_env"));
 
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -157,11 +160,12 @@ void test_app_scan_profile_missing_triggers_rebuild_and_creation(void) {
       "build/test_app_profile_missing_env/.cache/gallery_cache.profile.json"));
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_missing_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_missing_env"));
 }
 
 void test_app_scan_profile_malformed_triggers_rebuild(void) {
-  system("rm -rf build/test_app_profile_malformed_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_malformed_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_malformed_env/.cache"));
   ASSERT_TRUE(WriteTextFile(
       "build/test_app_profile_malformed_env/.cache/gallery_cache.profile.json",
@@ -183,11 +187,12 @@ void test_app_scan_profile_malformed_triggers_rebuild(void) {
                 result.cache_profile_reason);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_malformed_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_malformed_env"));
 }
 
 void test_app_scan_profile_same_does_not_rebuild(void) {
-  system("rm -rf build/test_app_profile_same_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_same_env"));
 
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -210,11 +215,12 @@ void test_app_scan_profile_same_does_not_rebuild(void) {
   ASSERT_STR_EQ("cache profile matched", second.cache_profile_reason);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_same_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_same_env"));
 }
 
 void test_app_scan_profile_exhaustive_change_triggers_rebuild(void) {
-  system("rm -rf build/test_app_profile_exhaustive_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_exhaustive_env"));
 
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -236,11 +242,12 @@ void test_app_scan_profile_exhaustive_change_triggers_rebuild(void) {
   ASSERT_STR_EQ("exhaustive setting changed", second.cache_profile_reason);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_exhaustive_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_exhaustive_env"));
 }
 
 void test_app_scan_profile_source_change_triggers_rebuild(void) {
-  system("rm -rf build/test_app_profile_source_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_source_env"));
 
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -263,11 +270,14 @@ void test_app_scan_profile_source_change_triggers_rebuild(void) {
               NULL);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_source_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_source_env"));
 }
 
 void test_app_scan_profile_model_fingerprint_change_triggers_rebuild(void) {
-  system("rm -rf build/test_app_profile_models_env build/test_app_profile_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_profile_models_env",
+                       "build/test_app_profile_models"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_models_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_models"));
   ASSERT_TRUE(WriteTextFile("build/test_app_profile_models/clf-default.onnx",
@@ -308,11 +318,15 @@ void test_app_scan_profile_model_fingerprint_change_triggers_rebuild(void) {
   ASSERT_STR_EQ("model fingerprint changed", third.cache_profile_reason);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_models_env build/test_app_profile_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_profile_models_env",
+                       "build/test_app_profile_models"},
+      2));
 }
 
 void test_app_scan_profile_non_semantic_changes_do_not_rebuild(void) {
-  system("rm -rf build/test_app_profile_nonsemantic_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_nonsemantic_env"));
 
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -333,11 +347,15 @@ void test_app_scan_profile_non_semantic_changes_do_not_rebuild(void) {
   ASSERT_FALSE(second.cache_profile_rebuilt);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_nonsemantic_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_nonsemantic_env"));
 }
 
 void test_app_scan_profile_not_saved_on_failure_or_cancel(void) {
-  system("rm -rf build/test_app_profile_fail_env build/test_app_profile_cancel_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_profile_fail_env",
+                       "build/test_app_profile_cancel_env"},
+      2));
 
   AppRuntimeOptions opts = {0};
   AppContext *ctx = AppContextCreate(&opts);
@@ -362,7 +380,10 @@ void test_app_scan_profile_not_saved_on_failure_or_cancel(void) {
       "build/test_app_profile_cancel_env/.cache/gallery_cache.profile.json"));
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_fail_env build/test_app_profile_cancel_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_profile_fail_env",
+                       "build/test_app_profile_cancel_env"},
+      2));
 }
 
 void register_app_cache_profile_tests(void) {

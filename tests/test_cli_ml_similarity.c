@@ -10,12 +10,15 @@
 #include "integration_test_helpers.h"
 
 void test_cli_ml_enrich_missing_models(void) {
-  system("rm -rf build/test_cli_ml_missing_src build/test_cli_ml_missing_env "
-         "build/test_cli_ml_missing_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_ml_missing_src",
+                       "build/test_cli_ml_missing_env",
+                       "build/test_cli_ml_missing_models"},
+      3));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_missing_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_missing_env"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_ml_missing_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_ml_missing_src/a.png"));
 
   char output[4096];
   int code = RunCommandCapture(
@@ -26,17 +29,23 @@ void test_cli_ml_enrich_missing_models(void) {
   ASSERT_TRUE(code != 0);
   ASSERT_TRUE(strstr(output, "Failed to initialize ML runtime") != NULL);
 
-  system("rm -rf build/test_cli_ml_missing_src build/test_cli_ml_missing_env "
-         "build/test_cli_ml_missing_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_ml_missing_src",
+                       "build/test_cli_ml_missing_env",
+                       "build/test_cli_ml_missing_models"},
+      3));
 }
 
 void test_cli_ml_enrich_updates_cache(void) {
-  system("rm -rf build/test_cli_ml_src build/test_cli_ml_env build/test_cli_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_ml_src", "build/test_cli_ml_env",
+                       "build/test_cli_models"},
+      3));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_ml_env"));
   ASSERT_TRUE(WriteBootstrapModels("build/test_cli_models"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_ml_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_ml_src/a.png"));
 
   char output[4096];
   int code = RunCommandCapture(
@@ -56,18 +65,24 @@ void test_cli_ml_enrich_updates_cache(void) {
   ASSERT_TRUE(strstr(cache_buf, "\"mlPrimaryClass\"") != NULL);
   ASSERT_TRUE(strstr(cache_buf, "\"mlModelClassification\"") != NULL);
 
-  system("rm -rf build/test_cli_ml_src build/test_cli_ml_env build/test_cli_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_ml_src", "build/test_cli_ml_env",
+                       "build/test_cli_models"},
+      3));
 }
 
 void test_cli_similarity_report_generates_json(void) {
-  system("rm -rf build/test_cli_sim_src build/test_cli_sim_env build/test_cli_sim_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_sim_src", "build/test_cli_sim_env",
+                       "build/test_cli_sim_models"},
+      3));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_env"));
   ASSERT_TRUE(WriteBootstrapModels("build/test_cli_sim_models"));
-  ASSERT_EQ(0,
-            system("cp tests/assets/png/sample_no_exif.png build/test_cli_sim_src/a.png"));
-  ASSERT_EQ(0,
-            system("cp tests/assets/jpg/sample_exif.jpg build/test_cli_sim_src/b.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_sim_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
+                              "build/test_cli_sim_src/b.jpg"));
 
   char output[4096];
   int code = RunCommandCapture(
@@ -87,7 +102,10 @@ void test_cli_similarity_report_generates_json(void) {
   ASSERT_TRUE(strstr(report_buf, "\"groupCount\"") != NULL);
   ASSERT_TRUE(strstr(report_buf, "\"groups\"") != NULL);
 
-  system("rm -rf build/test_cli_sim_src build/test_cli_sim_env build/test_cli_sim_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_sim_src", "build/test_cli_sim_env",
+                       "build/test_cli_sim_models"},
+      3));
 }
 
 void test_cli_similarity_report_requires_env(void) {
@@ -100,17 +118,20 @@ void test_cli_similarity_report_requires_env(void) {
 }
 
 void test_cli_jobs_similarity_report_parity(void) {
-  system("rm -rf build/test_cli_jobs_parity_src build/test_cli_jobs_parity_env "
-         "build/test_cli_jobs_parity_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_jobs_parity_src",
+                       "build/test_cli_jobs_parity_env",
+                       "build/test_cli_jobs_parity_models"},
+      3));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_parity_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_parity_env"));
   ASSERT_TRUE(WriteBootstrapModels("build/test_cli_jobs_parity_models"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_jobs_parity_src/a.png"));
-  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg "
-                      "build/test_cli_jobs_parity_src/b.jpg"));
-  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_no_exif.jpg "
-                      "build/test_cli_jobs_parity_src/c.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_jobs_parity_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
+                              "build/test_cli_jobs_parity_src/b.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_no_exif.jpg",
+                              "build/test_cli_jobs_parity_src/c.jpg"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
@@ -120,9 +141,9 @@ void test_cli_jobs_similarity_report_parity(void) {
       "--sim-threshold 0.1 --sim-topk 3 2>&1",
       output, sizeof(output));
   ASSERT_EQ(0, code);
-  ASSERT_EQ(0,
-            system("cp build/test_cli_jobs_parity_env/similarity_report.json "
-                   "build/test_cli_jobs_parity_env/sim_jobs1_report.json"));
+  ASSERT_TRUE(CopyFileForTest(
+      "build/test_cli_jobs_parity_env/similarity_report.json",
+      "build/test_cli_jobs_parity_env/sim_jobs1_report.json"));
 
   memset(output, 0, sizeof(output));
   code = RunCommandCapture(
@@ -137,22 +158,28 @@ void test_cli_jobs_similarity_report_parity(void) {
       "build/test_cli_jobs_parity_env/sim_jobs1_report.json",
       "build/test_cli_jobs_parity_env/similarity_report.json"));
 
-  system("rm -rf build/test_cli_jobs_parity_src build/test_cli_jobs_parity_env "
-         "build/test_cli_jobs_parity_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_jobs_parity_src",
+                       "build/test_cli_jobs_parity_env",
+                       "build/test_cli_jobs_parity_models"},
+      3));
 }
 
 void test_cli_similarity_memory_mode_parity(void) {
-  system("rm -rf build/test_cli_sim_mode_src build/test_cli_sim_mode_env "
-         "build/test_cli_sim_mode_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_sim_mode_src",
+                       "build/test_cli_sim_mode_env",
+                       "build/test_cli_sim_mode_models"},
+      3));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_mode_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_mode_env"));
   ASSERT_TRUE(WriteBootstrapModels("build/test_cli_sim_mode_models"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_sim_mode_src/a.png"));
-  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg "
-                      "build/test_cli_sim_mode_src/b.jpg"));
-  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_no_exif.jpg "
-                      "build/test_cli_sim_mode_src/c.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_sim_mode_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
+                              "build/test_cli_sim_mode_src/b.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_no_exif.jpg",
+                              "build/test_cli_sim_mode_src/c.jpg"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
@@ -162,8 +189,8 @@ void test_cli_similarity_memory_mode_parity(void) {
       "--sim-threshold 0.1 --sim-topk 3 2>&1",
       output, sizeof(output));
   ASSERT_EQ(0, code);
-  ASSERT_EQ(0, system("cp build/test_cli_sim_mode_env/similarity_report.json "
-                      "build/test_cli_sim_mode_env/eager_report.json"));
+  ASSERT_TRUE(CopyFileForTest("build/test_cli_sim_mode_env/similarity_report.json",
+                              "build/test_cli_sim_mode_env/eager_report.json"));
 
   memset(output, 0, sizeof(output));
   code = RunCommandCapture(
@@ -178,8 +205,11 @@ void test_cli_similarity_memory_mode_parity(void) {
       "build/test_cli_sim_mode_env/eager_report.json",
       "build/test_cli_sim_mode_env/similarity_report.json"));
 
-  system("rm -rf build/test_cli_sim_mode_src build/test_cli_sim_mode_env "
-         "build/test_cli_sim_mode_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_sim_mode_src",
+                       "build/test_cli_sim_mode_env",
+                       "build/test_cli_sim_mode_models"},
+      3));
 }
 
 void test_cli_cache_compress_flag_validation(void) {
@@ -205,11 +235,14 @@ void test_cli_cache_compress_zstd_roundtrip_or_skip(void) {
     return;
   }
 
-  system("rm -rf build/test_cli_cache_zstd_src build/test_cli_cache_zstd_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_cache_zstd_src",
+                       "build/test_cli_cache_zstd_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_cache_zstd_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_cache_zstd_env"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_cache_zstd_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_cache_zstd_src/a.png"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
@@ -232,19 +265,24 @@ void test_cli_cache_compress_zstd_roundtrip_or_skip(void) {
       output, sizeof(output));
   ASSERT_EQ(0, code);
 
-  system("rm -rf build/test_cli_cache_zstd_src build/test_cli_cache_zstd_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_cache_zstd_src",
+                       "build/test_cli_cache_zstd_env"},
+      2));
 }
 
 void test_cli_similarity_incremental_toggle_behavior(void) {
-  system("rm -rf build/test_cli_sim_inc_src build/test_cli_sim_inc_env "
-         "build/test_cli_sim_inc_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_sim_inc_src", "build/test_cli_sim_inc_env",
+                       "build/test_cli_sim_inc_models"},
+      3));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_inc_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_sim_inc_env"));
   ASSERT_TRUE(WriteBootstrapModels("build/test_cli_sim_inc_models"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_sim_inc_src/a.png"));
-  ASSERT_EQ(0, system("cp tests/assets/jpg/sample_exif.jpg "
-                      "build/test_cli_sim_inc_src/b.jpg"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_sim_inc_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
+                              "build/test_cli_sim_inc_src/b.jpg"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
@@ -276,8 +314,10 @@ void test_cli_similarity_incremental_toggle_behavior(void) {
   ASSERT_EQ(0, code);
   ASSERT_TRUE(strstr(output, "ML evaluated: 2") != NULL);
 
-  system("rm -rf build/test_cli_sim_inc_src build/test_cli_sim_inc_env "
-         "build/test_cli_sim_inc_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_sim_inc_src", "build/test_cli_sim_inc_env",
+                       "build/test_cli_sim_inc_models"},
+      3));
 }
 
 void test_cli_cache_compress_auto_threshold_behavior(void) {
@@ -285,11 +325,14 @@ void test_cli_cache_compress_auto_threshold_behavior(void) {
     return;
   }
 
-  system("rm -rf build/test_cli_cache_auto_src build/test_cli_cache_auto_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_cache_auto_src",
+                       "build/test_cli_cache_auto_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_cache_auto_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_cache_auto_env"));
-  ASSERT_EQ(0, system("cp tests/assets/png/sample_no_exif.png "
-                      "build/test_cli_cache_auto_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_cache_auto_src/a.png"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
@@ -321,7 +364,10 @@ void test_cli_cache_compress_auto_threshold_behavior(void) {
   fclose(f);
   ASSERT_TRUE(memcmp(magic, CACHE_CODEC_MAGIC, 8) == 0);
 
-  system("rm -rf build/test_cli_cache_auto_src build/test_cli_cache_auto_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_cache_auto_src",
+                       "build/test_cli_cache_auto_env"},
+      2));
 }
 
 void register_cli_ml_similarity_tests(void) {

@@ -10,5 +10,8 @@ bool ReportsEquivalentIgnoringTimestamp(const char *left_path,
 bool WriteRollbackManifest(const char *env_dir);
 bool WriteBootstrapModels(const char *models_dir);
 bool CopyFileForTest(const char *source_path, const char *target_path);
+bool RemovePathRecursiveForTest(const char *path);
+bool RemovePathsForTest(const char *paths[], size_t count);
+bool ResetDirForTest(const char *path);
 
 #endif

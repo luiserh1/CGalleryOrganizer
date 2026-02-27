@@ -17,7 +17,10 @@ static bool FileExists(const char *path) {
 }
 
 void test_cli_exhaustive_flag_and_cache_enrichment(void) {
-  system("rm -rf build/test_cli_exhaustive_src build/test_cli_exhaustive_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_exhaustive_src",
+                       "build/test_cli_exhaustive_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_exhaustive_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_exhaustive_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_exif.jpg",
@@ -39,11 +42,14 @@ void test_cli_exhaustive_flag_and_cache_enrichment(void) {
   fclose(f);
   ASSERT_TRUE(strstr(cache_buf, "\"allMetadataJson\"") != NULL);
 
-  system("rm -rf build/test_cli_exhaustive_src build/test_cli_exhaustive_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_exhaustive_src",
+                       "build/test_cli_exhaustive_env"},
+      2));
 }
 
 void test_cli_group_by_empty_rejected(void) {
-  system("rm -rf build/test_cli_groupby_empty_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_groupby_empty_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_groupby_empty_env"));
   char output[4096];
   int code = RunCommandCapture(
@@ -52,11 +58,11 @@ void test_cli_group_by_empty_rejected(void) {
       output, sizeof(output));
   ASSERT_TRUE(code != 0);
   ASSERT_TRUE(strstr(output, "cannot include empty keys") != NULL);
-  system("rm -rf build/test_cli_groupby_empty_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_groupby_empty_env"));
 }
 
 void test_cli_group_by_invalid_rejected(void) {
-  system("rm -rf build/test_cli_groupby_invalid_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_groupby_invalid_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_groupby_invalid_env"));
   char output[4096];
   int code = RunCommandCapture(
@@ -65,12 +71,12 @@ void test_cli_group_by_invalid_rejected(void) {
       output, sizeof(output));
   ASSERT_TRUE(code != 0);
   ASSERT_TRUE(strstr(output, "Invalid --group-by key") != NULL);
-  system("rm -rf build/test_cli_groupby_invalid_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_groupby_invalid_env"));
 }
 
 void test_cli_rollback_single_positional(void) {
   const char *env_dir = "build/test_cli_rollback_single";
-  system("rm -rf build/test_cli_rollback_single");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_rollback_single"));
   ASSERT_TRUE(WriteRollbackManifest(env_dir));
 
   char output[4096];
@@ -87,12 +93,12 @@ void test_cli_rollback_single_positional(void) {
     fclose(f);
   }
 
-  system("rm -rf build/test_cli_rollback_single");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_rollback_single"));
 }
 
 void test_cli_rollback_legacy_two_positional(void) {
   const char *env_dir = "build/test_cli_rollback_legacy";
-  system("rm -rf build/test_cli_rollback_legacy");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_rollback_legacy"));
   ASSERT_TRUE(WriteRollbackManifest(env_dir));
 
   char output[4096];
@@ -109,7 +115,7 @@ void test_cli_rollback_legacy_two_positional(void) {
     fclose(f);
   }
 
-  system("rm -rf build/test_cli_rollback_legacy");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_rollback_legacy"));
 }
 
 void test_cli_jobs_validation(void) {
@@ -125,7 +131,9 @@ void test_cli_jobs_validation(void) {
 }
 
 void test_cli_jobs_env_and_override(void) {
-  system("rm -rf build/test_cli_jobs_src build/test_cli_jobs_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_jobs_src", "build/test_cli_jobs_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_jobs_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
@@ -147,7 +155,9 @@ void test_cli_jobs_env_and_override(void) {
   ASSERT_EQ(0, code);
   ASSERT_TRUE(strstr(output, "Jobs: 1") != NULL);
 
-  system("rm -rf build/test_cli_jobs_src build/test_cli_jobs_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_jobs_src", "build/test_cli_jobs_env"},
+      2));
 }
 
 void test_cli_similarity_memory_mode_validation(void) {
@@ -161,7 +171,10 @@ void test_cli_similarity_memory_mode_validation(void) {
 }
 
 void test_cli_scan_does_not_move_duplicates_without_flag(void) {
-  system("rm -rf build/test_cli_dup_scan_src build/test_cli_dup_scan_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_dup_scan_src",
+                       "build/test_cli_dup_scan_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_scan_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_scan_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
@@ -179,11 +192,17 @@ void test_cli_scan_does_not_move_duplicates_without_flag(void) {
   ASSERT_TRUE(FileExists("build/test_cli_dup_scan_src/bird_duplicate.JPG"));
   ASSERT_FALSE(FileExists("build/test_cli_dup_scan_env/bird_duplicate.JPG"));
 
-  system("rm -rf build/test_cli_dup_scan_src build/test_cli_dup_scan_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_dup_scan_src",
+                       "build/test_cli_dup_scan_env"},
+      2));
 }
 
 void test_cli_duplicates_report_is_non_mutating(void) {
-  system("rm -rf build/test_cli_dup_report_src build/test_cli_dup_report_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_dup_report_src",
+                       "build/test_cli_dup_report_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_report_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_report_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
@@ -201,11 +220,14 @@ void test_cli_duplicates_report_is_non_mutating(void) {
   ASSERT_TRUE(FileExists("build/test_cli_dup_report_src/bird_duplicate.JPG"));
   ASSERT_FALSE(FileExists("build/test_cli_dup_report_env/bird_duplicate.JPG"));
 
-  system("rm -rf build/test_cli_dup_report_src build/test_cli_dup_report_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_dup_report_src",
+                       "build/test_cli_dup_report_env"},
+      2));
 }
 
 void test_cli_duplicates_move_requires_env(void) {
-  system("rm -rf build/test_cli_dup_move_req_src");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_dup_move_req_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_move_req_src"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
                               "build/test_cli_dup_move_req_src/bird.JPG"));
@@ -221,11 +243,14 @@ void test_cli_duplicates_move_requires_env(void) {
   ASSERT_TRUE(strstr(output, "--duplicates-move requires an environment directory") !=
               NULL);
 
-  system("rm -rf build/test_cli_dup_move_req_src");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_dup_move_req_src"));
 }
 
 void test_cli_duplicates_move_executes(void) {
-  system("rm -rf build/test_cli_dup_move_src build/test_cli_dup_move_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_dup_move_src",
+                       "build/test_cli_dup_move_env"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_move_src"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_dup_move_env"));
   ASSERT_TRUE(CopyFileForTest("tests/assets/duplicates/bird.JPG",
@@ -247,7 +272,10 @@ void test_cli_duplicates_move_executes(void) {
   ASSERT_TRUE(FileExists("build/test_cli_dup_move_env/bird.JPG") ||
               FileExists("build/test_cli_dup_move_env/bird_duplicate.JPG"));
 
-  system("rm -rf build/test_cli_dup_move_src build/test_cli_dup_move_env");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_dup_move_src",
+                       "build/test_cli_dup_move_env"},
+      2));
 }
 
 void register_cli_core_tests(void) {

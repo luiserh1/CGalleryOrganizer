@@ -1,12 +1,28 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #include "test_framework.h"
 
+#include "fs_utils.h"
 #include "gallery_cache.h"
+#include "integration_test_helpers.h"
+
+static bool WriteTextFile(const char *path, const char *content) {
+  FILE *f = fopen(path, "wb");
+  if (!f) {
+    return false;
+  }
+  if (content && fputs(content, f) == EOF) {
+    fclose(f);
+    return false;
+  }
+  fclose(f);
+  return true;
+}
 
 void test_cache_extract_basic_metadata(void) {
-  system("echo 'hello' > temp_meta.txt");
+  ASSERT_TRUE(WriteTextFile("temp_meta.txt", "hello\n"));
 
   double mod_date = 0;
   long size = 0;
@@ -15,7 +31,7 @@ void test_cache_extract_basic_metadata(void) {
   ASSERT_EQ(6, size); // "hello\n" is 6 bytes
   ASSERT_TRUE(mod_date > 0.0);
 
-  system("rm temp_meta.txt");
+  ASSERT_TRUE(FsDeleteFile("temp_meta.txt"));
 }
 
 void test_cache_flow(void) {
@@ -78,7 +94,7 @@ void test_cache_flow(void) {
   ASSERT_FALSE(CacheGetValidEntry("/missing/path.jpg", 0, 0, &loaded_md));
 
   CacheShutdown();
-  system("rm -f build/temp_cache.json");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/temp_cache.json"));
 }
 
 void test_cache_entry_count_and_keys(void) {
@@ -108,7 +124,7 @@ void test_cache_entry_count_and_keys(void) {
   CacheFreeKeys(keys, key_count);
 
   CacheShutdown();
-  system("rm -f build/temp_cache_count.json");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/temp_cache_count.json"));
 }
 
 void register_gallery_cache_tests(void) {

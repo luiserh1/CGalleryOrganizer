@@ -1,7 +1,11 @@
+#include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "cJSON.h"
 #include "fs_utils.h"
@@ -38,6 +42,75 @@ int RunCommandCapture(const char *cmd, char *output, size_t output_size) {
     return WEXITSTATUS(status);
   }
   return -1;
+}
+
+static bool RemovePathRecursiveInternal(const char *path) {
+  if (!path || path[0] == '\0') {
+    return false;
+  }
+
+  struct stat st;
+  if (lstat(path, &st) != 0) {
+    return errno == ENOENT;
+  }
+
+  if (S_ISDIR(st.st_mode)) {
+    DIR *dir = opendir(path);
+    if (!dir) {
+      return false;
+    }
+
+    struct dirent *entry = NULL;
+    bool ok = true;
+    while ((entry = readdir(dir)) != NULL) {
+      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        continue;
+      }
+
+      char child[1024];
+      int written =
+          snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+      if (written < 0 || (size_t)written >= sizeof(child)) {
+        ok = false;
+        break;
+      }
+      if (!RemovePathRecursiveInternal(child)) {
+        ok = false;
+        break;
+      }
+    }
+    closedir(dir);
+    if (!ok) {
+      return false;
+    }
+    return rmdir(path) == 0;
+  }
+
+  return unlink(path) == 0;
+}
+
+bool RemovePathRecursiveForTest(const char *path) {
+  return RemovePathRecursiveInternal(path);
+}
+
+bool RemovePathsForTest(const char *paths[], size_t count) {
+  if (!paths && count > 0) {
+    return false;
+  }
+
+  for (size_t i = 0; i < count; i++) {
+    if (!RemovePathRecursiveForTest(paths[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ResetDirForTest(const char *path) {
+  if (!RemovePathRecursiveForTest(path)) {
+    return false;
+  }
+  return FsMakeDirRecursive(path);
 }
 
 static bool LoadFileText(const char *path, char **out_text) {

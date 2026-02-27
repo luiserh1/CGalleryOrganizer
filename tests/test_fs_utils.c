@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -5,6 +6,7 @@
 #include "test_framework.h"
 
 #include "fs_utils.h"
+#include "integration_test_helpers.h"
 
 // Helper structure for WalkCallback counting
 typedef struct {
@@ -22,6 +24,16 @@ static bool TestWalkCallback(const char *absolute_path, void *user_data) {
     g_fail_count++;
     return false;
   }
+  return true;
+}
+
+static bool WriteDummyFile(const char *path) {
+  FILE *f = fopen(path, "wb");
+  if (!f) {
+    return false;
+  }
+  fputs("x", f);
+  fclose(f);
   return true;
 }
 
@@ -54,7 +66,7 @@ void test_fs_utils_get_absolute_path(void) {
   char out_path[MAX_PATH_LENGTH];
 
   // Create a temporary file to test realpath
-  system("touch temp_test_file.txt");
+  ASSERT_TRUE(WriteDummyFile("temp_test_file.txt"));
 
   ASSERT_TRUE(
       FsGetAbsolutePath("temp_test_file.txt", out_path, sizeof(out_path)));
@@ -65,15 +77,16 @@ void test_fs_utils_get_absolute_path(void) {
                                  sizeof(out_path)));
 
   // Clean up
-  system("rm temp_test_file.txt");
+  ASSERT_TRUE(FsDeleteFile("temp_test_file.txt"));
 }
 
 void test_fs_utils_walk_directory(void) {
   // Setup a temporary directory structure
-  system("mkdir -p temp_walk_test/sub");
-  system("touch temp_walk_test/file1.jpg");
-  system("touch temp_walk_test/file2.png");
-  system("touch temp_walk_test/sub/file3.mp4");
+  ASSERT_TRUE(RemovePathRecursiveForTest("temp_walk_test"));
+  ASSERT_TRUE(FsMakeDirRecursive("temp_walk_test/sub"));
+  ASSERT_TRUE(WriteDummyFile("temp_walk_test/file1.jpg"));
+  ASSERT_TRUE(WriteDummyFile("temp_walk_test/file2.png"));
+  ASSERT_TRUE(WriteDummyFile("temp_walk_test/sub/file3.mp4"));
 
   WalkContext ctx = {0};
   ASSERT_TRUE(FsWalkDirectory("temp_walk_test", TestWalkCallback, &ctx));
@@ -82,7 +95,7 @@ void test_fs_utils_walk_directory(void) {
   ASSERT_EQ(3, ctx.count);
 
   // Clean up
-  system("rm -rf temp_walk_test");
+  ASSERT_TRUE(RemovePathRecursiveForTest("temp_walk_test"));
 }
 
 void register_fs_utils_tests(void) {

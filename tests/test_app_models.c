@@ -5,6 +5,7 @@
 #include "app_api.h"
 #include "fs_utils.h"
 #include "test_framework.h"
+#include "integration_test_helpers.h"
 
 static bool WriteTextFile(const char *path, const char *content) {
   FILE *f = fopen(path, "wb");
@@ -36,7 +37,7 @@ void test_app_install_models_invalid_arguments(void) {
 }
 
 void test_app_install_models_data_url_and_lockfile(void) {
-  system("rm -rf build/test_app_models_ok");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_models_ok"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_models_ok"));
 
   const char *manifest_json =
@@ -87,11 +88,11 @@ void test_app_install_models_data_url_and_lockfile(void) {
   ASSERT_EQ(1, second.skipped_count);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_models_ok");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_models_ok"));
 }
 
 void test_app_install_models_bad_checksum_fails(void) {
-  system("rm -rf build/test_app_models_badsha");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_models_badsha"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_models_badsha"));
 
   const char *manifest_json =
@@ -130,7 +131,7 @@ void test_app_install_models_bad_checksum_fails(void) {
   ASSERT_TRUE(strstr(err, "SHA256 mismatch") != NULL);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_models_badsha");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_models_badsha"));
 }
 
 void register_app_models_tests(void) {

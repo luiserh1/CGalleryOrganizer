@@ -5,6 +5,7 @@
 #include "app_api.h"
 #include "fs_utils.h"
 #include "test_framework.h"
+#include "integration_test_helpers.h"
 
 static bool WriteTextFile(const char *path, const char *content) {
   FILE *f = fopen(path, "wb");
@@ -58,7 +59,9 @@ void test_app_runtime_state_invalid_arguments(void) {
 }
 
 void test_app_runtime_state_detects_cache_manifest_and_models(void) {
-  system("rm -rf build/test_app_state_env build/test_app_state_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_state_env", "build/test_app_state_models"},
+      2));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_env/.cache"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_models"));
 
@@ -97,11 +100,13 @@ void test_app_runtime_state_detects_cache_manifest_and_models(void) {
   ASSERT_STR_EQ("build/test_app_state_models", state.models_root);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_state_env build/test_app_state_models");
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_app_state_env", "build/test_app_state_models"},
+      2));
 }
 
 void test_app_runtime_state_reports_missing_models(void) {
-  system("rm -rf build/test_app_state_missing_models");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_state_missing_models"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_missing_models"));
   ASSERT_TRUE(WriteTextFile("build/test_app_state_missing_models/clf-default.onnx",
                             "dummy-clf"));
@@ -125,11 +130,12 @@ void test_app_runtime_state_reports_missing_models(void) {
   ASSERT_STR_EQ("embed-default", state.models.missing_ids[1]);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_state_missing_models");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_state_missing_models"));
 }
 
 void test_app_runtime_state_uses_in_memory_count_for_active_cache(void) {
-  system("rm -rf build/test_app_state_active_cache_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_state_active_cache_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_active_cache_env"));
 
   AppRuntimeOptions opts = {0};
@@ -154,11 +160,13 @@ void test_app_runtime_state_uses_in_memory_count_for_active_cache(void) {
   ASSERT_EQ(scan_result.files_cached, state.cache_entry_count);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_state_active_cache_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_state_active_cache_env"));
 }
 
 void test_app_runtime_state_malformed_cache_does_not_fail_when_count_unknown(void) {
-  system("rm -rf build/test_app_state_malformed_cache_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_state_malformed_cache_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_malformed_cache_env/.cache"));
   ASSERT_TRUE(WriteTextFile(
       "build/test_app_state_malformed_cache_env/.cache/gallery_cache.json",
@@ -180,7 +188,8 @@ void test_app_runtime_state_malformed_cache_does_not_fail_when_count_unknown(voi
   ASSERT_EQ(0, state.cache_entry_count);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_state_malformed_cache_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_state_malformed_cache_env"));
 }
 
 void register_app_runtime_state_tests(void) {

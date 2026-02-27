@@ -4,6 +4,7 @@
 #include "app_api.h"
 #include "fs_utils.h"
 #include "test_framework.h"
+#include "integration_test_helpers.h"
 
 static bool AlwaysCancel(void *user_data) {
   (void)user_data;
@@ -37,7 +38,7 @@ void test_app_scan_invalid_arguments(void) {
 }
 
 void test_app_scan_cancelled(void) {
-  system("rm -rf build/test_app_cancel_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_cancel_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_cancel_env"));
 
   AppRuntimeOptions opts = {0};
@@ -58,7 +59,7 @@ void test_app_scan_cancelled(void) {
   ASSERT_EQ(APP_STATUS_CANCELLED, status);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_cancel_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_cancel_env"));
 }
 
 void test_app_similarity_requires_env(void) {
@@ -82,8 +83,25 @@ void test_app_similarity_requires_env(void) {
   AppContextDestroy(ctx);
 }
 
+void test_app_move_duplicates_requires_report(void) {
+  AppRuntimeOptions opts = {0};
+  AppContext *ctx = AppContextCreate(&opts);
+  ASSERT_TRUE(ctx != NULL);
+
+  AppDuplicateMoveRequest req = {
+      .target_dir = "build/test_app_move_requires_report",
+      .report = NULL,
+  };
+  AppDuplicateMoveResult result = {0};
+
+  AppStatus status = AppMoveDuplicates(ctx, &req, &result);
+  ASSERT_EQ(APP_STATUS_INVALID_ARGUMENT, status);
+
+  AppContextDestroy(ctx);
+}
+
 void test_app_inspect_scan_profile_missing_sidecar(void) {
-  system("rm -rf build/test_app_profile_missing_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_missing_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_missing_env"));
 
   AppRuntimeOptions opts = {0};
@@ -111,11 +129,12 @@ void test_app_inspect_scan_profile_missing_sidecar(void) {
   ASSERT_TRUE(strstr(decision.reason, "missing") != NULL);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_missing_env");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_app_profile_missing_env"));
 }
 
 void test_app_inspect_scan_profile_ignores_nonsemantic_settings(void) {
-  system("rm -rf build/test_app_profile_nonsemantic_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_nonsemantic_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_profile_nonsemantic_env"));
 
   AppRuntimeOptions opts = {0};
@@ -151,7 +170,8 @@ void test_app_inspect_scan_profile_ignores_nonsemantic_settings(void) {
   ASSERT_TRUE(strstr(decision.reason, "matched") != NULL);
 
   AppContextDestroy(ctx);
-  system("rm -rf build/test_app_profile_nonsemantic_env");
+  ASSERT_TRUE(
+      RemovePathRecursiveForTest("build/test_app_profile_nonsemantic_env"));
 }
 
 void register_app_api_tests(void) {
@@ -162,6 +182,8 @@ void register_app_api_tests(void) {
   register_test("test_app_scan_cancelled", test_app_scan_cancelled, "unit");
   register_test("test_app_similarity_requires_env",
                 test_app_similarity_requires_env, "unit");
+  register_test("test_app_move_duplicates_requires_report",
+                test_app_move_duplicates_requires_report, "unit");
   register_test("test_app_inspect_scan_profile_missing_sidecar",
                 test_app_inspect_scan_profile_missing_sidecar, "unit");
   register_test("test_app_inspect_scan_profile_ignores_nonsemantic_settings",
