@@ -23,7 +23,6 @@ CGalleryOrganizer is a local-first media organizer with:
 - Work is divided across role playbooks in `team_docs/roles/`.
 - PM owns sequencing, scope, and acceptance criteria only (no coding/commit authority).
 - Main Maintainer owns dependency policy, docs quality, build/CI policy, and release tagging/changelog.
-- Agent-to-agent communication rules are defined in `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Mandatory Quality Gates
 - `make test` must pass.
@@ -35,7 +34,5 @@ CGalleryOrganizer is a local-first media organizer with:
 - Rollback paths must remain operational for any organizing/move flow.
 - Never merge behavior drift against documented CLI/API contracts.
 
-## Cycle Planning Artifacts
-- PM publishes one dated implementation plan per cycle in `team_docs/plans/`.
-- The plan is the canonical execution sequence and ownership map for that cycle.
-- PM may author these plan documents, but Main Maintainer performs final merge/commit.
+## Implementation Plan After Audit
+Use `team_docs/IMPLEMENTATION_PLAN_POST_AUDIT.md` as the canonical execution sequence and ownership map.

@@ -15,15 +15,11 @@
 | Scope definition and milestone boundaries | A/R | C | C | C | C | C | I |
 | Implementation plan (actor, order, dependencies) | A/R | C | C | C | C | C | I |
 | Cross-role conflict resolution (non-governance/build) | A/R | C | C | C | C | C | I |
-| AgentComms protocol and message contract | A/R | C | C | C | C | C | I |
 | Frontend implementation (CLI/GUI UX layer) | I | A/R | C | C | I | C | I |
 | API contract design and compatibility | C | C | A/R | C | I | C | I |
 | Backend implementation | I | C | C | A/R | I | C | I |
 | Dependency add/remove/version policy | I | I | C | I | A/R | C | I |
 | Build and CI policy | I | I | C | I | A/R | C | I |
-| AgentComms server runtime/config/security policy | C | I | I | I | A/R | C | C |
-| AgentComms health and smoke validation | I | I | I | I | C | A/R | I |
-| AgentComms infra credentials and escalation approvals | I | I | I | I | C | I | A/R |
 | Governance/build merge veto | I | I | I | I | A/R | C | I |
 | PM-authored `team_docs/` merge/commit | R | I | I | I | A | I | I |
 | Test plan design and regression strategy | C | C | C | C | I | A/R | I |
@@ -38,4 +34,3 @@
 2. PM is planning-only and does not author code commits.
 3. PM-authored changes under `team_docs/` must be merged/committed by MM.
 4. HITL provides final approvals when human authorization is required.
-5. AgentComms protocol ownership is PM; server operations ownership is MM.

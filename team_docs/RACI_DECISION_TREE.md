@@ -5,19 +5,17 @@ Use this page to decide ownership quickly before starting work.
 ## 1) What kind of change is it?
 1. Scope, priority, sequencing, or cross-role dependency?  
    -> Owner: PM
-2. Agent communication workflow/protocol/message contract?  
-   -> Owner: PM
-3. Frontend behavior/UI/CLI presentation layer?  
+2. Frontend behavior/UI/CLI presentation layer?  
    -> Owner: Front Developer
-4. API contract/shape/versioning/compatibility?  
+3. API contract/shape/versioning/compatibility?  
    -> Owner: API Maintainer
-5. Backend logic/data-processing internals?  
+4. Backend logic/data-processing internals?  
    -> Owner: Back Developer
-6. Dependency policy, build system, CI policy, release tag/changelog, governance docs, AgentComms runtime/security?  
+5. Dependency policy, build system, CI policy, release tag/changelog, governance docs?  
    -> Owner: Main Maintainer
-7. Test strategy, regression design, smoke validation execution (including AgentComms health checks)?  
+6. Test strategy, regression design, smoke validation execution?  
    -> Owner: QA
-8. Human approval/escalation/risk acceptance, infrastructure credentials/secrets required?  
+7. Human approval/escalation/risk acceptance required?  
    -> Owner: HITL
 
 ## 2) Is this a governance/build conflict?
@@ -61,4 +59,3 @@ If all 5 are true -> merge allowed.
 2. API compatibility dispute -> API Maintainer (PM informed)
 3. Build/CI/dependency/release dispute -> Main Maintainer
 4. Safety/risk acceptance beyond agent authority -> HITL
-5. AgentComms outage/security incident -> Main Maintainer + HITL

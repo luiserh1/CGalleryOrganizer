@@ -18,7 +18,6 @@ Implement and maintain frontend behavior (CLI/GUI/future frontends) while respec
 - PM plan and acceptance criteria.
 - API contract docs (`docs/app_api.md`).
 - Runtime/state behavior requirements.
-- Agent coordination protocol from `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Required Outputs
 - Frontend code changes with tests where applicable.

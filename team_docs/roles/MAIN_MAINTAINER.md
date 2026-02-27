@@ -8,7 +8,6 @@ Own repository governance: documentation quality, dependency policy, and build s
 - Approve dependency add/remove/version policy changes.
 - Own build and CI policy decisions.
 - Maintain `Makefile` targets and strict build standards.
-- Own AgentComms server runtime, configuration, and security policy.
 - Own release tagging and changelog publication.
 - Hold governance/build veto authority on merges.
 - Serve as required merger/committer for PM-authored `team_docs/` changes.
@@ -22,12 +21,10 @@ Own repository governance: documentation quality, dependency policy, and build s
 - PM scope decisions.
 - Technical behavior changes from implementing roles.
 - QA test/smoke outcomes.
-- Agent coordination protocol from `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Required Outputs
 - Documentation synced to actual behavior.
 - Build/dependency policy updates.
-- AgentComms operational baseline (runtime config, security controls, and logging policy).
 - Release readiness confirmation from governance perspective.
 - Final release tag/changelog decision record.
 

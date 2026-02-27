@@ -6,7 +6,6 @@ Provide independent confidence in correctness, regression safety, and release re
 ## Responsibilities
 - Run and report automated suites (`make test`).
 - Execute targeted smoke workflows from `docs/tests.md`.
-- Execute AgentComms health/smoke validation for coordination reliability.
 - Design validation plans for new behavior.
 - Flag flaky tests and fragility hotspots with concrete reproduction steps.
 
@@ -19,11 +18,9 @@ Provide independent confidence in correctness, regression safety, and release re
 - PM acceptance criteria.
 - Feature/contract diffs from implementation roles.
 - Known risk list from audit docs.
-- Agent coordination protocol from `team_docs/AGENT_COMMS_PROTOCOL.md`.
 
 ## Required Outputs
 - Pass/fail report with evidence.
-- AgentComms communication health report (delivery, ack flow, and outage notes).
 - Regression findings with severity and reproduction.
 - Recommendation: ship / hold / conditional ship.
 
