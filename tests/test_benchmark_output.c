@@ -1,44 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
 
 #include "fs_utils.h"
 #include "test_framework.h"
-
-static int RunCommandCapture(const char *cmd, char *output, size_t output_size) {
-  if (!cmd || !output || output_size == 0) {
-    return -1;
-  }
-
-  output[0] = '\0';
-  FILE *pipe = popen(cmd, "r");
-  if (!pipe) {
-    return -1;
-  }
-
-  size_t used = 0;
-  while (!feof(pipe) && used < output_size - 1) {
-    size_t n = fread(output + used, 1, output_size - 1 - used, pipe);
-    if (n == 0) {
-      break;
-    }
-    used += n;
-  }
-  output[used] = '\0';
-
-  int status = pclose(pipe);
-  if (status == -1) {
-    return -1;
-  }
-  if (WIFEXITED(status)) {
-    return WEXITSTATUS(status);
-  }
-  return -1;
-}
+#include "integration_test_helpers.h"
 
 void test_benchmark_output_jsonl_contract(void) {
-  system("rm -rf build/test_bench_output");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_output"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_output"));
 
   char output[4096] = {0};
@@ -72,11 +41,11 @@ void test_benchmark_output_jsonl_contract(void) {
   ASSERT_TRUE(f != NULL);
   fclose(f);
 
-  system("rm -rf build/test_bench_output");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_output"));
 }
 
 void test_benchmark_stats_and_comparison_report(void) {
-  system("rm -rf build/test_bench_stats");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_stats"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_stats"));
 
   char output[4096] = {0};
@@ -112,7 +81,7 @@ void test_benchmark_stats_and_comparison_report(void) {
   ASSERT_TRUE(strstr(compare_buf, "\"candidateProfile\"") != NULL);
   ASSERT_TRUE(strstr(compare_buf, "\"deltaPct\"") != NULL);
 
-  system("rm -rf build/test_bench_stats");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_stats"));
 }
 
 void register_benchmark_output_tests(void) {
