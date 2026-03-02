@@ -22,6 +22,13 @@ typedef struct {
   int sim_topk;
   AppSimilarityMemoryMode sim_memory_mode;
   char organize_group_by[GUI_STATE_GROUP_BY_MAX];
+  char rename_pattern[256];
+  char rename_tags_map_path[GUI_STATE_MAX_PATH];
+  char rename_tag_add_csv[256];
+  char rename_tag_remove_csv[256];
+  char rename_preview_id[64];
+  char rename_operation_id[64];
+  bool rename_accept_auto_suffix;
   char updated_at[GUI_STATE_UPDATED_AT_MAX];
 } GuiState;
 

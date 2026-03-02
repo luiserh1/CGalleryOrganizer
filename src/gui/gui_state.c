@@ -26,6 +26,10 @@ static void GuiStateSetDefaults(GuiState *state) {
   state->sim_memory_mode = APP_SIM_MEMORY_CHUNKED;
   strncpy(state->organize_group_by, "date", sizeof(state->organize_group_by) - 1);
   state->organize_group_by[sizeof(state->organize_group_by) - 1] = '\0';
+  strncpy(state->rename_pattern, "pic-[datetime]-[index].[format]",
+          sizeof(state->rename_pattern) - 1);
+  state->rename_pattern[sizeof(state->rename_pattern) - 1] = '\0';
+  state->rename_accept_auto_suffix = false;
 }
 
 static int ClampInt(int value, int min_value, int max_value) {
@@ -220,6 +224,14 @@ bool GuiStateLoad(GuiState *out_state) {
   cJSON *sim_topk = cJSON_GetObjectItem(json, "simTopK");
   cJSON *sim_memory_mode = cJSON_GetObjectItem(json, "simMemoryMode");
   cJSON *organize_group_by = cJSON_GetObjectItem(json, "organizeGroupBy");
+  cJSON *rename_pattern = cJSON_GetObjectItem(json, "renamePattern");
+  cJSON *rename_tags_map = cJSON_GetObjectItem(json, "renameTagsMapPath");
+  cJSON *rename_tag_add = cJSON_GetObjectItem(json, "renameTagAddCsv");
+  cJSON *rename_tag_remove = cJSON_GetObjectItem(json, "renameTagRemoveCsv");
+  cJSON *rename_preview_id = cJSON_GetObjectItem(json, "renamePreviewId");
+  cJSON *rename_operation_id = cJSON_GetObjectItem(json, "renameOperationId");
+  cJSON *rename_accept_suffix =
+      cJSON_GetObjectItem(json, "renameAcceptAutoSuffix");
   cJSON *updated_at = cJSON_GetObjectItem(json, "updatedAt");
 
   if (cJSON_IsString(gallery) && gallery->valuestring) {
@@ -262,6 +274,45 @@ bool GuiStateLoad(GuiState *out_state) {
             sizeof(out_state->organize_group_by) - 1);
     out_state->organize_group_by[sizeof(out_state->organize_group_by) - 1] =
         '\0';
+  }
+
+  if (cJSON_IsString(rename_pattern) && rename_pattern->valuestring &&
+      !IsBlankString(rename_pattern->valuestring)) {
+    strncpy(out_state->rename_pattern, rename_pattern->valuestring,
+            sizeof(out_state->rename_pattern) - 1);
+    out_state->rename_pattern[sizeof(out_state->rename_pattern) - 1] = '\0';
+  }
+  if (cJSON_IsString(rename_tags_map) && rename_tags_map->valuestring) {
+    strncpy(out_state->rename_tags_map_path, rename_tags_map->valuestring,
+            sizeof(out_state->rename_tags_map_path) - 1);
+    out_state->rename_tags_map_path[sizeof(out_state->rename_tags_map_path) - 1] =
+        '\0';
+  }
+  if (cJSON_IsString(rename_tag_add) && rename_tag_add->valuestring) {
+    strncpy(out_state->rename_tag_add_csv, rename_tag_add->valuestring,
+            sizeof(out_state->rename_tag_add_csv) - 1);
+    out_state->rename_tag_add_csv[sizeof(out_state->rename_tag_add_csv) - 1] =
+        '\0';
+  }
+  if (cJSON_IsString(rename_tag_remove) && rename_tag_remove->valuestring) {
+    strncpy(out_state->rename_tag_remove_csv, rename_tag_remove->valuestring,
+            sizeof(out_state->rename_tag_remove_csv) - 1);
+    out_state->rename_tag_remove_csv[sizeof(out_state->rename_tag_remove_csv) - 1] =
+        '\0';
+  }
+  if (cJSON_IsString(rename_preview_id) && rename_preview_id->valuestring) {
+    strncpy(out_state->rename_preview_id, rename_preview_id->valuestring,
+            sizeof(out_state->rename_preview_id) - 1);
+    out_state->rename_preview_id[sizeof(out_state->rename_preview_id) - 1] = '\0';
+  }
+  if (cJSON_IsString(rename_operation_id) && rename_operation_id->valuestring) {
+    strncpy(out_state->rename_operation_id, rename_operation_id->valuestring,
+            sizeof(out_state->rename_operation_id) - 1);
+    out_state->rename_operation_id[sizeof(out_state->rename_operation_id) - 1] =
+        '\0';
+  }
+  if (cJSON_IsBool(rename_accept_suffix)) {
+    out_state->rename_accept_auto_suffix = cJSON_IsTrue(rename_accept_suffix);
   }
 
   if (cJSON_IsString(updated_at) && updated_at->valuestring) {
@@ -323,6 +374,16 @@ bool GuiStateSave(const GuiState *state) {
   cJSON_AddStringToObject(json, "simMemoryMode",
                           MemoryModeToString(state->sim_memory_mode));
   cJSON_AddStringToObject(json, "organizeGroupBy", state->organize_group_by);
+  cJSON_AddStringToObject(json, "renamePattern", state->rename_pattern);
+  cJSON_AddStringToObject(json, "renameTagsMapPath",
+                          state->rename_tags_map_path);
+  cJSON_AddStringToObject(json, "renameTagAddCsv", state->rename_tag_add_csv);
+  cJSON_AddStringToObject(json, "renameTagRemoveCsv",
+                          state->rename_tag_remove_csv);
+  cJSON_AddStringToObject(json, "renamePreviewId", state->rename_preview_id);
+  cJSON_AddStringToObject(json, "renameOperationId", state->rename_operation_id);
+  cJSON_AddBoolToObject(json, "renameAcceptAutoSuffix",
+                        state->rename_accept_auto_suffix);
   if (updated_at[0] != '\0') {
     cJSON_AddStringToObject(json, "updatedAt", updated_at);
   }

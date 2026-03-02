@@ -21,11 +21,177 @@ static int HandleRollback(AppContext *app, const char *target_dir,
   AppRollbackResult result = {0};
   AppStatus status = AppRollback(app, &request, &result);
   if (status != APP_STATUS_OK) {
-    printf("[!] Rollback failed to execute properly.\n");
+    PrintAppError(app, "[!] Rollback failed to execute properly");
     return 1;
   }
 
   printf("[*] Rollback complete. Restored %d files.\n", result.restored_count);
+  return 0;
+}
+
+static int HandleRenamePreview(AppContext *app, const char *target_dir,
+                               const char *env_dir, const char *pattern,
+                               const char *tags_map_path,
+                               const char *tag_add_csv,
+                               const char *tag_remove_csv,
+                               const char *argv0) {
+  if (!target_dir || target_dir[0] == '\0' || !env_dir || env_dir[0] == '\0') {
+    printf("Error: --rename-preview requires <target_dir> <env_dir>.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+
+  AppRenamePreviewRequest request = {
+      .target_dir = target_dir,
+      .env_dir = env_dir,
+      .pattern = pattern,
+      .tags_map_json_path = tags_map_path,
+      .tag_add_csv = tag_add_csv,
+      .tag_remove_csv = tag_remove_csv,
+      .hooks = {0},
+  };
+  AppRenamePreviewResult result = {0};
+
+  AppStatus status = AppPreviewRename(app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Failed to generate rename preview");
+    AppFreeRenamePreviewResult(&result);
+    return 1;
+  }
+
+  printf("Rename preview ready.\n");
+  printf("Preview ID: %s\n", result.preview_id);
+  printf("Preview artifact: %s\n", result.preview_path);
+  printf("Pattern: %s\n", result.effective_pattern);
+  printf("Files in scope: %d\n", result.file_count);
+  printf("Collision groups: %d\n", result.collision_group_count);
+  printf("Colliding items: %d\n", result.collision_count);
+  printf("Truncated names: %d\n", result.truncation_count);
+  if (result.requires_auto_suffix_acceptance) {
+    printf("Apply guard: collisions detected; --rename-accept-auto-suffix "
+           "is required on apply.\n");
+  }
+  if (result.details_json && result.details_json[0] != '\0') {
+    printf("\n--- Preview Details (JSON) ---\n%s\n", result.details_json);
+  }
+
+  AppFreeRenamePreviewResult(&result);
+  return 0;
+}
+
+static int HandleRenameApply(AppContext *app, const char *target_dir,
+                             const char *env_dir,
+                             const char *rename_from_preview,
+                             bool accept_auto_suffix, const char *argv0) {
+  const char *apply_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!apply_env) {
+    printf("Error: --rename-apply requires an environment directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+  if (!rename_from_preview || rename_from_preview[0] == '\0') {
+    printf("Error: --rename-apply requires --rename-from-preview <preview_id>.\n");
+    return 1;
+  }
+
+  AppRenameApplyRequest request = {
+      .env_dir = apply_env,
+      .preview_id = rename_from_preview,
+      .accept_auto_suffix = accept_auto_suffix,
+      .hooks = {0},
+  };
+  AppRenameApplyResult result = {0};
+
+  AppStatus status = AppApplyRename(app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Rename apply failed");
+    return 1;
+  }
+
+  printf("Rename apply completed.\n");
+  printf("Operation ID: %s\n", result.operation_id);
+  printf("Renamed: %d\n", result.renamed_count);
+  printf("Skipped: %d\n", result.skipped_count);
+  printf("Failed: %d\n", result.failed_count);
+  printf("Collision resolutions: %d\n", result.collision_resolved_count);
+  printf("Truncated names in plan: %d\n", result.truncation_count);
+  if (result.auto_suffix_applied) {
+    printf("Auto suffix policy applied: yes\n");
+  }
+
+  return 0;
+}
+
+static int HandleRenameHistory(AppContext *app, const char *target_dir,
+                               const char *env_dir, const char *argv0) {
+  const char *history_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!history_env) {
+    printf("Error: --rename-history requires an environment directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+
+  AppRenameHistoryEntry *entries = NULL;
+  int count = 0;
+  AppStatus status = AppListRenameHistory(app, history_env, &entries, &count);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Failed to list rename history");
+    return 1;
+  }
+
+  if (count <= 0 || !entries) {
+    printf("Rename history is empty.\n");
+    AppFreeRenameHistoryEntries(entries);
+    return 0;
+  }
+
+  printf("Rename history entries: %d\n", count);
+  for (int i = 0; i < count; i++) {
+    printf("%d. %s (%s) renamed=%d skipped=%d failed=%d collisions=%d"
+           " rollback=%s restored=%d\n",
+           i + 1, entries[i].operation_id,
+           entries[i].created_at_utc[0] != '\0' ? entries[i].created_at_utc
+                                                : "unknown-time",
+           entries[i].renamed_count, entries[i].skipped_count,
+           entries[i].failed_count, entries[i].collision_resolved_count,
+           entries[i].rollback_performed ? "yes" : "no",
+           entries[i].rollback_restored_count);
+  }
+
+  AppFreeRenameHistoryEntries(entries);
+  return 0;
+}
+
+static int HandleRenameRollback(AppContext *app, const char *target_dir,
+                                const char *env_dir,
+                                const char *operation_id,
+                                const char *argv0) {
+  const char *rollback_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!rollback_env) {
+    printf("Error: --rename-rollback requires an environment directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+  if (!operation_id || operation_id[0] == '\0') {
+    printf("Error: --rename-rollback requires <operation_id>.\n");
+    return 1;
+  }
+
+  AppRenameRollbackRequest request = {
+      .env_dir = rollback_env,
+      .operation_id = operation_id,
+      .hooks = {0},
+  };
+  AppRenameRollbackResult result = {0};
+
+  AppStatus status = AppRollbackRename(app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Rename rollback failed");
+    return 1;
+  }
+
+  printf("Rename rollback complete. Restored=%d Skipped=%d Failed=%d\n",
+         result.restored_count, result.skipped_count, result.failed_count);
   return 0;
 }
 
@@ -101,7 +267,7 @@ static void PrintAppError(AppContext *app, const char *prefix) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.5.4\n");
+  printf("CGalleryOrganizer v0.6.0\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -112,6 +278,18 @@ int main(int argc, char **argv) {
   bool duplicates_report = false;
   bool duplicates_move = false;
   bool rollback = false;
+
+  bool rename_preview = false;
+  bool rename_apply = false;
+  bool rename_history = false;
+  const char *rename_rollback_operation = NULL;
+  const char *rename_pattern = NULL;
+  const char *rename_tags_map_path = NULL;
+  const char *rename_tag_add_csv = NULL;
+  const char *rename_tag_remove_csv = NULL;
+  const char *rename_from_preview = NULL;
+  bool rename_accept_auto_suffix = false;
+
   const char *jobs_arg = "auto";
   bool jobs_set_by_cli = false;
   float sim_threshold = 0.92f;
@@ -207,9 +385,9 @@ int main(int argc, char **argv) {
       } else if (strcmp(mode, "auto") == 0) {
         cache_compression_mode = APP_CACHE_COMPRESSION_AUTO;
       } else {
-        printf(
-            "Error: Invalid --cache-compress mode '%s'. Allowed: none|zstd|auto\n",
-            mode);
+        printf("Error: Invalid --cache-compress mode '%s'. Allowed: "
+               "none|zstd|auto\n",
+               mode);
         return 1;
       }
     } else if (strcmp(argv[i], "--cache-compress-level") == 0) {
@@ -241,6 +419,50 @@ int main(int argc, char **argv) {
       duplicates_move = true;
     } else if (strcmp(argv[i], "--rollback") == 0) {
       rollback = true;
+    } else if (strcmp(argv[i], "--rename-preview") == 0) {
+      rename_preview = true;
+    } else if (strcmp(argv[i], "--rename-apply") == 0) {
+      rename_apply = true;
+    } else if (strcmp(argv[i], "--rename-pattern") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-pattern requires a pattern value.\n");
+        return 1;
+      }
+      rename_pattern = argv[++i];
+    } else if (strcmp(argv[i], "--rename-tags-map") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-tags-map requires a JSON path.\n");
+        return 1;
+      }
+      rename_tags_map_path = argv[++i];
+    } else if (strcmp(argv[i], "--rename-tag-add") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-tag-add requires CSV tags.\n");
+        return 1;
+      }
+      rename_tag_add_csv = argv[++i];
+    } else if (strcmp(argv[i], "--rename-tag-remove") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-tag-remove requires CSV tags.\n");
+        return 1;
+      }
+      rename_tag_remove_csv = argv[++i];
+    } else if (strcmp(argv[i], "--rename-from-preview") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-from-preview requires a preview id.\n");
+        return 1;
+      }
+      rename_from_preview = argv[++i];
+    } else if (strcmp(argv[i], "--rename-accept-auto-suffix") == 0) {
+      rename_accept_auto_suffix = true;
+    } else if (strcmp(argv[i], "--rename-history") == 0) {
+      rename_history = true;
+    } else if (strcmp(argv[i], "--rename-rollback") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-rollback requires an operation id.\n");
+        return 1;
+      }
+      rename_rollback_operation = argv[++i];
     } else if (argv[i][0] == '-') {
       printf("Error: Unknown option '%s'.\n", argv[i]);
       CliPrintUsage(argv[0]);
@@ -254,6 +476,61 @@ int main(int argc, char **argv) {
       CliPrintUsage(argv[0]);
       return 1;
     }
+  }
+
+  bool rename_rollback =
+      rename_rollback_operation && rename_rollback_operation[0] != '\0';
+  int rename_action_count = 0;
+  rename_action_count += rename_preview ? 1 : 0;
+  rename_action_count += rename_apply ? 1 : 0;
+  rename_action_count += rename_history ? 1 : 0;
+  rename_action_count += rename_rollback ? 1 : 0;
+
+  if (rename_action_count > 1) {
+    printf("Error: Rename actions are mutually exclusive "
+           "(--rename-preview|--rename-apply|--rename-history|"
+           "--rename-rollback).\n");
+    return 1;
+  }
+
+  if (rename_apply && (!rename_from_preview || rename_from_preview[0] == '\0')) {
+    printf("Error: --rename-apply requires --rename-from-preview <preview_id>.\n");
+    return 1;
+  }
+
+  if (!rename_apply && rename_from_preview && rename_from_preview[0] != '\0') {
+    printf("Error: --rename-from-preview can only be used with --rename-apply.\n");
+    return 1;
+  }
+
+  if (!rename_apply && rename_accept_auto_suffix) {
+    printf("Error: --rename-accept-auto-suffix can only be used with "
+           "--rename-apply.\n");
+    return 1;
+  }
+
+  if (!rename_preview &&
+      ((rename_pattern && rename_pattern[0] != '\0') ||
+       (rename_tags_map_path && rename_tags_map_path[0] != '\0') ||
+       (rename_tag_add_csv && rename_tag_add_csv[0] != '\0') ||
+       (rename_tag_remove_csv && rename_tag_remove_csv[0] != '\0'))) {
+    printf("Error: rename pattern/tag edit options are only valid with "
+           "--rename-preview.\n");
+    return 1;
+  }
+
+  bool has_non_rename_actions = rollback || organize || preview || duplicates_report ||
+                                duplicates_move || similarity_report || ml_enrich;
+  if (rename_action_count > 0 && has_non_rename_actions) {
+    printf("Error: Rename actions cannot be combined with scan/organize/"
+           "similarity/duplicate/rollback actions.\n");
+    return 1;
+  }
+
+  if (rename_action_count > 0 && (jobs_set_by_cli || exhaustive || group_by_arg)) {
+    printf("Error: --jobs/--exhaustive/--group-by are not applicable to dedicated "
+           "rename actions.\n");
+    return 1;
   }
 
   if (rollback && (organize || preview)) {
@@ -273,7 +550,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (similarity_report && (organize || preview)) {
-    printf("Error: --similarity-report cannot be combined with --organize/--preview.\n");
+    printf("Error: --similarity-report cannot be combined with --organize/"
+           "--preview.\n");
     return 1;
   }
   if (duplicates_report && duplicates_move) {
@@ -294,25 +572,36 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (!jobs_set_by_cli) {
-    const char *jobs_env = getenv("CGO_JOBS");
-    if (jobs_env && jobs_env[0] != '\0') {
-      jobs_arg = jobs_env;
-    }
-  }
-
-  bool jobs_valid = false;
-  int resolved_jobs = CliResolveJobsFromString(jobs_arg, &jobs_valid);
-  if (!jobs_valid) {
-    printf("Error: --jobs/CGO_JOBS must be 'auto' or a positive integer.\n");
-    return 1;
-  }
-
   AppRuntimeOptions options = {0};
   AppContext *app = AppContextCreate(&options);
   if (!app) {
     printf("Error: Failed to initialize application context.\n");
     return 1;
+  }
+
+  if (rename_preview) {
+    int rc = HandleRenamePreview(app, target_dir, env_dir, rename_pattern,
+                                 rename_tags_map_path, rename_tag_add_csv,
+                                 rename_tag_remove_csv, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_apply) {
+    int rc = HandleRenameApply(app, target_dir, env_dir, rename_from_preview,
+                               rename_accept_auto_suffix, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_history) {
+    int rc = HandleRenameHistory(app, target_dir, env_dir, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_rollback) {
+    int rc = HandleRenameRollback(app, target_dir, env_dir,
+                                  rename_rollback_operation, argv[0]);
+    AppContextDestroy(app);
+    return rc;
   }
 
   if (rollback) {
@@ -326,6 +615,22 @@ int main(int argc, char **argv) {
     AppContextDestroy(app);
     return 1;
   }
+
+  if (!jobs_set_by_cli) {
+    const char *jobs_env = getenv("CGO_JOBS");
+    if (jobs_env && jobs_env[0] != '\0') {
+      jobs_arg = jobs_env;
+    }
+  }
+
+  bool jobs_valid = false;
+  int resolved_jobs = CliResolveJobsFromString(jobs_arg, &jobs_valid);
+  if (!jobs_valid) {
+    printf("Error: --jobs/CGO_JOBS must be 'auto' or a positive integer.\n");
+    AppContextDestroy(app);
+    return 1;
+  }
+
   if (similarity_report && !env_dir) {
     printf("Error: --similarity-report requires an environment directory.\n");
     AppContextDestroy(app);
@@ -415,8 +720,7 @@ int main(int argc, char **argv) {
 
   if (preview || organize) {
     if (!env_dir) {
-      printf("Error: --organize and --preview require an environment "
-             "directory.\n");
+      printf("Error: --organize and --preview require an environment directory.\n");
       AppContextDestroy(app);
       return 1;
     }

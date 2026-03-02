@@ -211,6 +211,25 @@ static bool GuiUiStartTaskInternal(GuiUiState *state, GuiTaskType task_type,
   input.sim_memory_mode = state->sim_memory_mode;
   strncpy(input.group_by, state->group_by, sizeof(input.group_by) - 1);
   input.group_by[sizeof(input.group_by) - 1] = '\0';
+  strncpy(input.rename_pattern, state->rename_pattern_input,
+          sizeof(input.rename_pattern) - 1);
+  input.rename_pattern[sizeof(input.rename_pattern) - 1] = '\0';
+  strncpy(input.rename_tags_map_path, state->rename_tags_map_path,
+          sizeof(input.rename_tags_map_path) - 1);
+  input.rename_tags_map_path[sizeof(input.rename_tags_map_path) - 1] = '\0';
+  strncpy(input.rename_tag_add_csv, state->rename_tag_add_csv,
+          sizeof(input.rename_tag_add_csv) - 1);
+  input.rename_tag_add_csv[sizeof(input.rename_tag_add_csv) - 1] = '\0';
+  strncpy(input.rename_tag_remove_csv, state->rename_tag_remove_csv,
+          sizeof(input.rename_tag_remove_csv) - 1);
+  input.rename_tag_remove_csv[sizeof(input.rename_tag_remove_csv) - 1] = '\0';
+  strncpy(input.rename_preview_id, state->rename_preview_id_input,
+          sizeof(input.rename_preview_id) - 1);
+  input.rename_preview_id[sizeof(input.rename_preview_id) - 1] = '\0';
+  strncpy(input.rename_operation_id, state->rename_operation_id_input,
+          sizeof(input.rename_operation_id) - 1);
+  input.rename_operation_id[sizeof(input.rename_operation_id) - 1] = '\0';
+  input.rename_accept_auto_suffix = state->rename_accept_auto_suffix;
 
   if (GuiWorkerStartTask(&input)) {
     GuiUiSetBannerInfo(state, "Task started");

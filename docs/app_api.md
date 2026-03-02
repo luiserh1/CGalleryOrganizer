@@ -56,6 +56,10 @@ The API remains synchronous. Frontends can run calls in worker threads.
 | `AppPreviewOrganize` | cache in `env_dir` | `AppRunScan` |
 | `AppExecuteOrganize` | cache in `env_dir` | `AppRunScan`, optionally `AppPreviewOrganize` |
 | `AppRollback` | `manifest.json` from prior organize execution | `AppExecuteOrganize` |
+| `AppPreviewRename` | writable `env_dir`; target directory path | none (cache-first metadata refresh handled internally) |
+| `AppApplyRename` | preview artifact id from `AppPreviewRename` | `AppPreviewRename` |
+| `AppListRenameHistory` | rename history index path in `env_dir` | optional `AppApplyRename` |
+| `AppRollbackRename` | operation id from rename history | `AppApplyRename` |
 | `AppFindDuplicates` | cache in `env_dir` | `AppRunScan` |
 | `AppMoveDuplicates` | duplicate report generated in memory | `AppFindDuplicates` |
 
@@ -111,6 +115,12 @@ The API remains synchronous. Frontends can run calls in worker threads.
 - `AppDuplicateReport` dynamic fields:
   - owned by API on success
   - release with `AppFreeDuplicateReport()`
+- `AppRenamePreviewResult.details_json`:
+  - owned by API on success
+  - release with `AppFreeRenamePreviewResult()`
+- `AppListRenameHistory(..., &out_entries, &out_count)`:
+  - `out_entries` is heap-owned by API on success
+  - release with `AppFreeRenameHistoryEntries()`
 - All request pointers/strings:
   - owned by caller
   - must remain valid for the duration of the call
@@ -223,6 +233,36 @@ Behavior:
 - Restores files from manifest history.
 - Required request field: `env_dir`.
 
+## Dedicated Rename
+
+### `AppStatus AppPreviewRename(AppContext *ctx, const AppRenamePreviewRequest *request, AppRenamePreviewResult *out_result)`
+- Builds dedicated in-place rename preview and persists preview artifact under:
+  - `<env_dir>/.cache/rename_previews/<preview_id>.json`
+- Supports pattern tokens, manual tag edits (map + bulk add/remove), collision
+  analysis, truncate+hash warnings, and preview fingerprinting.
+- Required request fields: `target_dir`, `env_dir`.
+- `out_result->details_json` must be released with `AppFreeRenamePreviewResult()`.
+
+### `AppStatus AppApplyRename(AppContext *ctx, const AppRenameApplyRequest *request, AppRenameApplyResult *out_result)`
+- Applies rename from preview id using handshake semantics:
+  - preview artifact load
+  - fingerprint revalidation before mutation
+  - explicit collision acceptance (`accept_auto_suffix`) when required
+- Persists operation manifest/history under:
+  - `<env_dir>/.cache/rename_history/index.json`
+  - `<env_dir>/.cache/rename_history/<operation_id>.json`
+- Required request fields: `env_dir`, `preview_id`.
+
+### `AppStatus AppListRenameHistory(AppContext *ctx, const char *env_dir, AppRenameHistoryEntry **out_entries, int *out_count)`
+- Lists dedicated rename operation history entries (newest-first).
+- Required argument: `env_dir`.
+- Release `out_entries` with `AppFreeRenameHistoryEntries()`.
+
+### `AppStatus AppRollbackRename(AppContext *ctx, const AppRenameRollbackRequest *request, AppRenameRollbackResult *out_result)`
+- Rolls back one dedicated rename operation id.
+- Validates current filesystem constraints and reports restored/skipped/failed.
+- Required request fields: `env_dir`, `operation_id`.
+
 ## Duplicates
 
 ### `AppStatus AppFindDuplicates(AppContext *ctx, const AppDuplicateFindRequest *request, AppDuplicateReport *out_report)`
@@ -254,6 +294,12 @@ Note:
 
 ### `void AppFreeOrganizePlanResult(AppOrganizePlanResult *result)`
 - Frees `plan_text` and resets result object fields.
+
+### `void AppFreeRenamePreviewResult(AppRenamePreviewResult *result)`
+- Frees `details_json` and resets result object fields.
+
+### `void AppFreeRenameHistoryEntries(AppRenameHistoryEntry *entries)`
+- Frees heap entries returned by `AppListRenameHistory()`.
 
 ### `void AppFreeDuplicateReport(AppDuplicateReport *report)`
 - Frees report group arrays and strings, then resets report fields.

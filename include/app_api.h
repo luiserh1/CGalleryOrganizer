@@ -60,6 +60,29 @@ AppStatus AppExecuteOrganize(AppContext *ctx,
                              const AppOrganizeExecuteRequest *request,
                              AppOrganizeExecuteResult *out_result);
 
+// Build preview artifact for dedicated pattern-based in-place rename workflow.
+// On success out_result may include heap-owned details_json released by
+// AppFreeRenamePreviewResult().
+AppStatus AppPreviewRename(AppContext *ctx,
+                           const AppRenamePreviewRequest *request,
+                           AppRenamePreviewResult *out_result);
+
+// Execute rename apply from a previously generated preview id.
+AppStatus AppApplyRename(AppContext *ctx, const AppRenameApplyRequest *request,
+                         AppRenameApplyResult *out_result);
+
+// Roll back a dedicated rename operation id.
+AppStatus AppRollbackRename(AppContext *ctx,
+                            const AppRenameRollbackRequest *request,
+                            AppRenameRollbackResult *out_result);
+
+// List dedicated rename history entries for env_dir.
+// On success out_entries is heap-owned and must be released via
+// AppFreeRenameHistoryEntries().
+AppStatus AppListRenameHistory(AppContext *ctx, const char *env_dir,
+                               AppRenameHistoryEntry **out_entries,
+                               int *out_count);
+
 // Roll back organize operations using env_dir manifest history.
 AppStatus AppRollback(AppContext *ctx, const AppRollbackRequest *request,
                       AppRollbackResult *out_result);
@@ -83,6 +106,12 @@ AppStatus AppInstallModels(AppContext *ctx,
 
 // Free memory owned by an AppOrganizePlanResult produced by AppPreviewOrganize().
 void AppFreeOrganizePlanResult(AppOrganizePlanResult *result);
+
+// Free memory owned by an AppRenamePreviewResult produced by AppPreviewRename().
+void AppFreeRenamePreviewResult(AppRenamePreviewResult *result);
+
+// Free heap memory returned by AppListRenameHistory().
+void AppFreeRenameHistoryEntries(AppRenameHistoryEntry *entries);
 
 // Free memory owned by an AppDuplicateReport produced by AppFindDuplicates().
 void AppFreeDuplicateReport(AppDuplicateReport *report);

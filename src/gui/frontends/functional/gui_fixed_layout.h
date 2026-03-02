@@ -16,7 +16,7 @@ typedef struct {
 typedef struct {
   GuiRect canvas;
   GuiRect title;
-  GuiRect tabs[4];
+  GuiRect tabs[5];
   GuiRect panel_outer;
   GuiRect panel_inner;
   GuiRect status_outer;
@@ -79,6 +79,27 @@ typedef struct {
   GuiRect info_bottom;
 } GuiDuplicatesPanelLayout;
 
+typedef struct {
+  GuiRect pattern_label;
+  GuiRect pattern_input;
+  GuiRect tags_map_label;
+  GuiRect tags_map_input;
+  GuiRect tag_add_label;
+  GuiRect tag_add_input;
+  GuiRect tag_remove_label;
+  GuiRect tag_remove_input;
+  GuiRect preview_id_label;
+  GuiRect preview_id_input;
+  GuiRect operation_id_label;
+  GuiRect operation_id_input;
+  GuiRect accept_suffix;
+  GuiRect preview_button;
+  GuiRect apply_button;
+  GuiRect history_button;
+  GuiRect rollback_button;
+  GuiRect info_label;
+} GuiRenamePanelLayout;
+
 void GuiBuildShellLayout(GuiShellLayout *out_layout);
 void GuiBuildScanPanelLayout(GuiRect panel_bounds, GuiScanPanelLayout *out_layout);
 void GuiBuildSimilarityPanelLayout(GuiRect panel_bounds,
@@ -87,6 +108,8 @@ void GuiBuildOrganizePanelLayout(GuiRect panel_bounds,
                                  GuiOrganizePanelLayout *out_layout);
 void GuiBuildDuplicatesPanelLayout(GuiRect panel_bounds,
                                    GuiDuplicatesPanelLayout *out_layout);
+void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
+                               GuiRenamePanelLayout *out_layout);
 
 bool GuiRectInBounds(GuiRect outer, GuiRect inner);
 bool GuiRectsOverlap(GuiRect a, GuiRect b);

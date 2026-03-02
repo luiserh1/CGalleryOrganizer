@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.5.4)
+## Key Features (v0.6.0)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -35,6 +35,14 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
   - hover tooltips for fields/actions
   - in-app **Download Models** workflow
   - strict numeric range validation with inline clamp feedback
+- Dedicated pattern-based rename workflow (CLI + GUI):
+  - preview/apply/history/rollback API-backed flow
+  - curated v1 tokens:
+    - `[date]`, `[time]`, `[datetime]`, `[camera]`, `[make]`, `[model]`,
+      `[format]`, `[index]`, `[tags_manual]`, `[tags_meta]`, `[tags]`
+  - manual + metadata tag merge model with sidecar persistence
+  - preview handshake and explicit collision acceptance for auto suffixing
+  - deterministic overlength truncate+hash naming policy
 
 ## Build
 
@@ -114,6 +122,16 @@ Scan tab.
 - `--duplicates-report`: analyze duplicate groups without moving files.
 - `--duplicates-move`: move duplicate copies into `<env_dir>`.
 - `--rollback`: restore moved files from `manifest.json`.
+- `--rename-preview`: build dedicated pattern-based rename preview.
+- `--rename-apply`: apply rename from preview id.
+- `--rename-pattern <pattern>`: set pattern for rename preview.
+- `--rename-tags-map <json_path>`: ingest per-file manual tags map.
+- `--rename-tag-add <csv_tags>`: bulk add manual tags for preview scope.
+- `--rename-tag-remove <csv_tags>`: bulk remove/suppress tags for preview scope.
+- `--rename-from-preview <preview_id>`: required handshake id for `--rename-apply`.
+- `--rename-accept-auto-suffix`: accept deterministic collision suffixing (`_1`, `_2`, ...).
+- `--rename-history`: list dedicated rename operation history.
+- `--rename-rollback <operation_id>`: rollback dedicated rename operation.
 
 Notes:
 - plain scan/cache runs do not move duplicate files automatically.
@@ -134,6 +152,7 @@ The GUI exposes the same backend capabilities as the CLI:
 - organize preview/execute
 - rollback
 - duplicate analysis + move
+- dedicated rename preview/apply/history/rollback with pattern + tag controls
 
 Additional 0.5.4 behavior:
 - fixed window shell (`1280x820`) focused on functional operation parity
@@ -206,6 +225,22 @@ Cache profile behavior:
 ./build/bin/gallery_organizer /path/to/source /path/to/env --duplicates-move
 ```
 
+### Rename preview (pattern-based)
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
+```
+
+### Rename apply (preview handshake)
+```bash
+./build/bin/gallery_organizer /path/to/env --rename-apply --rename-from-preview <preview_id> --rename-accept-auto-suffix
+```
+
+### Rename history and rollback
+```bash
+./build/bin/gallery_organizer /path/to/env --rename-history
+./build/bin/gallery_organizer /path/to/env --rename-rollback <operation_id>
+```
+
 ### Compressed cache
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --cache-compress zstd --cache-compress-level 3
@@ -259,6 +294,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.5.2`: fixed functional GUI baseline + language-agnostic frontend contract docs.
 - `v0.5.3`: guided functional GUI (dependency-locked actions, help hints/tooltips, in-app model install).
 - `v0.5.4`: persistent cache profile with parameter-aware automatic recompute.
+- `v0.6.0`: dedicated pattern-based rename workflow with hybrid tagging and operation history rollback.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

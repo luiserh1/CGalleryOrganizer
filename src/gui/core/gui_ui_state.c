@@ -115,6 +115,36 @@ static void BuildPersistedStateFromUi(const GuiUiState *state,
     out_state->organize_group_by[sizeof(out_state->organize_group_by) - 1] =
         '\0';
   }
+
+  if (state->rename_pattern_input[0] != '\0') {
+    strncpy(out_state->rename_pattern, state->rename_pattern_input,
+            sizeof(out_state->rename_pattern) - 1);
+    out_state->rename_pattern[sizeof(out_state->rename_pattern) - 1] = '\0';
+  } else {
+    strncpy(out_state->rename_pattern, "pic-[datetime]-[index].[format]",
+            sizeof(out_state->rename_pattern) - 1);
+    out_state->rename_pattern[sizeof(out_state->rename_pattern) - 1] = '\0';
+  }
+  strncpy(out_state->rename_tags_map_path, state->rename_tags_map_path,
+          sizeof(out_state->rename_tags_map_path) - 1);
+  out_state->rename_tags_map_path[sizeof(out_state->rename_tags_map_path) - 1] =
+      '\0';
+  strncpy(out_state->rename_tag_add_csv, state->rename_tag_add_csv,
+          sizeof(out_state->rename_tag_add_csv) - 1);
+  out_state->rename_tag_add_csv[sizeof(out_state->rename_tag_add_csv) - 1] =
+      '\0';
+  strncpy(out_state->rename_tag_remove_csv, state->rename_tag_remove_csv,
+          sizeof(out_state->rename_tag_remove_csv) - 1);
+  out_state->rename_tag_remove_csv[sizeof(out_state->rename_tag_remove_csv) - 1] =
+      '\0';
+  strncpy(out_state->rename_preview_id, state->rename_preview_id_input,
+          sizeof(out_state->rename_preview_id) - 1);
+  out_state->rename_preview_id[sizeof(out_state->rename_preview_id) - 1] = '\0';
+  strncpy(out_state->rename_operation_id, state->rename_operation_id_input,
+          sizeof(out_state->rename_operation_id) - 1);
+  out_state->rename_operation_id[sizeof(out_state->rename_operation_id) - 1] =
+      '\0';
+  out_state->rename_accept_auto_suffix = state->rename_accept_auto_suffix;
 }
 
 static void ApplyPersistedStateToUi(GuiUiState *state, const GuiState *saved) {
@@ -171,6 +201,34 @@ static void ApplyPersistedStateToUi(GuiUiState *state, const GuiState *saved) {
     strncpy(state->group_by, "date", sizeof(state->group_by) - 1);
     state->group_by[sizeof(state->group_by) - 1] = '\0';
   }
+
+  if (saved->rename_pattern[0] != '\0') {
+    strncpy(state->rename_pattern_input, saved->rename_pattern,
+            sizeof(state->rename_pattern_input) - 1);
+    state->rename_pattern_input[sizeof(state->rename_pattern_input) - 1] = '\0';
+  } else {
+    strncpy(state->rename_pattern_input, "pic-[datetime]-[index].[format]",
+            sizeof(state->rename_pattern_input) - 1);
+    state->rename_pattern_input[sizeof(state->rename_pattern_input) - 1] = '\0';
+  }
+  strncpy(state->rename_tags_map_path, saved->rename_tags_map_path,
+          sizeof(state->rename_tags_map_path) - 1);
+  state->rename_tags_map_path[sizeof(state->rename_tags_map_path) - 1] = '\0';
+  strncpy(state->rename_tag_add_csv, saved->rename_tag_add_csv,
+          sizeof(state->rename_tag_add_csv) - 1);
+  state->rename_tag_add_csv[sizeof(state->rename_tag_add_csv) - 1] = '\0';
+  strncpy(state->rename_tag_remove_csv, saved->rename_tag_remove_csv,
+          sizeof(state->rename_tag_remove_csv) - 1);
+  state->rename_tag_remove_csv[sizeof(state->rename_tag_remove_csv) - 1] = '\0';
+  strncpy(state->rename_preview_id_input, saved->rename_preview_id,
+          sizeof(state->rename_preview_id_input) - 1);
+  state->rename_preview_id_input[sizeof(state->rename_preview_id_input) - 1] =
+      '\0';
+  strncpy(state->rename_operation_id_input, saved->rename_operation_id,
+          sizeof(state->rename_operation_id_input) - 1);
+  state->rename_operation_id_input[sizeof(state->rename_operation_id_input) - 1] =
+      '\0';
+  state->rename_accept_auto_suffix = saved->rename_accept_auto_suffix;
 
   SyncNumericInputBuffers(state);
 }
@@ -266,6 +324,15 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->sim_memory_mode = APP_SIM_MEMORY_CHUNKED;
   strncpy(state->group_by, "date", sizeof(state->group_by) - 1);
   state->group_by[sizeof(state->group_by) - 1] = '\0';
+  strncpy(state->rename_pattern_input, "pic-[datetime]-[index].[format]",
+          sizeof(state->rename_pattern_input) - 1);
+  state->rename_pattern_input[sizeof(state->rename_pattern_input) - 1] = '\0';
+  state->rename_tags_map_path[0] = '\0';
+  state->rename_tag_add_csv[0] = '\0';
+  state->rename_tag_remove_csv[0] = '\0';
+  state->rename_preview_id_input[0] = '\0';
+  state->rename_operation_id_input[0] = '\0';
+  state->rename_accept_auto_suffix = false;
   state->runtime_state_valid = false;
   state->rebuild_confirm_pending = false;
   state->rebuild_confirm_task = GUI_TASK_NONE;
@@ -348,6 +415,39 @@ bool GuiUiHasUnsavedChanges(const GuiUiState *state) {
   if (strncmp(current_state.organize_group_by,
               state->persisted_state.organize_group_by,
               sizeof(current_state.organize_group_by)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_pattern, state->persisted_state.rename_pattern,
+              sizeof(current_state.rename_pattern)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_tags_map_path,
+              state->persisted_state.rename_tags_map_path,
+              sizeof(current_state.rename_tags_map_path)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_tag_add_csv,
+              state->persisted_state.rename_tag_add_csv,
+              sizeof(current_state.rename_tag_add_csv)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_tag_remove_csv,
+              state->persisted_state.rename_tag_remove_csv,
+              sizeof(current_state.rename_tag_remove_csv)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_preview_id,
+              state->persisted_state.rename_preview_id,
+              sizeof(current_state.rename_preview_id)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_operation_id,
+              state->persisted_state.rename_operation_id,
+              sizeof(current_state.rename_operation_id)) != 0) {
+    return true;
+  }
+  if (current_state.rename_accept_auto_suffix !=
+      state->persisted_state.rename_accept_auto_suffix) {
     return true;
   }
 
