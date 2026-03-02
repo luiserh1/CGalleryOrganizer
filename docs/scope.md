@@ -524,3 +524,63 @@ automatically rebuilding cache only when tracked parameters change.
   - `cacheEntryCount` in sidecar is optional and load-tolerant.
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone.
+
+---
+
+## v0.6.0 Scope: Dedicated Pattern-Based Renaming + Tagging (Completed)
+
+### Primary Goal
+Introduce a dedicated in-place renaming workflow (separate from organize) with
+pattern-based naming, hybrid metadata/manual tagging, collision-safe execution,
+and multi-step rollback by operation id.
+
+### Features
+- Add dedicated rename app API operations:
+  - preview rename plan from pattern + tag inputs
+  - apply rename plan through preview handshake
+  - list rename history
+  - rollback rename operation by id
+- Add renamer subsystem modules for:
+  - pattern parsing and token rendering
+  - metadata/manual tag resolution and persistence
+  - preview artifact generation
+  - apply/rollback execution and history persistence
+- Support curated token set for v1:
+  - `[date]`, `[time]`, `[datetime]`, `[camera]`, `[make]`, `[model]`,
+    `[format]`, `[index]`, `[tags_manual]`, `[tags_meta]`, `[tags]`
+- Add per-environment manual-tag sidecar:
+  - `<env_dir>/.cache/rename_tags.json`
+- Add preview artifacts:
+  - `<env_dir>/.cache/rename_previews/<preview_id>.json`
+- Add rename history store:
+  - `<env_dir>/.cache/rename_history/index.json`
+  - `<env_dir>/.cache/rename_history/<operation_id>.json`
+- Add CLI rename flow:
+  - preview/apply/history/rollback commands
+  - explicit preview-id handshake and collision acceptance gate for apply
+- Add GUI rename panel:
+  - pattern inputs
+  - preview/apply controls
+  - tag editing actions (map + bulk add/remove)
+  - history + rollback action wiring
+- Keep existing organize workflow and semantics unchanged.
+
+### Release Notes
+- Behavior changes:
+  - Added a dedicated in-place rename workflow, independent from organize
+    semantics, with pattern-based preview/apply/history/rollback.
+  - Added tokenized naming engine with strict allowlist, escape support,
+    deterministic fallback values, sanitization, and truncate+hash policy.
+  - Added collision-gated apply handshake requiring explicit acceptance for
+    deterministic auto-suffix resolution.
+  - Added CLI and GUI rename surfaces with preview id handshake and operation-id
+    rollback.
+- Migration/compat notes:
+  - Existing organize/rollback/duplicate workflows remain unchanged.
+  - New rename data is stored under:
+    - `<env_dir>/.cache/rename_tags.json`
+    - `<env_dir>/.cache/rename_previews/*.json`
+    - `<env_dir>/.cache/rename_history/index.json` and operation manifests
+  - Rename history retention is capped to the latest 200 operations.
+- Benchmark impact summary:
+  - No benchmark schema or benchmark command changes in this milestone.
