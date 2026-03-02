@@ -188,6 +188,50 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
     SetEnabled(out);
     return;
 
+  case GUI_ACTION_RENAME_PREVIEW:
+    if (!HasGalleryDir(state)) {
+      SetDisabled(out, "Rename preview requires a Gallery Directory");
+      return;
+    }
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename preview requires an Environment Dir");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_APPLY:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename apply requires an Environment Dir");
+      return;
+    }
+    if (state->rename_preview_id_input[0] == '\0') {
+      SetDisabled(out, "Rename apply requires a preview id");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_HISTORY:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename history requires an Environment Dir");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_ROLLBACK:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename rollback requires an Environment Dir");
+      return;
+    }
+    if (state->rename_operation_id_input[0] == '\0') {
+      SetDisabled(out, "Rename rollback requires an operation id");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
   default:
     SetDisabled(out, "Unknown action");
     return;
@@ -228,6 +272,18 @@ bool GuiActionCanStartTask(const GuiUiState *state, GuiTaskType task_type,
     break;
   case GUI_TASK_DOWNLOAD_MODELS:
     action_id = GUI_ACTION_DOWNLOAD_MODELS;
+    break;
+  case GUI_TASK_RENAME_PREVIEW:
+    action_id = GUI_ACTION_RENAME_PREVIEW;
+    break;
+  case GUI_TASK_RENAME_APPLY:
+    action_id = GUI_ACTION_RENAME_APPLY;
+    break;
+  case GUI_TASK_RENAME_HISTORY:
+    action_id = GUI_ACTION_RENAME_HISTORY;
+    break;
+  case GUI_TASK_RENAME_ROLLBACK:
+    action_id = GUI_ACTION_RENAME_ROLLBACK;
     break;
   default:
     if (out_reason && out_reason_size > 0) {

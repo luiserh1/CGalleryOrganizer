@@ -228,6 +228,147 @@ static void WorkerRunDownloadModels(void) {
   GuiWorkerSetResult(APP_STATUS_OK, "Model installation completed", true);
 }
 
+static void WorkerRunRenamePreview(const GuiTaskInput *input) {
+  AppRenamePreviewRequest request = {
+      .target_dir = input->gallery_dir,
+      .env_dir = input->env_dir,
+      .pattern = input->rename_pattern[0] != '\0' ? input->rename_pattern : NULL,
+      .tags_map_json_path = input->rename_tags_map_path[0] != '\0'
+                                ? input->rename_tags_map_path
+                                : NULL,
+      .tag_add_csv =
+          input->rename_tag_add_csv[0] != '\0' ? input->rename_tag_add_csv : NULL,
+      .tag_remove_csv = input->rename_tag_remove_csv[0] != '\0'
+                            ? input->rename_tag_remove_csv
+                            : NULL,
+      .hooks = GuiWorkerBuildHooks(),
+  };
+
+  AppRenamePreviewResult result = {0};
+  AppStatus status = AppPreviewRename(g_worker.app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename preview failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  strncpy(g_worker.snapshot.rename_preview_id, result.preview_id,
+          sizeof(g_worker.snapshot.rename_preview_id) - 1);
+  g_worker.snapshot.rename_preview_id[sizeof(g_worker.snapshot.rename_preview_id) -
+                                      1] = '\0';
+  g_worker.snapshot.rename_preview_file_count = result.file_count;
+  g_worker.snapshot.rename_preview_collision_count = result.collision_count;
+  g_worker.snapshot.rename_preview_requires_auto_suffix =
+      result.requires_auto_suffix_acceptance;
+  g_worker.snapshot.detail_text[0] = '\0';
+  if (result.details_json && result.details_json[0] != '\0') {
+    strncpy(g_worker.snapshot.detail_text, result.details_json,
+            sizeof(g_worker.snapshot.detail_text) - 1);
+    g_worker.snapshot.detail_text[sizeof(g_worker.snapshot.detail_text) - 1] =
+        '\0';
+  } else {
+    snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+             "Preview ID: %s\nFiles: %d\nCollisions: %d\nTruncated: %d\n",
+             result.preview_id, result.file_count, result.collision_count,
+             result.truncation_count);
+  }
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  AppFreeRenamePreviewResult(&result);
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename preview completed", true);
+}
+
+static void WorkerRunRenameApply(const GuiTaskInput *input) {
+  AppRenameApplyRequest request = {
+      .env_dir = input->env_dir,
+      .preview_id = input->rename_preview_id[0] != '\0' ? input->rename_preview_id
+                                                         : NULL,
+      .accept_auto_suffix = input->rename_accept_auto_suffix,
+      .hooks = GuiWorkerBuildHooks(),
+  };
+
+  AppRenameApplyResult result = {0};
+  AppStatus status = AppApplyRename(g_worker.app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename apply failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.rename_apply_result = result;
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Operation ID: %s\nRenamed: %d\nSkipped: %d\nFailed: %d\n"
+           "Collision resolutions: %d\nTruncated in plan: %d\n",
+           result.operation_id, result.renamed_count, result.skipped_count,
+           result.failed_count, result.collision_resolved_count,
+           result.truncation_count);
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename apply completed", true);
+}
+
+static void WorkerRunRenameHistory(const GuiTaskInput *input) {
+  AppRenameHistoryEntry *entries = NULL;
+  int count = 0;
+  AppStatus status =
+      AppListRenameHistory(g_worker.app, input->env_dir, &entries, &count);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename history query failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.rename_history_count = count;
+  g_worker.snapshot.detail_text[0] = '\0';
+  char line[512] = {0};
+  snprintf(line, sizeof(line), "Rename history entries: %d\n", count);
+  strncat(g_worker.snapshot.detail_text, line,
+          sizeof(g_worker.snapshot.detail_text) -
+              strlen(g_worker.snapshot.detail_text) - 1);
+  for (int i = 0; i < count; i++) {
+    snprintf(line, sizeof(line),
+             "%d. %s (%s) renamed=%d skipped=%d failed=%d rollback=%s\n",
+             i + 1, entries[i].operation_id,
+             entries[i].created_at_utc[0] != '\0' ? entries[i].created_at_utc
+                                                  : "unknown-time",
+             entries[i].renamed_count, entries[i].skipped_count,
+             entries[i].failed_count,
+             entries[i].rollback_performed ? "yes" : "no");
+    strncat(g_worker.snapshot.detail_text, line,
+            sizeof(g_worker.snapshot.detail_text) -
+                strlen(g_worker.snapshot.detail_text) - 1);
+  }
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  AppFreeRenameHistoryEntries(entries);
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename history loaded", true);
+}
+
+static void WorkerRunRenameRollback(const GuiTaskInput *input) {
+  AppRenameRollbackRequest request = {
+      .env_dir = input->env_dir,
+      .operation_id =
+          input->rename_operation_id[0] != '\0' ? input->rename_operation_id : NULL,
+      .hooks = GuiWorkerBuildHooks(),
+  };
+
+  AppRenameRollbackResult result = {0};
+  AppStatus status = AppRollbackRename(g_worker.app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename rollback failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.rename_rollback_result = result;
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Rename rollback completed.\nRestored: %d\nSkipped: %d\nFailed: %d\n",
+           result.restored_count, result.skipped_count, result.failed_count);
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename rollback completed", true);
+}
+
 void *GuiWorkerThreadMain(void *unused) {
   (void)unused;
 
@@ -268,6 +409,18 @@ void *GuiWorkerThreadMain(void *unused) {
     break;
   case GUI_TASK_DOWNLOAD_MODELS:
     WorkerRunDownloadModels();
+    break;
+  case GUI_TASK_RENAME_PREVIEW:
+    WorkerRunRenamePreview(&input);
+    break;
+  case GUI_TASK_RENAME_APPLY:
+    WorkerRunRenameApply(&input);
+    break;
+  case GUI_TASK_RENAME_HISTORY:
+    WorkerRunRenameHistory(&input);
+    break;
+  case GUI_TASK_RENAME_ROLLBACK:
+    WorkerRunRenameRollback(&input);
     break;
   default:
     GuiWorkerSetResult(APP_STATUS_INVALID_ARGUMENT, "Unknown task type", false);

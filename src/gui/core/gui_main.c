@@ -257,12 +257,13 @@ int main(int argc, char **argv) {
   GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
-             "CGalleryOrganizer v0.5.4 GUI");
+             "CGalleryOrganizer v0.6.0 GUI");
   InitGuiFont();
   GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
 
-  const char *tab_labels[4] = {"Scan", "Similarity", "Organize", "Duplicates"};
+  const char *tab_labels[5] = {"Scan", "Similarity", "Organize", "Duplicates",
+                               "Rename"};
 
   bool exit_requested = false;
   bool show_exit_dialog = false;
@@ -305,6 +306,19 @@ int main(int argc, char **argv) {
         strncpy(state.detail_text, state.worker_snapshot.detail_text,
                 sizeof(state.detail_text) - 1);
       }
+      if (state.worker_snapshot.rename_preview_id[0] != '\0') {
+        strncpy(state.rename_preview_id_input, state.worker_snapshot.rename_preview_id,
+                sizeof(state.rename_preview_id_input) - 1);
+        state.rename_preview_id_input[sizeof(state.rename_preview_id_input) - 1] =
+            '\0';
+      }
+      if (state.worker_snapshot.rename_apply_result.operation_id[0] != '\0') {
+        strncpy(state.rename_operation_id_input,
+                state.worker_snapshot.rename_apply_result.operation_id,
+                sizeof(state.rename_operation_id_input) - 1);
+        state.rename_operation_id_input[sizeof(state.rename_operation_id_input) -
+                                        1] = '\0';
+      }
 
       GuiWorkerClearResult();
       if (!state.worker_snapshot.busy) {
@@ -322,9 +336,9 @@ int main(int argc, char **argv) {
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
 
-    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.5.4 - GUI");
+    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.0 - GUI");
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
       bool selected = (state.active_tab == i);
       if (GuiButtonStyled(ToRayRect(layout.tabs[i]), tab_labels[i], !modal_open,
                           selected) &&
@@ -342,8 +356,10 @@ int main(int argc, char **argv) {
         GuiDrawSimilarityPanel(&state, panel_inner);
       } else if (state.active_tab == 2) {
         GuiDrawOrganizePanel(&state, panel_inner);
-      } else {
+      } else if (state.active_tab == 3) {
         GuiDrawDuplicatesPanel(&state, panel_inner);
+      } else {
+        GuiDrawRenamePanel(&state, panel_inner);
       }
     } else {
       GuiLabel((Rectangle){panel_inner.x + 14.0f, panel_inner.y + 14.0f, 600.0f, 30.0f},

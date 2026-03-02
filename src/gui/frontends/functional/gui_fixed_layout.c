@@ -34,7 +34,7 @@ void GuiBuildShellLayout(GuiShellLayout *out_layout) {
 
   float tabs_y = out_layout->title.y + out_layout->title.height + SHELL_GAP;
   float tab_w = 170.0f;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     out_layout->tabs[i] =
         MakeRect(out_layout->canvas.x + (tab_w + SHELL_GAP) * (float)i, tabs_y,
                  tab_w, TAB_HEIGHT);
@@ -195,6 +195,52 @@ void GuiBuildDuplicatesPanelLayout(GuiRect panel_bounds,
 
   y += 56.0f;
   out_layout->info_bottom = MakeRect(x, y, 420.0f, 30.0f);
+}
+
+void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
+                               GuiRenamePanelLayout *out_layout) {
+  if (!out_layout) {
+    return;
+  }
+
+  memset(out_layout, 0, sizeof(*out_layout));
+
+  float x = panel_bounds.x + PANEL_PAD;
+  float y = panel_bounds.y + PANEL_PAD;
+  float label_w = 140.0f;
+  float input_w = 980.0f;
+
+  out_layout->pattern_label = MakeRect(x, y, label_w, 30.0f);
+  out_layout->pattern_input = MakeRect(x + label_w + 8.0f, y, input_w, 34.0f);
+
+  y += 44.0f;
+  out_layout->tags_map_label = MakeRect(x, y, label_w, 30.0f);
+  out_layout->tags_map_input = MakeRect(x + label_w + 8.0f, y, input_w, 34.0f);
+
+  y += 44.0f;
+  out_layout->tag_add_label = MakeRect(x, y, label_w, 30.0f);
+  out_layout->tag_add_input = MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
+  out_layout->tag_remove_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
+  out_layout->tag_remove_input = MakeRect(x + 705.0f, y, 420.0f, 34.0f);
+
+  y += 44.0f;
+  out_layout->preview_id_label = MakeRect(x, y, label_w, 30.0f);
+  out_layout->preview_id_input =
+      MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
+  out_layout->operation_id_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
+  out_layout->operation_id_input = MakeRect(x + 705.0f, y, 420.0f, 34.0f);
+
+  y += 44.0f;
+  out_layout->accept_suffix = MakeRect(x, y, 350.0f, 30.0f);
+
+  y += 48.0f;
+  out_layout->preview_button = MakeRect(x, y, 170.0f, 42.0f);
+  out_layout->apply_button = MakeRect(x + 180.0f, y, 170.0f, 42.0f);
+  out_layout->history_button = MakeRect(x + 360.0f, y, 170.0f, 42.0f);
+  out_layout->rollback_button = MakeRect(x + 540.0f, y, 170.0f, 42.0f);
+
+  y += 54.0f;
+  out_layout->info_label = MakeRect(x, y, 1080.0f, 30.0f);
 }
 
 bool GuiRectInBounds(GuiRect outer, GuiRect inner) {
