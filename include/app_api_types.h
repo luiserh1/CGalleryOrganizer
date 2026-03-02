@@ -169,6 +169,86 @@ typedef struct {
 } AppOrganizeExecuteResult;
 
 typedef struct {
+  // Required target directory to traverse recursively in-place.
+  const char *target_dir;
+  // Required cache environment root.
+  const char *env_dir;
+  // Optional pattern. If NULL/empty, env default is used.
+  const char *pattern;
+  // Optional JSON path for per-file manual tag map ingest.
+  const char *tags_map_json_path;
+  // Optional CSV tags added to every file in preview scope.
+  const char *tag_add_csv;
+  // Optional CSV tags removed from every file in preview scope.
+  const char *tag_remove_csv;
+  AppOperationHooks hooks;
+} AppRenamePreviewRequest;
+
+typedef struct {
+  char preview_id[64];
+  char preview_path[APP_MAX_PATH];
+  char effective_pattern[256];
+  char fingerprint[64];
+  int file_count;
+  int collision_group_count;
+  int collision_count;
+  int truncation_count;
+  bool requires_auto_suffix_acceptance;
+  // Heap-owned preview details JSON for CLI/GUI rendering.
+  char *details_json;
+} AppRenamePreviewResult;
+
+typedef struct {
+  // Required cache environment root.
+  const char *env_dir;
+  // Required preview identifier returned by AppPreviewRename().
+  const char *preview_id;
+  // Must be true when preview reported collisions.
+  bool accept_auto_suffix;
+  AppOperationHooks hooks;
+} AppRenameApplyRequest;
+
+typedef struct {
+  char operation_id[64];
+  char created_at_utc[32];
+  int renamed_count;
+  int skipped_count;
+  int failed_count;
+  int collision_resolved_count;
+  int truncation_count;
+  bool auto_suffix_applied;
+} AppRenameApplyResult;
+
+typedef struct {
+  // Required cache environment root.
+  const char *env_dir;
+  // Required operation identifier from rename history.
+  const char *operation_id;
+  AppOperationHooks hooks;
+} AppRenameRollbackRequest;
+
+typedef struct {
+  int restored_count;
+  int skipped_count;
+  int failed_count;
+} AppRenameRollbackResult;
+
+typedef struct {
+  char operation_id[64];
+  char preview_id[64];
+  char created_at_utc[32];
+  int renamed_count;
+  int skipped_count;
+  int failed_count;
+  int collision_resolved_count;
+  int truncation_count;
+  bool rollback_performed;
+  int rollback_restored_count;
+  int rollback_skipped_count;
+  int rollback_failed_count;
+} AppRenameHistoryEntry;
+
+typedef struct {
   // Required cache environment root with manifest history.
   const char *env_dir;
 } AppRollbackRequest;
