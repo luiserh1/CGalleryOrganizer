@@ -1,0 +1,213 @@
+#include <stdio.h>
+#include <string.h>
+
+#include "fs_utils.h"
+#include "integration_test_helpers.h"
+#include "test_framework.h"
+
+static bool FileExists(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    return false;
+  }
+  fclose(f);
+  return true;
+}
+
+static bool FileContainsText(const char *path, const char *needle) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    return false;
+  }
+  char buffer[32768] = {0};
+  size_t read_bytes = fread(buffer, 1, sizeof(buffer) - 1, f);
+  fclose(f);
+  buffer[read_bytes] = '\0';
+  return strstr(buffer, needle) != NULL;
+}
+
+static bool ExtractTokenAfterPrefix(const char *text, const char *prefix,
+                                    char *out_token, size_t out_size) {
+  if (!text || !prefix || !out_token || out_size == 0) {
+    return false;
+  }
+
+  out_token[0] = '\0';
+  const char *start = strstr(text, prefix);
+  if (!start) {
+    return false;
+  }
+
+  start += strlen(prefix);
+  while (*start == ' ' || *start == '\t') {
+    start++;
+  }
+
+  size_t used = 0;
+  while (start[used] != '\0' && start[used] != '\n' && start[used] != '\r' &&
+         start[used] != ' ' && start[used] != '\t') {
+    if (used + 1 >= out_size) {
+      return false;
+    }
+    out_token[used] = start[used];
+    used++;
+  }
+  out_token[used] = '\0';
+  return used > 0;
+}
+
+void test_cli_rename_preview_apply_handshake_and_rollback(void) {
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_src", "build/test_cli_rename_env"},
+      2));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_env"));
+
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_rename_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_rename_src/b.png"));
+
+  char output[16384] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_src "
+      "build/test_cli_rename_env --rename-preview "
+      "--rename-pattern 'same.[format]' 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Preview ID:") != NULL);
+
+  char preview_id[128] = {0};
+  ASSERT_TRUE(ExtractTokenAfterPrefix(output, "Preview ID:", preview_id,
+                                      sizeof(preview_id)));
+
+  memset(output, 0, sizeof(output));
+  char apply_cmd_no_accept[2048] = {0};
+  snprintf(apply_cmd_no_accept, sizeof(apply_cmd_no_accept),
+           "./build/bin/gallery_organizer build/test_cli_rename_env "
+           "--rename-apply --rename-from-preview %s 2>&1",
+           preview_id);
+  code = RunCommandCapture(apply_cmd_no_accept, output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "requires explicit collision acceptance flag") !=
+              NULL);
+
+  memset(output, 0, sizeof(output));
+  char apply_cmd_accept[2048] = {0};
+  snprintf(apply_cmd_accept, sizeof(apply_cmd_accept),
+           "./build/bin/gallery_organizer build/test_cli_rename_env "
+           "--rename-apply --rename-from-preview %s "
+           "--rename-accept-auto-suffix 2>&1",
+           preview_id);
+  code = RunCommandCapture(apply_cmd_accept, output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Operation ID:") != NULL);
+
+  char operation_id[128] = {0};
+  ASSERT_TRUE(ExtractTokenAfterPrefix(output, "Operation ID:", operation_id,
+                                      sizeof(operation_id)));
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_env "
+      "--rename-history 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, operation_id) != NULL);
+
+  memset(output, 0, sizeof(output));
+  char rollback_cmd[2048] = {0};
+  snprintf(rollback_cmd, sizeof(rollback_cmd),
+           "./build/bin/gallery_organizer build/test_cli_rename_env "
+           "--rename-rollback %s 2>&1",
+           operation_id);
+  code = RunCommandCapture(rollback_cmd, output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Rename rollback complete") != NULL);
+
+  ASSERT_TRUE(FileExists("build/test_cli_rename_src/a.png"));
+  ASSERT_TRUE(FileExists("build/test_cli_rename_src/b.png"));
+
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_src", "build/test_cli_rename_env"},
+      2));
+}
+
+void test_cli_rename_tags_map_validation_errors(void) {
+  ASSERT_TRUE(RemovePathsForTest((const char *[]){"build/test_cli_rename_map_src",
+                                                  "build/test_cli_rename_map_env"},
+                                 2));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_map_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_map_env"));
+
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_no_exif.jpg",
+                              "build/test_cli_rename_map_src/a.jpg"));
+
+  FILE *f = fopen("build/test_cli_rename_map_src/bad_map.json", "wb");
+  ASSERT_TRUE(f != NULL);
+  fputs("{bad-json", f);
+  fclose(f);
+
+  char output[8192] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_map_src "
+      "build/test_cli_rename_map_env --rename-preview "
+      "--rename-tags-map build/test_cli_rename_map_src/bad_map.json 2>&1",
+      output, sizeof(output));
+  ASSERT_TRUE(code != 0);
+  ASSERT_TRUE(strstr(output, "not valid JSON") != NULL);
+
+  ASSERT_TRUE(RemovePathsForTest((const char *[]){"build/test_cli_rename_map_src",
+                                                  "build/test_cli_rename_map_env"},
+                                 2));
+}
+
+void test_cli_rename_tags_map_ingest_and_sidecar_persist(void) {
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_map_ok_src",
+                       "build/test_cli_rename_map_ok_env"},
+      2));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_map_ok_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_map_ok_env"));
+
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_no_exif.jpg",
+                              "build/test_cli_rename_map_ok_src/a.jpg"));
+
+  char absolute_a[1024] = {0};
+  ASSERT_TRUE(FsGetAbsolutePath("build/test_cli_rename_map_ok_src/a.jpg", absolute_a,
+                                sizeof(absolute_a)));
+
+  FILE *f = fopen("build/test_cli_rename_map_ok_src/map.json", "wb");
+  ASSERT_TRUE(f != NULL);
+  fprintf(f, "{\"files\":{\"%s\":{\"manualTags\":[\"frag42\"]}}}",
+          absolute_a);
+  fclose(f);
+
+  char output[16384] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_map_ok_src "
+      "build/test_cli_rename_map_ok_env --rename-preview "
+      "--rename-tags-map build/test_cli_rename_map_ok_src/map.json 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Rename preview ready") != NULL);
+
+  ASSERT_TRUE(FileContainsText(
+      "build/test_cli_rename_map_ok_env/.cache/rename_tags.json", "frag42"));
+
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_map_ok_src",
+                       "build/test_cli_rename_map_ok_env"},
+      2));
+}
+
+void register_cli_rename_tests(void) {
+  register_test("test_cli_rename_preview_apply_handshake_and_rollback",
+                test_cli_rename_preview_apply_handshake_and_rollback,
+                "integration");
+  register_test("test_cli_rename_tags_map_validation_errors",
+                test_cli_rename_tags_map_validation_errors, "integration");
+  register_test("test_cli_rename_tags_map_ingest_and_sidecar_persist",
+                test_cli_rename_tags_map_ingest_and_sidecar_persist,
+                "integration");
+}

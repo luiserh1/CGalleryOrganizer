@@ -85,6 +85,37 @@ void test_gui_action_rules_duplicates_move_needs_report(void) {
   ASSERT_TRUE(availability.enabled);
 }
 
+void test_gui_action_rules_rename_requirements(void) {
+  GuiUiState state;
+  memset(&state, 0, sizeof(state));
+
+  GuiActionAvailability availability = {0};
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_PREVIEW, &availability);
+  ASSERT_FALSE(availability.enabled);
+
+  strncpy(state.gallery_dir, "/tmp/gallery", sizeof(state.gallery_dir) - 1);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_PREVIEW, &availability);
+  ASSERT_FALSE(availability.enabled);
+
+  strncpy(state.env_dir, "/tmp/env", sizeof(state.env_dir) - 1);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_PREVIEW, &availability);
+  ASSERT_TRUE(availability.enabled);
+
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_APPLY, &availability);
+  ASSERT_FALSE(availability.enabled);
+  strncpy(state.rename_preview_id_input, "rnp-1",
+          sizeof(state.rename_preview_id_input) - 1);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_APPLY, &availability);
+  ASSERT_TRUE(availability.enabled);
+
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_ROLLBACK, &availability);
+  ASSERT_FALSE(availability.enabled);
+  strncpy(state.rename_operation_id_input, "rop-1",
+          sizeof(state.rename_operation_id_input) - 1);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_ROLLBACK, &availability);
+  ASSERT_TRUE(availability.enabled);
+}
+
 void register_gui_action_rules_tests(void) {
   register_test("test_gui_action_rules_scan_requires_paths",
                 test_gui_action_rules_scan_requires_paths, "unit");
@@ -94,4 +125,6 @@ void register_gui_action_rules_tests(void) {
                 test_gui_action_rules_cache_gated_actions, "unit");
   register_test("test_gui_action_rules_duplicates_move_needs_report",
                 test_gui_action_rules_duplicates_move_needs_report, "unit");
+  register_test("test_gui_action_rules_rename_requirements",
+                test_gui_action_rules_rename_requirements, "unit");
 }

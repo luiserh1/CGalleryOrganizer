@@ -19,6 +19,12 @@ typedef struct {
   char cache_level_input[8];
   char sim_threshold_input[32];
   char sim_topk_input[16];
+  char rename_pattern_input[256];
+  char rename_tags_map_path[GUI_STATE_MAX_PATH];
+  char rename_tag_add_csv[256];
+  char rename_tag_remove_csv[256];
+  char rename_preview_id_input[64];
+  char rename_operation_id_input[64];
 
   bool exhaustive;
   int jobs;
@@ -29,6 +35,7 @@ typedef struct {
   float sim_threshold;
   int sim_topk;
   AppSimilarityMemoryMode sim_memory_mode;
+  bool rename_accept_auto_suffix;
 
   int active_tab;
   GuiTaskSnapshot worker_snapshot;
@@ -61,5 +68,6 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds);
 void GuiDrawSimilarityPanel(GuiUiState *state, Rectangle panel_bounds);
 void GuiDrawOrganizePanel(GuiUiState *state, Rectangle panel_bounds);
 void GuiDrawDuplicatesPanel(GuiUiState *state, Rectangle panel_bounds);
+void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds);
 
 #endif // GUI_COMMON_H

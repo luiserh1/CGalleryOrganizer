@@ -139,6 +139,15 @@ bool GuiWorkerStartTask(const GuiTaskInput *input) {
   g_worker.snapshot.status = APP_STATUS_OK;
   memset(&g_worker.snapshot.model_install_result, 0,
          sizeof(g_worker.snapshot.model_install_result));
+  memset(&g_worker.snapshot.rename_apply_result, 0,
+         sizeof(g_worker.snapshot.rename_apply_result));
+  memset(&g_worker.snapshot.rename_rollback_result, 0,
+         sizeof(g_worker.snapshot.rename_rollback_result));
+  g_worker.snapshot.rename_preview_id[0] = '\0';
+  g_worker.snapshot.rename_preview_file_count = 0;
+  g_worker.snapshot.rename_preview_collision_count = 0;
+  g_worker.snapshot.rename_preview_requires_auto_suffix = false;
+  g_worker.snapshot.rename_history_count = 0;
   g_worker.snapshot.message[0] = '\0';
   g_worker.snapshot.detail_text[0] = '\0';
   g_worker.snapshot.duplicate_report_ready = g_worker.duplicate_report_ready;

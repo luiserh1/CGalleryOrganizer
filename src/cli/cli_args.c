@@ -32,9 +32,27 @@ void CliPrintUsage(const char *argv0) {
   printf("  --duplicates-report Analyze duplicate groups without moving files\n");
   printf("  --duplicates-move Move duplicates into env_dir after scan\n");
   printf("  --rollback        Undo a restructuring operation using the manifest\n");
+  printf("  --rename-preview  Build dedicated pattern-based rename preview\n");
+  printf("  --rename-apply    Apply dedicated rename from preview id\n");
+  printf("  --rename-pattern <pattern> Pattern template used for rename preview\n");
+  printf("  --rename-tags-map <json_path> Per-file manual tags map (JSON)\n");
+  printf("  --rename-tag-add <csv_tags> Bulk add manual tags for preview scope\n");
+  printf("  --rename-tag-remove <csv_tags> Bulk remove/suppress tags for preview "
+         "scope\n");
+  printf("  --rename-from-preview <preview_id> Preview id required by "
+         "--rename-apply\n");
+  printf("  --rename-accept-auto-suffix Accept deterministic _N collision "
+         "suffixing\n");
+  printf("  --rename-history  List dedicated rename operation history\n");
+  printf("  --rename-rollback <operation_id> Roll back dedicated rename "
+         "operation\n");
   printf("\nRollback usage:\n");
   printf("  %s <scan_dir> <env_dir> --rollback\n", argv0);
   printf("  %s <env_dir> --rollback\n", argv0);
+  printf("\nRename apply/history/rollback usage:\n");
+  printf("  %s <env_dir> --rename-history\n", argv0);
+  printf("  %s <env_dir> --rename-apply --rename-from-preview <id>\n", argv0);
+  printf("  %s <env_dir> --rename-rollback <operation_id>\n", argv0);
 }
 
 const char *CliResolveRollbackEnvDir(const char *first_positional,

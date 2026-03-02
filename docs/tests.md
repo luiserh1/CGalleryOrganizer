@@ -52,6 +52,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - Hashing helpers (`src/utils/hash_utils.c`)
 - Duplicate grouping (`src/systems/duplicate_finder.c`)
 - Organizer plan/execute/rollback behavior (`src/systems/organizer_planner.c`, `src/systems/organizer_executor.c`, `src/systems/organizer_manifest.c`)
+- Dedicated rename workflow behavior (`src/systems/renamer_*.c`, `src/app/app_rename.c`)
 - Metadata extraction integration using real assets (`tests/assets/**`)
 - ML subsystem API/provider behavior (`src/ml/**`)
 - Similarity engine behavior (`src/systems/similarity_codec.c`, `src/systems/similarity_math.c`, `src/systems/similarity_report.c`)
@@ -69,6 +70,13 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--sim-memory-mode` validation + parity path coverage
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
+  - dedicated rename flow:
+    - `--rename-preview`
+    - `--rename-apply` + `--rename-from-preview`
+    - collision gate + `--rename-accept-auto-suffix`
+    - `--rename-history`
+    - `--rename-rollback`
+    - JSON tags-map ingest validation
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
 - App API workflow coverage for duplicate and organize operations:
   - `AppFindDuplicates` + `AppMoveDuplicates`
@@ -84,6 +92,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - GUI state persistence and reset behavior (`src/gui/gui_state.c`)
 - Functional GUI fixed-layout invariants (`src/gui/frontends/functional/gui_fixed_layout.c`)
 - GUI action dependency rules (`src/gui/core/gui_action_rules.c`)
+- GUI rename panel wiring (`src/gui/frontends/functional/gui_panels_rename.c`)
 
 ## Manual Smoke Checklist
 
@@ -203,6 +212,32 @@ Expected:
 - `build/benchmark_last.json` refreshed.
 - each record includes `simMemoryMode` (`chunked` or `eager`).
 
+### 15. Dedicated rename smoke
+```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
+```
+Expected:
+- preview id and preview artifact path are printed.
+- preview artifact exists under `build/smoke_env/.cache/rename_previews/`.
+
+Apply from preview id:
+```bash
+./build/bin/gallery_organizer build/smoke_env --rename-apply --rename-from-preview <preview_id> --rename-accept-auto-suffix
+```
+Expected:
+- operation id is printed.
+- rename history artifacts are written under `build/smoke_env/.cache/rename_history/`.
+
+List and rollback:
+```bash
+./build/bin/gallery_organizer build/smoke_env --rename-history
+./build/bin/gallery_organizer build/smoke_env --rename-rollback <operation_id>
+```
+Expected:
+- history output contains operation id rows.
+- rollback reports restored/skipped/failed counts.
+- rename tag sidecar path keys are updated on apply and rollback.
+
 Optional reproducibility command:
 ```bash
 BENCHMARK_DATASET=tests/assets ./build/tests/bin/benchmark_runner --profile uncompressed --workload cache_metadata_only --runs 5 --warmup-runs 1 --compare-profile zstd-l3 --comparison-path build/benchmark_compare.json
@@ -211,7 +246,7 @@ Expected:
 - `build/benchmark_last.json` contains median/p95/min/max/stddev stats per workload.
 - `build/benchmark_compare.json` contains per-workload `deltaPct` fields for median metrics.
 
-### 15. GUI smoke
+### 16. GUI smoke
 ```bash
 make gui
 ./build/bin/gallery_organizer_gui
@@ -219,6 +254,7 @@ make gui
 Expected:
 - manual gallery/env path inputs are editable.
 - scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
+- rename preview/apply/history/rollback actions are invokable from Rename tab.
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.
@@ -226,7 +262,7 @@ Expected:
 - each panel exposes hover tooltip help for inputs/actions.
 - Scan panel includes **Download Models** and completes model install workflow.
 - jobs/compression level/threshold/topK fields enforce documented numeric ranges.
-- **Save State** persists full functional GUI configuration (paths + scan/similarity/organize inputs).
+- **Save State** persists full functional GUI configuration (paths + scan/similarity/organize/rename inputs).
 - **Reset Saved State** clears persisted GUI configuration and restores defaults in-session.
 - GUI window starts fixed at `1280x820` (non-resizable functional baseline).
 - panel controls remain aligned with no overlaps in the fixed shell.
@@ -234,7 +270,7 @@ Expected:
 - scan-like actions show a rebuild confirmation dialog when profile mismatch would rebuild an existing cache.
 - `--reset-state` clears saved GUI state.
 
-### 16. GUI idle performance smoke (large cache)
+### 17. GUI idle performance smoke (large cache)
 Precondition: point GUI `Environment Dir` at an env containing a large cache file.
 
 Expected:

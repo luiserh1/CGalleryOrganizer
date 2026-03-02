@@ -19,7 +19,7 @@ void test_gui_fixed_shell_layout_in_bounds(void) {
   ASSERT_TRUE(GuiRectInBounds(shell.canvas, shell.panel_outer));
   ASSERT_TRUE(GuiRectInBounds(shell.canvas, shell.status_outer));
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     ASSERT_TRUE(GuiRectInBounds(shell.canvas, shell.tabs[i]));
   }
 
@@ -102,6 +102,27 @@ void test_gui_fixed_duplicates_layout_no_overlap(void) {
                      (int)(sizeof(rects) / sizeof(rects[0])));
 }
 
+void test_gui_fixed_rename_layout_no_overlap(void) {
+  GuiShellLayout shell = {0};
+  GuiBuildShellLayout(&shell);
+
+  GuiRenamePanelLayout rename = {0};
+  GuiBuildRenamePanelLayout(shell.panel_inner, &rename);
+
+  GuiRect rects[] = {
+      rename.pattern_label,      rename.pattern_input,   rename.tags_map_label,
+      rename.tags_map_input,     rename.tag_add_label,   rename.tag_add_input,
+      rename.tag_remove_label,   rename.tag_remove_input,
+      rename.preview_id_label,   rename.preview_id_input,
+      rename.operation_id_label, rename.operation_id_input,
+      rename.accept_suffix,      rename.preview_button, rename.apply_button,
+      rename.history_button,     rename.rollback_button, rename.info_label,
+  };
+
+  AssertRectsInPanel(shell.panel_inner, rects,
+                     (int)(sizeof(rects) / sizeof(rects[0])));
+}
+
 void register_gui_layout_tests(void) {
   register_test("test_gui_fixed_shell_layout_in_bounds",
                 test_gui_fixed_shell_layout_in_bounds, "unit");
@@ -113,4 +134,6 @@ void register_gui_layout_tests(void) {
                 test_gui_fixed_organize_layout_no_overlap, "unit");
   register_test("test_gui_fixed_duplicates_layout_no_overlap",
                 test_gui_fixed_duplicates_layout_no_overlap, "unit");
+  register_test("test_gui_fixed_rename_layout_no_overlap",
+                test_gui_fixed_rename_layout_no_overlap, "unit");
 }
