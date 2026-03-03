@@ -267,9 +267,18 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
       out_layout->history_latest_button.x - (x + 705.0f) - 10.0f, 34.0f);
 
   y += 44.0f;
-  out_layout->accept_suffix = MakeRect(x, y, 350.0f, 30.0f);
-  out_layout->filter_collisions = MakeRect(x + 370.0f, y, 210.0f, 30.0f);
-  out_layout->filter_warnings = MakeRect(x + 590.0f, y, 180.0f, 30.0f);
+  out_layout->accept_suffix = MakeRect(x, y, 300.0f, 30.0f);
+  out_layout->filter_collisions = MakeRect(x + 310.0f, y, 160.0f, 30.0f);
+  out_layout->filter_warnings = MakeRect(x + 480.0f, y, 150.0f, 30.0f);
+  out_layout->history_rollback_mode_label = MakeRect(x + 640.0f, y, 80.0f, 30.0f);
+  out_layout->history_rollback_any = MakeRect(x + 725.0f, y, 70.0f, 30.0f);
+  out_layout->history_rollback_yes = MakeRect(x + 800.0f, y, 70.0f, 30.0f);
+  out_layout->history_rollback_no = MakeRect(x + 875.0f, y, 70.0f, 30.0f);
+  out_layout->history_from_label = MakeRect(x + 950.0f, y, 45.0f, 30.0f);
+  out_layout->history_from_input = MakeRect(x + 995.0f, y, 110.0f, 34.0f);
+  out_layout->history_to_label = MakeRect(x + 1110.0f, y, 25.0f, 30.0f);
+  out_layout->history_to_input = MakeRect(x + 1138.0f, y, panel_right - (x + 1138.0f),
+                                          34.0f);
 
   y += 48.0f;
   out_layout->preview_button = MakeRect(x, y, 150.0f, 42.0f);
@@ -277,7 +286,8 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
   out_layout->history_button = MakeRect(x + 320.0f, y, 150.0f, 42.0f);
   out_layout->detail_button = MakeRect(x + 480.0f, y, 150.0f, 42.0f);
   out_layout->redo_button = MakeRect(x + 640.0f, y, 150.0f, 42.0f);
-  out_layout->rollback_button = MakeRect(x + 800.0f, y, 150.0f, 42.0f);
+  out_layout->preflight_button = MakeRect(x + 800.0f, y, 150.0f, 42.0f);
+  out_layout->rollback_button = MakeRect(x + 960.0f, y, 150.0f, 42.0f);
 
   y += 50.0f;
   out_layout->selected_tags_label = MakeRect(x, y, 110.0f, 30.0f);
@@ -295,9 +305,15 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
       34.0f);
 
   y += 44.0f;
-  out_layout->info_label = MakeRect(x, y, panel_right - x, 30.0f);
+  out_layout->history_export_label = MakeRect(x, y, 95.0f, 30.0f);
+  out_layout->history_export_input = MakeRect(x + 100.0f, y, 610.0f, 34.0f);
+  out_layout->history_export_button = MakeRect(x + 720.0f, y, 140.0f, 34.0f);
+  out_layout->history_prune_label = MakeRect(x + 870.0f, y, 80.0f, 30.0f);
+  out_layout->history_prune_input = MakeRect(x + 955.0f, y, 80.0f, 34.0f);
+  out_layout->history_prune_button = MakeRect(x + 1045.0f, y, 170.0f, 34.0f);
+  out_layout->info_label = MakeRect(x, y, 0.0f, 0.0f);
 
-  y += 34.0f;
+  y += 42.0f;
   float table_bottom = panel_bounds.y + panel_bounds.height - PANEL_PAD;
   out_layout->preview_table = MakeRect(x, y, panel_right - x, table_bottom - y);
 }

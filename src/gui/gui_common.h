@@ -29,6 +29,11 @@ typedef struct {
   char rename_selected_meta_tags_csv[256];
   char rename_preview_id_input[64];
   char rename_operation_id_input[64];
+  char rename_history_id_prefix_input[64];
+  char rename_history_from_input[32];
+  char rename_history_to_input[32];
+  char rename_history_export_path[GUI_STATE_MAX_PATH];
+  char rename_history_prune_keep_input[16];
 
   bool exhaustive;
   int jobs;
@@ -40,6 +45,7 @@ typedef struct {
   int sim_topk;
   AppSimilarityMemoryMode sim_memory_mode;
   bool rename_accept_auto_suffix;
+  int rename_history_rollback_filter_mode;
   bool rename_filter_collisions_only;
   bool rename_filter_warnings_only;
   int rename_table_scroll;

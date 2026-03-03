@@ -232,6 +232,30 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
     SetEnabled(out);
     return;
 
+  case GUI_ACTION_RENAME_HISTORY_EXPORT:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename history export requires an Environment Dir");
+      return;
+    }
+    if (state->rename_history_export_path[0] == '\0') {
+      SetDisabled(out, "Rename history export requires an output path");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_HISTORY_PRUNE:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename history prune requires an Environment Dir");
+      return;
+    }
+    if (state->rename_history_prune_keep_input[0] == '\0') {
+      SetDisabled(out, "Rename history prune requires keep count");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
   case GUI_ACTION_RENAME_PREVIEW_LATEST_ID:
     if (!HasEnvDir(state)) {
       SetDisabled(out, "Latest preview lookup requires an Environment Dir");
@@ -279,6 +303,18 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
     }
     if (state->rename_operation_id_input[0] == '\0') {
       SetDisabled(out, "Rename rollback requires an operation id");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_ROLLBACK_PREFLIGHT:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename rollback preflight requires an Environment Dir");
+      return;
+    }
+    if (state->rename_operation_id_input[0] == '\0') {
+      SetDisabled(out, "Rename rollback preflight requires an operation id");
       return;
     }
     SetEnabled(out);
@@ -337,6 +373,12 @@ bool GuiActionCanStartTask(const GuiUiState *state, GuiTaskType task_type,
   case GUI_TASK_RENAME_HISTORY:
     action_id = GUI_ACTION_RENAME_HISTORY;
     break;
+  case GUI_TASK_RENAME_HISTORY_EXPORT:
+    action_id = GUI_ACTION_RENAME_HISTORY_EXPORT;
+    break;
+  case GUI_TASK_RENAME_HISTORY_PRUNE:
+    action_id = GUI_ACTION_RENAME_HISTORY_PRUNE;
+    break;
   case GUI_TASK_RENAME_PREVIEW_LATEST_ID:
     action_id = GUI_ACTION_RENAME_PREVIEW_LATEST_ID;
     break;
@@ -351,6 +393,9 @@ bool GuiActionCanStartTask(const GuiUiState *state, GuiTaskType task_type,
     break;
   case GUI_TASK_RENAME_ROLLBACK:
     action_id = GUI_ACTION_RENAME_ROLLBACK;
+    break;
+  case GUI_TASK_RENAME_ROLLBACK_PREFLIGHT:
+    action_id = GUI_ACTION_RENAME_ROLLBACK_PREFLIGHT;
     break;
   default:
     if (out_reason && out_reason_size > 0) {

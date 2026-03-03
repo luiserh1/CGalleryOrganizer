@@ -237,6 +237,44 @@ static bool GuiUiStartTaskInternal(GuiUiState *state, GuiTaskType task_type,
   strncpy(input.rename_operation_id, state->rename_operation_id_input,
           sizeof(input.rename_operation_id) - 1);
   input.rename_operation_id[sizeof(input.rename_operation_id) - 1] = '\0';
+  const char *history_prefix = state->rename_history_id_prefix_input;
+  if (!history_prefix || history_prefix[0] == '\0') {
+    history_prefix = state->rename_operation_id_input;
+  }
+  strncpy(input.rename_history_id_prefix,
+          history_prefix ? history_prefix : "",
+          sizeof(input.rename_history_id_prefix) - 1);
+  input.rename_history_id_prefix[sizeof(input.rename_history_id_prefix) - 1] =
+      '\0';
+  if (state->rename_history_rollback_filter_mode == 1) {
+    strncpy(input.rename_history_rollback_filter, "yes",
+            sizeof(input.rename_history_rollback_filter) - 1);
+  } else if (state->rename_history_rollback_filter_mode == 2) {
+    strncpy(input.rename_history_rollback_filter, "no",
+            sizeof(input.rename_history_rollback_filter) - 1);
+  } else {
+    strncpy(input.rename_history_rollback_filter, "any",
+            sizeof(input.rename_history_rollback_filter) - 1);
+  }
+  input.rename_history_rollback_filter
+      [sizeof(input.rename_history_rollback_filter) - 1] = '\0';
+  strncpy(input.rename_history_from, state->rename_history_from_input,
+          sizeof(input.rename_history_from) - 1);
+  input.rename_history_from[sizeof(input.rename_history_from) - 1] = '\0';
+  strncpy(input.rename_history_to, state->rename_history_to_input,
+          sizeof(input.rename_history_to) - 1);
+  input.rename_history_to[sizeof(input.rename_history_to) - 1] = '\0';
+  strncpy(input.rename_history_export_path, state->rename_history_export_path,
+          sizeof(input.rename_history_export_path) - 1);
+  input.rename_history_export_path[sizeof(input.rename_history_export_path) - 1] =
+      '\0';
+  int prune_keep = 200;
+  if (GuiUiTryParseIntStrict(state->rename_history_prune_keep_input,
+                             &prune_keep)) {
+    input.rename_history_prune_keep_count = prune_keep;
+  } else {
+    input.rename_history_prune_keep_count = -1;
+  }
   input.rename_accept_auto_suffix = state->rename_accept_auto_suffix;
 
   if (GuiWorkerStartTask(&input)) {

@@ -154,6 +154,40 @@ static void BuildPersistedStateFromUi(const GuiUiState *state,
           sizeof(out_state->rename_operation_id) - 1);
   out_state->rename_operation_id[sizeof(out_state->rename_operation_id) - 1] =
       '\0';
+  strncpy(out_state->rename_history_id_prefix,
+          state->rename_history_id_prefix_input,
+          sizeof(out_state->rename_history_id_prefix) - 1);
+  out_state->rename_history_id_prefix
+      [sizeof(out_state->rename_history_id_prefix) - 1] = '\0';
+  strncpy(out_state->rename_history_from, state->rename_history_from_input,
+          sizeof(out_state->rename_history_from) - 1);
+  out_state->rename_history_from[sizeof(out_state->rename_history_from) - 1] =
+      '\0';
+  strncpy(out_state->rename_history_to, state->rename_history_to_input,
+          sizeof(out_state->rename_history_to) - 1);
+  out_state->rename_history_to[sizeof(out_state->rename_history_to) - 1] = '\0';
+  strncpy(out_state->rename_history_export_path, state->rename_history_export_path,
+          sizeof(out_state->rename_history_export_path) - 1);
+  out_state->rename_history_export_path
+      [sizeof(out_state->rename_history_export_path) - 1] = '\0';
+  int prune_keep = 200;
+  if (GuiUiTryParseIntStrict(state->rename_history_prune_keep_input,
+                             &prune_keep)) {
+    if (prune_keep < 0) {
+      prune_keep = 0;
+    } else if (prune_keep > 1000000) {
+      prune_keep = 1000000;
+    }
+  }
+  out_state->rename_history_prune_keep_count = prune_keep;
+  if (state->rename_history_rollback_filter_mode < 0) {
+    out_state->rename_history_rollback_filter_mode = 0;
+  } else if (state->rename_history_rollback_filter_mode > 2) {
+    out_state->rename_history_rollback_filter_mode = 2;
+  } else {
+    out_state->rename_history_rollback_filter_mode =
+        state->rename_history_rollback_filter_mode;
+  }
   out_state->rename_accept_auto_suffix = state->rename_accept_auto_suffix;
 }
 
@@ -246,6 +280,38 @@ static void ApplyPersistedStateToUi(GuiUiState *state, const GuiState *saved) {
           sizeof(state->rename_operation_id_input) - 1);
   state->rename_operation_id_input[sizeof(state->rename_operation_id_input) - 1] =
       '\0';
+  strncpy(state->rename_history_id_prefix_input, saved->rename_history_id_prefix,
+          sizeof(state->rename_history_id_prefix_input) - 1);
+  state->rename_history_id_prefix_input
+      [sizeof(state->rename_history_id_prefix_input) - 1] = '\0';
+  strncpy(state->rename_history_from_input, saved->rename_history_from,
+          sizeof(state->rename_history_from_input) - 1);
+  state->rename_history_from_input[sizeof(state->rename_history_from_input) - 1] =
+      '\0';
+  strncpy(state->rename_history_to_input, saved->rename_history_to,
+          sizeof(state->rename_history_to_input) - 1);
+  state->rename_history_to_input[sizeof(state->rename_history_to_input) - 1] =
+      '\0';
+  strncpy(state->rename_history_export_path, saved->rename_history_export_path,
+          sizeof(state->rename_history_export_path) - 1);
+  state->rename_history_export_path[sizeof(state->rename_history_export_path) - 1] =
+      '\0';
+  int prune_keep = saved->rename_history_prune_keep_count;
+  if (prune_keep < 0) {
+    prune_keep = 0;
+  } else if (prune_keep > 1000000) {
+    prune_keep = 1000000;
+  }
+  snprintf(state->rename_history_prune_keep_input,
+           sizeof(state->rename_history_prune_keep_input), "%d", prune_keep);
+  if (saved->rename_history_rollback_filter_mode < 0) {
+    state->rename_history_rollback_filter_mode = 0;
+  } else if (saved->rename_history_rollback_filter_mode > 2) {
+    state->rename_history_rollback_filter_mode = 2;
+  } else {
+    state->rename_history_rollback_filter_mode =
+        saved->rename_history_rollback_filter_mode;
+  }
   state->rename_accept_auto_suffix = saved->rename_accept_auto_suffix;
 
   SyncNumericInputBuffers(state);
@@ -354,6 +420,15 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->rename_selected_meta_tags_csv[0] = '\0';
   state->rename_preview_id_input[0] = '\0';
   state->rename_operation_id_input[0] = '\0';
+  state->rename_history_id_prefix_input[0] = '\0';
+  state->rename_history_from_input[0] = '\0';
+  state->rename_history_to_input[0] = '\0';
+  state->rename_history_export_path[0] = '\0';
+  strncpy(state->rename_history_prune_keep_input, "200",
+          sizeof(state->rename_history_prune_keep_input) - 1);
+  state->rename_history_prune_keep_input
+      [sizeof(state->rename_history_prune_keep_input) - 1] = '\0';
+  state->rename_history_rollback_filter_mode = 0;
   state->rename_accept_auto_suffix = false;
   state->rename_filter_collisions_only = false;
   state->rename_filter_warnings_only = false;
@@ -482,6 +557,34 @@ bool GuiUiHasUnsavedChanges(const GuiUiState *state) {
   if (strncmp(current_state.rename_operation_id,
               state->persisted_state.rename_operation_id,
               sizeof(current_state.rename_operation_id)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_history_id_prefix,
+              state->persisted_state.rename_history_id_prefix,
+              sizeof(current_state.rename_history_id_prefix)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_history_from,
+              state->persisted_state.rename_history_from,
+              sizeof(current_state.rename_history_from)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_history_to,
+              state->persisted_state.rename_history_to,
+              sizeof(current_state.rename_history_to)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_history_export_path,
+              state->persisted_state.rename_history_export_path,
+              sizeof(current_state.rename_history_export_path)) != 0) {
+    return true;
+  }
+  if (current_state.rename_history_prune_keep_count !=
+      state->persisted_state.rename_history_prune_keep_count) {
+    return true;
+  }
+  if (current_state.rename_history_rollback_filter_mode !=
+      state->persisted_state.rename_history_rollback_filter_mode) {
     return true;
   }
   if (current_state.rename_accept_auto_suffix !=
