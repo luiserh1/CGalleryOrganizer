@@ -250,6 +250,109 @@ void test_app_rename_preview_metadata_tag_edits(void) {
   ASSERT_TRUE(RemovePathsForTest((const char *[]){src_dir, env_dir}, 2));
 }
 
+void test_app_rename_preflight_and_prune_history(void) {
+  const char *src_dir = "build/test_app_rename_v610_src";
+  const char *env_dir = "build/test_app_rename_v610_env";
+
+  ASSERT_TRUE(RemovePathsForTest((const char *[]){src_dir, env_dir}, 2));
+  ASSERT_TRUE(FsMakeDirRecursive(src_dir));
+  ASSERT_TRUE(FsMakeDirRecursive(env_dir));
+
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_app_rename_v610_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_app_rename_v610_src/b.png"));
+
+  AppContext *ctx = AppContextCreate(&(AppRuntimeOptions){0});
+  ASSERT_TRUE(ctx != NULL);
+
+  AppRenamePreviewRequest preview_1 = {
+      .target_dir = src_dir,
+      .env_dir = env_dir,
+      .pattern = "v1-[index].[format]",
+  };
+  AppRenamePreviewResult preview_1_result = {0};
+  AppStatus status = AppPreviewRename(ctx, &preview_1, &preview_1_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+
+  AppRenameApplyRequest apply_1 = {
+      .env_dir = env_dir,
+      .preview_id = preview_1_result.preview_id,
+      .accept_auto_suffix = false,
+  };
+  AppRenameApplyResult apply_1_result = {0};
+  status = AppApplyRename(ctx, &apply_1, &apply_1_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(apply_1_result.operation_id[0] != '\0');
+
+  AppRenameRollbackPreflightRequest preflight_request = {
+      .env_dir = env_dir,
+      .operation_id = apply_1_result.operation_id,
+  };
+  AppRenameRollbackPreflightResult preflight_result = {0};
+  status = AppPreflightRenameRollback(ctx, &preflight_request, &preflight_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(preflight_result.total_items >= 1);
+  ASSERT_TRUE(preflight_result.fully_restorable);
+
+  AppRenameRollbackRequest rollback_request = {
+      .env_dir = env_dir,
+      .operation_id = apply_1_result.operation_id,
+  };
+  AppRenameRollbackResult rollback_result = {0};
+  status = AppRollbackRename(ctx, &rollback_request, &rollback_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+
+  AppRenamePreviewRequest preview_2 = {
+      .target_dir = src_dir,
+      .env_dir = env_dir,
+      .pattern = "v2-[index].[format]",
+  };
+  AppRenamePreviewResult preview_2_result = {0};
+  status = AppPreviewRename(ctx, &preview_2, &preview_2_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+
+  AppRenameApplyRequest apply_2 = {
+      .env_dir = env_dir,
+      .preview_id = preview_2_result.preview_id,
+      .accept_auto_suffix = false,
+  };
+  AppRenameApplyResult apply_2_result = {0};
+  status = AppApplyRename(ctx, &apply_2, &apply_2_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+
+  AppRenameHistoryEntry *history = NULL;
+  int history_count = 0;
+  status = AppListRenameHistory(ctx, env_dir, &history, &history_count);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(history_count >= 2);
+  AppFreeRenameHistoryEntries(history);
+
+  AppRenameHistoryPruneRequest prune_request = {
+      .env_dir = env_dir,
+      .keep_count = 1,
+  };
+  AppRenameHistoryPruneResult prune_result = {0};
+  status = AppPruneRenameHistory(ctx, &prune_request, &prune_result);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_TRUE(prune_result.before_count >= 2);
+  ASSERT_EQ(1, prune_result.after_count);
+  ASSERT_TRUE(prune_result.pruned_count >= 1);
+
+  history = NULL;
+  history_count = 0;
+  status = AppListRenameHistory(ctx, env_dir, &history, &history_count);
+  ASSERT_EQ(APP_STATUS_OK, status);
+  ASSERT_EQ(1, history_count);
+  ASSERT_STR_EQ(apply_2_result.operation_id, history[0].operation_id);
+  AppFreeRenameHistoryEntries(history);
+
+  AppFreeRenamePreviewResult(&preview_1_result);
+  AppFreeRenamePreviewResult(&preview_2_result);
+  AppContextDestroy(ctx);
+  ASSERT_TRUE(RemovePathsForTest((const char *[]){src_dir, env_dir}, 2));
+}
+
 void register_app_rename_tests(void) {
   register_test("test_app_rename_preview_apply_history_and_rollback",
                 test_app_rename_preview_apply_history_and_rollback,
@@ -259,4 +362,6 @@ void register_app_rename_tests(void) {
                 "integration");
   register_test("test_app_rename_preview_metadata_tag_edits",
                 test_app_rename_preview_metadata_tag_edits, "integration");
+  register_test("test_app_rename_preflight_and_prune_history",
+                test_app_rename_preflight_and_prune_history, "integration");
 }
