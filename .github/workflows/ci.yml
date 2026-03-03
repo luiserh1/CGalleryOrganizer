@@ -30,7 +30,6 @@ jobs:
       - name: Install deps (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew update
           brew install exiv2 zstd
 
       - name: Build + test
@@ -74,12 +73,12 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc g++ make pkg-config libexiv2-dev libzstd-dev python3 python3-pip
+          sudo apt-get install -y clang make pkg-config libexiv2-dev libzstd-dev python3 python3-pip
           python3 -m pip install --upgrade pip
           python3 -m pip install gcovr
 
       - name: Build + test + coverage
-        run: ./scripts/coverage_ci.sh
+        run: CC=clang CXX=clang++ ./scripts/coverage_ci.sh
 
       - name: Coverage ratchet gate
         run: python3 ./scripts/coverage_gate.py --baseline tests/coverage/baseline.json --summary build/coverage/summary.json
@@ -104,7 +103,6 @@ jobs:
 
       - name: Install deps
         run: |
-          brew update
           brew install exiv2 zstd raylib
 
       - name: Build GUI
