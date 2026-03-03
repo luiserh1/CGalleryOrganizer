@@ -30,6 +30,34 @@ static bool FileContainsText(const char *path, const char *needle) {
   return strstr(buffer, needle) != NULL;
 }
 
+static bool FileContainsPathToken(const char *path, const char *path_token) {
+  if (FileContainsText(path, path_token)) {
+    return true;
+  }
+
+  if (!path_token) {
+    return false;
+  }
+
+  char escaped[4096] = {0};
+  size_t used = 0;
+  for (size_t i = 0; path_token[i] != '\0'; i++) {
+    const char c = path_token[i];
+    if (c == '\\' || c == '"') {
+      if (used + 2 >= sizeof(escaped)) {
+        return false;
+      }
+      escaped[used++] = '\\';
+    } else if (used + 1 >= sizeof(escaped)) {
+      return false;
+    }
+    escaped[used++] = c;
+  }
+  escaped[used] = '\0';
+
+  return FileContainsText(path, escaped);
+}
+
 static bool ExtractFirstPreviewTagsMeta(const char *details_json, char *out_tags,
                                         size_t out_tags_size) {
   if (!details_json || !out_tags || out_tags_size == 0) {
@@ -134,8 +162,8 @@ void test_app_rename_preview_apply_history_and_rollback(void) {
   char abs_renamed_2[1024] = {0};
   ASSERT_TRUE(FsGetAbsolutePath(renamed_1, abs_renamed_1, sizeof(abs_renamed_1)));
   ASSERT_TRUE(FsGetAbsolutePath(renamed_2, abs_renamed_2, sizeof(abs_renamed_2)));
-  ASSERT_TRUE(FileContainsText(sidecar_path, abs_renamed_1) ||
-              FileContainsText(sidecar_path, abs_renamed_2));
+  ASSERT_TRUE(FileContainsPathToken(sidecar_path, abs_renamed_1) ||
+              FileContainsPathToken(sidecar_path, abs_renamed_2));
 
   AppRenameRollbackRequest rollback_request = {
       .env_dir = env_dir,
@@ -148,8 +176,8 @@ void test_app_rename_preview_apply_history_and_rollback(void) {
 
   ASSERT_TRUE(FileExists("build/test_app_rename_src/a.jpg"));
   ASSERT_TRUE(FileExists("build/test_app_rename_src/b.jpg"));
-  ASSERT_TRUE(FileContainsText(sidecar_path, abs_a));
-  ASSERT_TRUE(FileContainsText(sidecar_path, abs_b));
+  ASSERT_TRUE(FileContainsPathToken(sidecar_path, abs_a));
+  ASSERT_TRUE(FileContainsPathToken(sidecar_path, abs_b));
 
   AppFreeRenamePreviewResult(&preview_result);
   AppContextDestroy(ctx);

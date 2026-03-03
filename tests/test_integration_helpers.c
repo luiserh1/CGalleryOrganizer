@@ -15,13 +15,60 @@
 
 #include "integration_test_helpers.h"
 
+#if defined(_WIN32)
+static bool BuildWindowsShellCommand(const char *cmd, char *out,
+                                     size_t out_size) {
+  if (!cmd || !out || out_size == 0) {
+    return false;
+  }
+
+  size_t pos = 0;
+  const char *prefix = "sh -lc \"";
+  const size_t prefix_len = strlen(prefix);
+  if (prefix_len + 2 >= out_size) {
+    return false;
+  }
+  memcpy(out + pos, prefix, prefix_len);
+  pos += prefix_len;
+
+  for (size_t i = 0; cmd[i] != '\0'; i++) {
+    const char c = cmd[i];
+    if (c == '\\' || c == '"' || c == '$' || c == '`') {
+      if (pos + 2 >= out_size) {
+        return false;
+      }
+      out[pos++] = '\\';
+    } else if (pos + 1 >= out_size) {
+      return false;
+    }
+    out[pos++] = c;
+  }
+
+  if (pos + 2 >= out_size) {
+    return false;
+  }
+  out[pos++] = '"';
+  out[pos] = '\0';
+  return true;
+}
+#endif
+
 int RunCommandCapture(const char *cmd, char *output, size_t output_size) {
   if (!cmd || !output || output_size == 0) {
     return -1;
   }
 
   output[0] = '\0';
-  FILE *pipe = popen(cmd, "r");
+  const char *command_to_run = cmd;
+#if defined(_WIN32)
+  char wrapped_command[8192] = {0};
+  if (!BuildWindowsShellCommand(cmd, wrapped_command, sizeof(wrapped_command))) {
+    return -1;
+  }
+  command_to_run = wrapped_command;
+#endif
+
+  FILE *pipe = popen(command_to_run, "r");
   if (!pipe) {
     return -1;
   }

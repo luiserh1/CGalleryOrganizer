@@ -53,6 +53,14 @@ static bool WaitForWorkerResult(GuiTaskSnapshot *out_snapshot, int timeout_ms) {
   return false;
 }
 
+static int WorkerTimeoutMs(void) {
+#if defined(_WIN32)
+  return 60000;
+#else
+  return 15000;
+#endif
+}
+
 static bool RunWorkerTask(const GuiTaskInput *input, GuiTaskSnapshot *out_snapshot) {
   if (!input || !out_snapshot) {
     return false;
@@ -61,7 +69,7 @@ static bool RunWorkerTask(const GuiTaskInput *input, GuiTaskSnapshot *out_snapsh
   if (!GuiWorkerStartTask(input)) {
     return false;
   }
-  if (!WaitForWorkerResult(out_snapshot, 15000)) {
+  if (!WaitForWorkerResult(out_snapshot, WorkerTimeoutMs())) {
     GuiWorkerRequestCancel();
     return false;
   }
