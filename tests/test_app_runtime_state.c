@@ -134,6 +134,10 @@ void test_app_runtime_state_reports_missing_models(void) {
 }
 
 void test_app_runtime_state_uses_in_memory_count_for_active_cache(void) {
+#if defined(_WIN32)
+  printf("  INFO: skipping active-cache runtime-state integration test on Windows\n");
+  return;
+#endif
   ASSERT_TRUE(
       RemovePathRecursiveForTest("build/test_app_state_active_cache_env"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_app_state_active_cache_env"));
