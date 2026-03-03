@@ -388,6 +388,7 @@ bool RenamerHistoryPersistOperation(const char *env_dir,
              "failed to ensure rename history path under '%s'", env_dir);
     return false;
   }
+  (void)index_path;
 
   char operation_path[MAX_PATH_LENGTH] = {0};
   snprintf(operation_path, sizeof(operation_path), "%s/%s.json", history_dir,
@@ -603,6 +604,103 @@ static bool UpdateManifestRollbackStatus(const char *operation_path,
   return ok;
 }
 
+bool RenamerHistoryRollbackPreflight(const char *env_dir,
+                                     const char *operation_id,
+                                     RenamerRollbackPreflight *out_preflight,
+                                     char *out_error,
+                                     size_t out_error_size) {
+  if (out_error && out_error_size > 0) {
+    out_error[0] = '\0';
+  }
+  if (!env_dir || env_dir[0] == '\0' || !operation_id || operation_id[0] == '\0' ||
+      !out_preflight) {
+    SetError(out_error, out_error_size,
+             "env_dir, operation_id, and output preflight are required");
+    return false;
+  }
+
+  memset(out_preflight, 0, sizeof(*out_preflight));
+
+  char history_dir[MAX_PATH_LENGTH] = {0};
+  char index_path[MAX_PATH_LENGTH] = {0};
+  if (!EnsureHistoryPaths(env_dir, history_dir, sizeof(history_dir), index_path,
+                          sizeof(index_path))) {
+    SetError(out_error, out_error_size,
+             "failed to ensure rename history path under '%s'", env_dir);
+    return false;
+  }
+
+  char operation_path[MAX_PATH_LENGTH] = {0};
+  snprintf(operation_path, sizeof(operation_path), "%s/%s.json", history_dir,
+           operation_id);
+
+  char *manifest_text = NULL;
+  if (!LoadFileText(operation_path, &manifest_text)) {
+    SetError(out_error, out_error_size,
+             "rename operation '%s' was not found", operation_id);
+    return false;
+  }
+
+  cJSON *manifest = cJSON_Parse(manifest_text);
+  free(manifest_text);
+  if (!manifest) {
+    SetError(out_error, out_error_size,
+             "rename operation '%s' is malformed", operation_id);
+    return false;
+  }
+
+  cJSON *items = cJSON_GetObjectItem(manifest, "items");
+  if (!cJSON_IsArray(items)) {
+    cJSON_Delete(manifest);
+    SetError(out_error, out_error_size,
+             "rename operation '%s' has invalid items payload", operation_id);
+    return false;
+  }
+
+  int count = cJSON_GetArraySize(items);
+  for (int i = count - 1; i >= 0; i--) {
+    cJSON *item = cJSON_GetArrayItem(items, i);
+    if (!cJSON_IsObject(item)) {
+      out_preflight->invalid_item_count++;
+      continue;
+    }
+
+    cJSON *source = cJSON_GetObjectItem(item, "source");
+    cJSON *destination = cJSON_GetObjectItem(item, "destination");
+    cJSON *renamed = cJSON_GetObjectItem(item, "renamed");
+    if (!cJSON_IsString(source) || !source->valuestring ||
+        !cJSON_IsString(destination) || !destination->valuestring ||
+        !(cJSON_IsBool(renamed) && cJSON_IsTrue(renamed))) {
+      out_preflight->invalid_item_count++;
+      continue;
+    }
+
+    out_preflight->total_items++;
+
+    if (access(destination->valuestring, F_OK) != 0) {
+      out_preflight->missing_destination_count++;
+      continue;
+    }
+
+    if (access(source->valuestring, F_OK) == 0) {
+      out_preflight->source_exists_conflict_count++;
+      continue;
+    }
+
+    out_preflight->restorable_count++;
+  }
+
+  cJSON_Delete(manifest);
+
+  out_preflight->fully_restorable =
+      out_preflight->total_items > 0 &&
+      out_preflight->restorable_count == out_preflight->total_items &&
+      out_preflight->missing_destination_count == 0 &&
+      out_preflight->source_exists_conflict_count == 0 &&
+      out_preflight->invalid_item_count == 0;
+  return true;
+}
+
 bool RenamerHistoryRollback(const char *env_dir, const char *operation_id,
                             RenamerRollbackStats *out_stats,
                             char *out_error, size_t out_error_size) {
@@ -729,4 +827,56 @@ bool RenamerHistoryRollback(const char *env_dir, const char *operation_id,
   }
 
   return true;
+}
+
+bool RenamerHistoryPrune(const char *env_dir, int keep_count,
+                         RenamerHistoryPruneStats *out_stats,
+                         char *out_error, size_t out_error_size) {
+  if (out_error && out_error_size > 0) {
+    out_error[0] = '\0';
+  }
+  if (!env_dir || env_dir[0] == '\0' || keep_count < 0 || !out_stats) {
+    SetError(out_error, out_error_size,
+             "env_dir, non-negative keep_count, and output stats are required");
+    return false;
+  }
+
+  memset(out_stats, 0, sizeof(*out_stats));
+
+  char history_dir[MAX_PATH_LENGTH] = {0};
+  char index_path[MAX_PATH_LENGTH] = {0};
+  if (!EnsureHistoryPaths(env_dir, history_dir, sizeof(history_dir), index_path,
+                          sizeof(index_path))) {
+    SetError(out_error, out_error_size,
+             "failed to ensure rename history path under '%s'", env_dir);
+    return false;
+  }
+
+  cJSON *index_root = NULL;
+  if (!LoadIndex(index_path, &index_root, out_error, out_error_size)) {
+    return false;
+  }
+
+  cJSON *entries = cJSON_GetObjectItem(index_root, "entries");
+  if (!cJSON_IsArray(entries)) {
+    cJSON_Delete(index_root);
+    SetError(out_error, out_error_size,
+             "rename history index entries payload is invalid");
+    return false;
+  }
+
+  out_stats->before_count = cJSON_GetArraySize(entries);
+  while (cJSON_GetArraySize(entries) > keep_count) {
+    if (!RemoveOldestHistoryEntry(entries, history_dir)) {
+      cJSON_Delete(index_root);
+      SetError(out_error, out_error_size, "failed to prune rename history");
+      return false;
+    }
+    out_stats->pruned_count++;
+  }
+  out_stats->after_count = cJSON_GetArraySize(entries);
+
+  bool ok = SaveIndex(index_path, index_root, out_error, out_error_size);
+  cJSON_Delete(index_root);
+  return ok;
 }

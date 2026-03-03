@@ -76,6 +76,17 @@ AppStatus AppRollbackRename(AppContext *ctx,
                             const AppRenameRollbackRequest *request,
                             AppRenameRollbackResult *out_result);
 
+// Inspect whether rollback is currently feasible for a dedicated rename
+// operation id without mutating filesystem state.
+AppStatus AppPreflightRenameRollback(
+    AppContext *ctx, const AppRenameRollbackPreflightRequest *request,
+    AppRenameRollbackPreflightResult *out_result);
+
+// Prune dedicated rename history to keep_count newest operations.
+AppStatus AppPruneRenameHistory(AppContext *ctx,
+                                const AppRenameHistoryPruneRequest *request,
+                                AppRenameHistoryPruneResult *out_result);
+
 // List dedicated rename history entries for env_dir.
 // On success out_entries is heap-owned and must be released via
 // AppFreeRenameHistoryEntries().
