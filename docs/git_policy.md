@@ -11,6 +11,14 @@ auditable without accumulating stale branches.
 - GitHub default branch must be `master`.
 - Direct pushes to `master` are discouraged; use pull requests.
 
+## Local Setup Baseline
+
+- Keep local `master` tracking `origin/master`:
+  - `git checkout master`
+  - `git branch --set-upstream-to=origin/master master`
+- Verify tracking/ahead-behind status with:
+  - `git status --short --branch`
+
 ## Branch Naming
 
 - Feature/milestone branches: `codex/<version-or-scope>`
