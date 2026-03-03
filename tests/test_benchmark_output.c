@@ -23,6 +23,10 @@ static void ClearTestEnvVar(const char *key) {
 }
 
 void test_benchmark_output_jsonl_contract(void) {
+#if defined(_WIN32)
+  printf("  INFO: skipping benchmark shell integration test on Windows\n");
+  return;
+#endif
   ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_output"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_output"));
   ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_DATASET", "tests/assets/png"));
@@ -66,6 +70,10 @@ void test_benchmark_output_jsonl_contract(void) {
 }
 
 void test_benchmark_stats_and_comparison_report(void) {
+#if defined(_WIN32)
+  printf("  INFO: skipping benchmark shell integration test on Windows\n");
+  return;
+#endif
   ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_stats"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_stats"));
   ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_DATASET", "tests/assets/png"));
