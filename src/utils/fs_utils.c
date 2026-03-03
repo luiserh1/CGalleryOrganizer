@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -5,6 +6,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#if defined(_WIN32)
+#include <direct.h>
+#endif
 
 #include "fs_utils.h"
 
@@ -46,6 +51,18 @@ bool FsGetAbsolutePath(const char *path, char *out_path, size_t out_size) {
   if (!path || !out_path || out_size == 0)
     return false;
 
+#if defined(_WIN32)
+  char resolved[MAX_PATH_LENGTH];
+  if (!_fullpath(resolved, path, sizeof(resolved))) {
+    return false;
+  }
+  size_t len = strlen(resolved);
+  if (len >= out_size) {
+    return false;
+  }
+  strcpy(out_path, resolved);
+  return true;
+#else
   char *real_p = realpath(path, NULL);
   if (!real_p)
     return false;
@@ -59,6 +76,7 @@ bool FsGetAbsolutePath(const char *path, char *out_path, size_t out_size) {
   strcpy(out_path, real_p);
   free(real_p);
   return true;
+#endif
 }
 
 bool FsWalkDirectory(const char *root_path, FsWalkCallback callback,
@@ -113,26 +131,79 @@ bool FsDeleteFile(const char *path) {
   return remove(path) == 0;
 }
 
-bool FsMakeDirRecursive(const char *path) {
-  if (!path)
+static bool FsCreateDirSingle(const char *path) {
+  if (!path || path[0] == '\0') {
     return false;
-  char tmp[MAX_PATH_LENGTH];
-  char *p = NULL;
-  size_t len;
+  }
 
-  snprintf(tmp, sizeof(tmp), "%s", path);
-  len = strlen(tmp);
-  if (tmp[len - 1] == '/')
+#if defined(_WIN32)
+  if (_mkdir(path) == 0) {
+    return true;
+  }
+#else
+  if (mkdir(path, 0755) == 0) {
+    return true;
+  }
+#endif
+
+  if (errno != EEXIST) {
+    return false;
+  }
+
+  struct stat st;
+  return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+bool FsMakeDirRecursive(const char *path) {
+  if (!path || path[0] == '\0')
+    return false;
+
+  char tmp[MAX_PATH_LENGTH];
+  size_t len = strlen(path);
+  if (len >= sizeof(tmp)) {
+    return false;
+  }
+  strcpy(tmp, path);
+
+  for (size_t i = 0; i < len; i++) {
+    if (tmp[i] == '\\') {
+      tmp[i] = '/';
+    }
+  }
+
+  while (len > 1 && tmp[len - 1] == '/') {
     tmp[len - 1] = '\0';
-  for (p = tmp + 1; *p; p++) {
+    len--;
+  }
+
+  if (len == 0) {
+    return false;
+  }
+
+  size_t start = 0;
+  if (tmp[0] == '/') {
+    start = 1;
+  }
+#if defined(_WIN32)
+  if (len >= 2 && isalpha((unsigned char)tmp[0]) && tmp[1] == ':') {
+    start = 2;
+    if (len >= 3 && tmp[2] == '/') {
+      start = 3;
+    }
+  }
+#endif
+
+  for (char *p = tmp + start; *p; p++) {
     if (*p == '/') {
       *p = '\0';
-      mkdir(tmp, 0755);
+      if (!FsCreateDirSingle(tmp)) {
+        return false;
+      }
       *p = '/';
     }
   }
-  mkdir(tmp, 0755);
-  return true;
+
+  return FsCreateDirSingle(tmp);
 }
 
 bool FsRenameFile(const char *old_path, const char *new_path) {

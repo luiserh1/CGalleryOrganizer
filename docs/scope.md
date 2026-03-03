@@ -1026,3 +1026,51 @@ and audit/export tools in both CLI and GUI.
     fields; legacy state files load with defaults.
 - Benchmark impact summary:
   - No benchmark schema, methodology, or benchmark command changes.
+
+---
+
+## v0.6.11 Scope: CI Stabilization + Coverage Ratchet + Test Reinforcement (Completed)
+
+### Primary Goal
+Stabilize cross-platform CI reliability and establish a non-regressive coverage
+quality gate for tests.
+
+### Features
+- Fix current GitHub Actions failures across Linux/macOS/Windows:
+  - Linux strict-C99 `strdup` declaration compatibility.
+  - Windows filesystem portability in `fs_utils` (`realpath`/`mkdir` path).
+  - macOS `make test` raylib header coupling removal for non-rendering tests.
+- Add coverage evaluation pipeline:
+  - coverage build+test script and artifact generation.
+  - ratchet gate script comparing current coverage against committed baseline.
+  - CI coverage job with artifact upload.
+- Reinforce tests around affected portability and regression surfaces:
+  - filesystem absolute-path + recursive mkdir edge cases.
+  - cache metadata string-ownership/path regression checks.
+  - GUI action-rules compile path independent from raylib install.
+
+### Release Notes
+- Behavior changes:
+  - CI hardening updates:
+    - Linux builds use POSIX feature macros for strict-C99 `strdup` declaration
+      compatibility.
+    - Windows filesystem helper portability in `fs_utils` now uses `_fullpath`
+      and `_mkdir` code paths.
+    - GUI non-rendering test compile path is decoupled from `raylib.h`; `make test`
+      no longer requires raylib headers.
+  - Coverage pipeline added:
+    - `scripts/coverage_ci.sh` for instrumented build+test and coverage artifacts.
+    - `scripts/coverage_gate.py` for regression-only ratchet checks.
+    - Baseline artifact contract introduced at `tests/coverage/baseline.json`.
+  - Test reinforcement:
+    - expanded filesystem recursive-mkdir and absolute-path assertions.
+    - cache raw-entry owned-string regression coverage.
+- Migration/compat notes:
+  - Build interface additions:
+    - `make coverage` target added.
+    - `EXTRA_CFLAGS`, `EXTRA_CXXFLAGS`, and `EXTRA_LDFLAGS` supported for
+      instrumented/custom builds.
+  - CI adds one Ubuntu coverage job with artifact upload and ratchet gate.
+  - No CLI/app API/GUI runtime contract changes.
+- Benchmark impact summary:
+  - No benchmark schema or benchmark workflow changes.

@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.10)
+## Key Features (v0.6.11)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -104,6 +104,11 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
     - manual keep-count cleanup in CLI/GUI
   - rollback preflight:
     - non-mutating feasibility validation before rollback
+- CI stabilization + coverage ratchet (v0.6.11):
+  - Linux strict-C99 build compatibility (`strdup` declaration path)
+  - Windows filesystem portability hardening (`_fullpath`, `_mkdir` path)
+  - raylib decoupling from non-rendering test headers (`make test` does not require raylib)
+  - coverage reporting pipeline (`make coverage`) with regression-only ratchet gate
 
 ## Build
 
@@ -130,7 +135,13 @@ make test
 Release checklist:
 ```bash
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.10
+./scripts/release_check.sh --expected-tag v0.6.11
+```
+
+Coverage run:
+```bash
+make coverage
+python3 ./scripts/coverage_gate.py --baseline tests/coverage/baseline.json --summary build/coverage/summary.json
 ```
 
 ### Build GUI frontend

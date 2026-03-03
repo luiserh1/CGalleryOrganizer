@@ -1,5 +1,7 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -13,13 +15,28 @@ typedef struct {
   int count;
 } WalkContext;
 
+static bool IsAbsolutePathForPlatform(const char *path) {
+  if (!path || path[0] == '\0') {
+    return false;
+  }
+#if defined(_WIN32)
+  bool drive_abs =
+      isalpha((unsigned char)path[0]) && path[1] == ':' &&
+      (path[2] == '\\' || path[2] == '/');
+  bool unc_abs = path[0] == '\\' && path[1] == '\\';
+  return drive_abs || unc_abs;
+#else
+  return path[0] == '/';
+#endif
+}
+
 static bool TestWalkCallback(const char *absolute_path, void *user_data) {
   if (user_data) {
     WalkContext *ctx = (WalkContext *)user_data;
     ctx->count++;
   }
   // Simple verification that we are getting an absolute path
-  if (absolute_path[0] != '/') {
+  if (!IsAbsolutePathForPlatform(absolute_path)) {
     printf("  FAIL: Expected absolute path, got %s\n", absolute_path);
     g_fail_count++;
     return false;
@@ -70,7 +87,7 @@ void test_fs_utils_get_absolute_path(void) {
 
   ASSERT_TRUE(
       FsGetAbsolutePath("temp_test_file.txt", out_path, sizeof(out_path)));
-  ASSERT_EQ('/', out_path[0]); // Check it starts with root
+  ASSERT_TRUE(IsAbsolutePathForPlatform(out_path));
 
   // Reject non-existent file
   ASSERT_FALSE(FsGetAbsolutePath("does_not_exist_at_all.test", out_path,
@@ -98,6 +115,29 @@ void test_fs_utils_walk_directory(void) {
   ASSERT_TRUE(RemovePathRecursiveForTest("temp_walk_test"));
 }
 
+void test_fs_utils_make_dir_recursive_existing_and_nested(void) {
+  ASSERT_TRUE(RemovePathRecursiveForTest("temp_mkdir_test"));
+
+  ASSERT_TRUE(FsMakeDirRecursive("temp_mkdir_test"));
+  ASSERT_TRUE(FsMakeDirRecursive("temp_mkdir_test"));
+  ASSERT_TRUE(FsMakeDirRecursive("temp_mkdir_test/a/b/c"));
+
+  struct stat st;
+  ASSERT_TRUE(stat("temp_mkdir_test/a/b/c", &st) == 0);
+  ASSERT_TRUE(S_ISDIR(st.st_mode));
+
+  ASSERT_TRUE(RemovePathRecursiveForTest("temp_mkdir_test"));
+}
+
+void test_fs_utils_make_dir_recursive_rejects_file_collision(void) {
+  ASSERT_TRUE(RemovePathRecursiveForTest("temp_mkdir_collision"));
+  ASSERT_TRUE(WriteDummyFile("temp_mkdir_collision"));
+
+  ASSERT_FALSE(FsMakeDirRecursive("temp_mkdir_collision/child"));
+
+  ASSERT_TRUE(FsDeleteFile("temp_mkdir_collision"));
+}
+
 void register_fs_utils_tests(void) {
   register_test("test_fs_utils_is_supported_media_jpg",
                 test_fs_utils_is_supported_media_jpg, "fs");
@@ -111,4 +151,8 @@ void register_fs_utils_tests(void) {
                 test_fs_utils_get_absolute_path, "fs");
   register_test("test_fs_utils_walk_directory", test_fs_utils_walk_directory,
                 "fs");
+  register_test("test_fs_utils_make_dir_recursive_existing_and_nested",
+                test_fs_utils_make_dir_recursive_existing_and_nested, "fs");
+  register_test("test_fs_utils_make_dir_recursive_rejects_file_collision",
+                test_fs_utils_make_dir_recursive_rejects_file_collision, "fs");
 }

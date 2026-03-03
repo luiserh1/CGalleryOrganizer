@@ -127,10 +127,56 @@ void test_cache_entry_count_and_keys(void) {
   ASSERT_TRUE(RemovePathRecursiveForTest("build/temp_cache_count.json"));
 }
 
+void test_cache_get_raw_entry_returns_independent_owned_strings(void) {
+  const char *cache_path = "build/temp_cache_owned_strings.json";
+  ASSERT_TRUE(CacheInit(cache_path));
+
+  ImageMetadata md = {0};
+  md.path = strdup("/fake/owned.jpg");
+  md.modificationDate = 42.0;
+  md.fileSize = 7;
+  md.mlEmbeddingDim = 4;
+  md.mlEmbeddingBase64 = strdup("AACAPwAAAEAAAEBAAACAQA==");
+  ASSERT_TRUE(CacheUpdateEntry(&md));
+  CacheFreeMetadata(&md);
+  ASSERT_TRUE(CacheSave());
+
+  ImageMetadata first = {0};
+  ImageMetadata second = {0};
+  ASSERT_TRUE(CacheGetRawEntry("/fake/owned.jpg", &first));
+  ASSERT_TRUE(CacheGetRawEntry("/fake/owned.jpg", &second));
+
+  ASSERT_TRUE(first.path != NULL);
+  ASSERT_TRUE(second.path != NULL);
+  ASSERT_STR_EQ("/fake/owned.jpg", first.path);
+  ASSERT_STR_EQ("/fake/owned.jpg", second.path);
+  ASSERT_TRUE(first.path != second.path);
+  ASSERT_TRUE(first.mlEmbeddingBase64 != NULL);
+  ASSERT_TRUE(second.mlEmbeddingBase64 != NULL);
+  ASSERT_TRUE(first.mlEmbeddingBase64 != second.mlEmbeddingBase64);
+
+  first.path[0] = 'X';
+  first.mlEmbeddingBase64[0] = 'Z';
+
+  ImageMetadata third = {0};
+  ASSERT_TRUE(CacheGetRawEntry("/fake/owned.jpg", &third));
+  ASSERT_STR_EQ("/fake/owned.jpg", third.path);
+  ASSERT_STR_EQ("AACAPwAAAEAAAEBAAACAQA==", third.mlEmbeddingBase64);
+
+  CacheFreeMetadata(&first);
+  CacheFreeMetadata(&second);
+  CacheFreeMetadata(&third);
+  CacheShutdown();
+  ASSERT_TRUE(RemovePathRecursiveForTest(cache_path));
+}
+
 void register_gallery_cache_tests(void) {
   register_test("test_cache_extract_basic_metadata",
                 test_cache_extract_basic_metadata, "cache");
   register_test("test_cache_flow", test_cache_flow, "cache");
   register_test("test_cache_entry_count_and_keys",
                 test_cache_entry_count_and_keys, "cache");
+  register_test("test_cache_get_raw_entry_returns_independent_owned_strings",
+                test_cache_get_raw_entry_returns_independent_owned_strings,
+                "cache");
 }

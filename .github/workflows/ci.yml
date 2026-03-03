@@ -63,6 +63,37 @@ jobs:
       - name: Build + test
         run: make test CC=clang CXX=clang++
 
+  coverage-ubuntu:
+    name: coverage (ubuntu-latest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ make pkg-config libexiv2-dev libzstd-dev python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install gcovr
+
+      - name: Build + test + coverage
+        run: ./scripts/coverage_ci.sh
+
+      - name: Coverage ratchet gate
+        run: python3 ./scripts/coverage_gate.py --baseline tests/coverage/baseline.json --summary build/coverage/summary.json
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-ubuntu
+          path: |
+            build/coverage/coverage.txt
+            build/coverage/coverage.json
+            build/coverage/coverage.xml
+            build/coverage/summary.json
+
   gui-build-macos:
     name: gui-build (macos)
     runs-on: macos-latest
