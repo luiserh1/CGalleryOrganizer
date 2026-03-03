@@ -238,7 +238,7 @@ Improve throughput via parallel scan->metadata->inference processing while prese
   - structured comparison report export
 
 ### Merge Policy
-- May merge to `main` without creating a release tag.
+- May merge to `master` without creating a release tag.
 - If behavior changes leak into runtime paths, defer merge to the next functional version branch.
 
 ---
