@@ -478,7 +478,75 @@ static void WorkerRunRenameApply(const GuiTaskInput *input) {
   GuiWorkerSetResult(APP_STATUS_OK, "Rename apply completed", true);
 }
 
+static bool BuildHistoryFilterFromTask(const GuiTaskInput *input,
+                                       CliRenameHistoryFilter *out_filter,
+                                       char *out_error,
+                                       size_t out_error_size) {
+  if (out_error && out_error_size > 0) {
+    out_error[0] = '\0';
+  }
+  if (!input || !out_filter) {
+    if (out_error && out_error_size > 0) {
+      strncpy(out_error, "invalid history filter input", out_error_size - 1);
+      out_error[out_error_size - 1] = '\0';
+    }
+    return false;
+  }
+
+  memset(out_filter, 0, sizeof(*out_filter));
+  out_filter->rollback_filter = CLI_RENAME_ROLLBACK_FILTER_ANY;
+
+  const char *prefix = input->rename_history_id_prefix;
+  if ((!prefix || prefix[0] == '\0') && input->rename_operation_id[0] != '\0') {
+    prefix = input->rename_operation_id;
+  }
+  if (prefix && prefix[0] != '\0') {
+    strncpy(out_filter->operation_id_prefix, prefix,
+            sizeof(out_filter->operation_id_prefix) - 1);
+    out_filter->operation_id_prefix[sizeof(out_filter->operation_id_prefix) - 1] =
+        '\0';
+  }
+
+  if (!CliRenameParseRollbackFilter(input->rename_history_rollback_filter,
+                                    &out_filter->rollback_filter, out_error,
+                                    out_error_size)) {
+    return false;
+  }
+  if (!CliRenameNormalizeHistoryDateBound(
+          input->rename_history_from, false, out_filter->created_from_utc,
+          sizeof(out_filter->created_from_utc), out_error, out_error_size)) {
+    return false;
+  }
+  if (!CliRenameNormalizeHistoryDateBound(
+          input->rename_history_to, true, out_filter->created_to_utc,
+          sizeof(out_filter->created_to_utc), out_error, out_error_size)) {
+    return false;
+  }
+  if (out_filter->created_from_utc[0] != '\0' &&
+      out_filter->created_to_utc[0] != '\0' &&
+      strcmp(out_filter->created_from_utc, out_filter->created_to_utc) > 0) {
+    if (out_error && out_error_size > 0) {
+      strncpy(out_error, "history from-date must be <= to-date",
+              out_error_size - 1);
+      out_error[out_error_size - 1] = '\0';
+    }
+    return false;
+  }
+  return true;
+}
+
 static void WorkerRunRenameHistory(const GuiTaskInput *input) {
+  CliRenameHistoryFilter filter = {0};
+  char filter_error[APP_MAX_ERROR] = {0};
+  if (!BuildHistoryFilterFromTask(input, &filter, filter_error,
+                                  sizeof(filter_error))) {
+    GuiWorkerSetResult(APP_STATUS_INVALID_ARGUMENT,
+                       filter_error[0] != '\0' ? filter_error
+                                               : "Invalid history filter",
+                       false);
+    return;
+  }
+
   AppRenameHistoryEntry *entries = NULL;
   int count = 0;
   AppStatus status =
@@ -488,31 +556,150 @@ static void WorkerRunRenameHistory(const GuiTaskInput *input) {
     return;
   }
 
+  int *indices = NULL;
+  int filtered_count = 0;
+  if (!CliRenameBuildHistoryFilterIndex(entries, count, &filter, &indices,
+                                        &filtered_count, filter_error,
+                                        sizeof(filter_error))) {
+    AppFreeRenameHistoryEntries(entries);
+    GuiWorkerSetResult(APP_STATUS_IO_ERROR,
+                       filter_error[0] != '\0' ? filter_error
+                                               : "Failed to filter rename history",
+                       false);
+    return;
+  }
+
   pthread_mutex_lock(&g_worker.mutex);
   g_worker.snapshot.rename_history_count = count;
+  g_worker.snapshot.rename_history_filtered_count = filtered_count;
   g_worker.snapshot.detail_text[0] = '\0';
   char line[512] = {0};
-  snprintf(line, sizeof(line), "Rename history entries: %d\n", count);
+  snprintf(line, sizeof(line), "Rename history entries: %d (filtered: %d)\n",
+           count, filtered_count);
   strncat(g_worker.snapshot.detail_text, line,
           sizeof(g_worker.snapshot.detail_text) -
               strlen(g_worker.snapshot.detail_text) - 1);
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < filtered_count; i++) {
+    const AppRenameHistoryEntry *entry = &entries[indices[i]];
     snprintf(line, sizeof(line),
              "%d. %s (%s) renamed=%d skipped=%d failed=%d rollback=%s\n",
-             i + 1, entries[i].operation_id,
-             entries[i].created_at_utc[0] != '\0' ? entries[i].created_at_utc
-                                                  : "unknown-time",
-             entries[i].renamed_count, entries[i].skipped_count,
-             entries[i].failed_count,
-             entries[i].rollback_performed ? "yes" : "no");
+             i + 1, entry->operation_id,
+             entry->created_at_utc[0] != '\0' ? entry->created_at_utc
+                                              : "unknown-time",
+             entry->renamed_count, entry->skipped_count, entry->failed_count,
+             entry->rollback_performed ? "yes" : "no");
     strncat(g_worker.snapshot.detail_text, line,
             sizeof(g_worker.snapshot.detail_text) -
                 strlen(g_worker.snapshot.detail_text) - 1);
   }
   pthread_mutex_unlock(&g_worker.mutex);
 
+  CliRenameFreeHistoryFilterIndex(indices);
   AppFreeRenameHistoryEntries(entries);
   GuiWorkerSetResult(APP_STATUS_OK, "Rename history loaded", true);
+}
+
+static void WorkerRunRenameHistoryExport(const GuiTaskInput *input) {
+  if (input->rename_history_export_path[0] == '\0') {
+    GuiWorkerSetResult(APP_STATUS_INVALID_ARGUMENT,
+                       "Rename history export requires output path", false);
+    return;
+  }
+
+  CliRenameHistoryFilter filter = {0};
+  char filter_error[APP_MAX_ERROR] = {0};
+  if (!BuildHistoryFilterFromTask(input, &filter, filter_error,
+                                  sizeof(filter_error))) {
+    GuiWorkerSetResult(APP_STATUS_INVALID_ARGUMENT,
+                       filter_error[0] != '\0' ? filter_error
+                                               : "Invalid history filter",
+                       false);
+    return;
+  }
+
+  AppRenameHistoryEntry *entries = NULL;
+  int count = 0;
+  AppStatus status =
+      AppListRenameHistory(g_worker.app, input->env_dir, &entries, &count);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename history export query failed", false);
+    return;
+  }
+
+  int *indices = NULL;
+  int filtered_count = 0;
+  if (!CliRenameBuildHistoryFilterIndex(entries, count, &filter, &indices,
+                                        &filtered_count, filter_error,
+                                        sizeof(filter_error))) {
+    AppFreeRenameHistoryEntries(entries);
+    GuiWorkerSetResult(APP_STATUS_IO_ERROR,
+                       filter_error[0] != '\0' ? filter_error
+                                               : "Failed to filter rename history",
+                       false);
+    return;
+  }
+
+  char export_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameExportHistoryJson(input->env_dir, entries, indices, filtered_count,
+                                  &filter, input->rename_history_export_path,
+                                  export_error, sizeof(export_error))) {
+    AppFreeRenameHistoryEntries(entries);
+    CliRenameFreeHistoryFilterIndex(indices);
+    GuiWorkerSetResult(APP_STATUS_IO_ERROR,
+                       export_error[0] != '\0' ? export_error
+                                               : "Rename history export failed",
+                       false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.rename_history_count = count;
+  g_worker.snapshot.rename_history_filtered_count = filtered_count;
+  strncpy(g_worker.snapshot.rename_history_export_path,
+          input->rename_history_export_path,
+          sizeof(g_worker.snapshot.rename_history_export_path) - 1);
+  g_worker.snapshot.rename_history_export_path
+      [sizeof(g_worker.snapshot.rename_history_export_path) - 1] = '\0';
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Rename history export completed.\nOutput: %s\nTotal entries: %d\n"
+           "Filtered entries: %d\n",
+           input->rename_history_export_path, count, filtered_count);
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  AppFreeRenameHistoryEntries(entries);
+  CliRenameFreeHistoryFilterIndex(indices);
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename history export completed", true);
+}
+
+static void WorkerRunRenameHistoryPrune(const GuiTaskInput *input) {
+  if (input->rename_history_prune_keep_count < 0) {
+    GuiWorkerSetResult(APP_STATUS_INVALID_ARGUMENT,
+                       "Rename history prune keep count must be non-negative",
+                       false);
+    return;
+  }
+
+  AppRenameHistoryPruneRequest request = {
+      .env_dir = input->env_dir,
+      .keep_count = input->rename_history_prune_keep_count,
+  };
+  AppRenameHistoryPruneResult result = {0};
+  AppStatus status = AppPruneRenameHistory(g_worker.app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename history prune failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.rename_history_prune_result = result;
+  g_worker.snapshot.rename_history_count = result.after_count;
+  g_worker.snapshot.rename_history_filtered_count = result.after_count;
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Rename history prune completed.\nBefore: %d\nAfter: %d\nPruned: %d\n",
+           result.before_count, result.after_count, result.pruned_count);
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename history prune completed", true);
 }
 
 static void WorkerRunRenamePreviewLatestId(const GuiTaskInput *input) {
@@ -708,6 +895,40 @@ static void WorkerRunRenameRedo(const GuiTaskInput *input) {
   GuiWorkerSetResult(APP_STATUS_OK, "Rename redo completed", true);
 }
 
+static void WorkerRunRenameRollbackPreflight(const GuiTaskInput *input) {
+  AppRenameRollbackPreflightRequest request = {
+      .env_dir = input->env_dir,
+      .operation_id =
+          input->rename_operation_id[0] != '\0' ? input->rename_operation_id : NULL,
+  };
+
+  AppRenameRollbackPreflightResult result = {0};
+  AppStatus status = AppPreflightRenameRollback(g_worker.app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    GuiWorkerSetResult(status, "Rename rollback preflight failed", false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  g_worker.snapshot.rename_rollback_preflight_result = result;
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Rename rollback preflight completed.\n"
+           "Operation ID: %s\n"
+           "Total items: %d\n"
+           "Restorable: %d\n"
+           "Missing destination: %d\n"
+           "Source conflicts: %d\n"
+           "Invalid items: %d\n"
+           "Fully restorable: %s\n",
+           input->rename_operation_id, result.total_items, result.restorable_count,
+           result.missing_destination_count,
+           result.source_exists_conflict_count, result.invalid_item_count,
+           result.fully_restorable ? "yes" : "no");
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename rollback preflight completed", true);
+}
+
 static void WorkerRunRenameRollback(const GuiTaskInput *input) {
   AppRenameRollbackRequest request = {
       .env_dir = input->env_dir,
@@ -786,6 +1007,12 @@ void *GuiWorkerThreadMain(void *unused) {
   case GUI_TASK_RENAME_HISTORY:
     WorkerRunRenameHistory(&input);
     break;
+  case GUI_TASK_RENAME_HISTORY_EXPORT:
+    WorkerRunRenameHistoryExport(&input);
+    break;
+  case GUI_TASK_RENAME_HISTORY_PRUNE:
+    WorkerRunRenameHistoryPrune(&input);
+    break;
   case GUI_TASK_RENAME_PREVIEW_LATEST_ID:
     WorkerRunRenamePreviewLatestId(&input);
     break;
@@ -797,6 +1024,9 @@ void *GuiWorkerThreadMain(void *unused) {
     break;
   case GUI_TASK_RENAME_REDO:
     WorkerRunRenameRedo(&input);
+    break;
+  case GUI_TASK_RENAME_ROLLBACK_PREFLIGHT:
+    WorkerRunRenameRollbackPreflight(&input);
     break;
   case GUI_TASK_RENAME_ROLLBACK:
     WorkerRunRenameRollback(&input);

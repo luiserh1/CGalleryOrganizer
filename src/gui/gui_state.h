@@ -30,6 +30,12 @@ typedef struct {
   char rename_meta_tag_remove_csv[256];
   char rename_preview_id[64];
   char rename_operation_id[64];
+  char rename_history_id_prefix[64];
+  char rename_history_from[32];
+  char rename_history_to[32];
+  char rename_history_export_path[GUI_STATE_MAX_PATH];
+  int rename_history_prune_keep_count;
+  int rename_history_rollback_filter_mode;
   bool rename_accept_auto_suffix;
   char updated_at[GUI_STATE_UPDATED_AT_MAX];
 } GuiState;

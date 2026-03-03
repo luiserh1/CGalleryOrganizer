@@ -238,6 +238,35 @@ typedef struct {
 } AppRenameRollbackResult;
 
 typedef struct {
+  // Required cache environment root.
+  const char *env_dir;
+  // Required operation identifier from rename history.
+  const char *operation_id;
+} AppRenameRollbackPreflightRequest;
+
+typedef struct {
+  int total_items;
+  int restorable_count;
+  int missing_destination_count;
+  int source_exists_conflict_count;
+  int invalid_item_count;
+  bool fully_restorable;
+} AppRenameRollbackPreflightResult;
+
+typedef struct {
+  // Required cache environment root.
+  const char *env_dir;
+  // Non-negative number of most-recent operations to retain.
+  int keep_count;
+} AppRenameHistoryPruneRequest;
+
+typedef struct {
+  int before_count;
+  int after_count;
+  int pruned_count;
+} AppRenameHistoryPruneResult;
+
+typedef struct {
   char operation_id[64];
   char preview_id[64];
   char created_at_utc[32];

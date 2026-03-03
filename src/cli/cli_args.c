@@ -61,9 +61,23 @@ void CliPrintUsage(const char *argv0) {
   printf("  --rename-accept-auto-suffix Accept deterministic _N collision "
          "suffixing\n");
   printf("  --rename-history  List dedicated rename operation history\n");
+  printf("  --rename-history-id-prefix <prefix> Filter history by operation id "
+         "prefix\n");
+  printf("  --rename-history-rollback <any|yes|no> Filter history by rollback "
+         "status\n");
+  printf("  --rename-history-from <date> Lower date bound (YYYY-MM-DD or UTC "
+         "timestamp)\n");
+  printf("  --rename-history-to <date> Upper date bound (YYYY-MM-DD or UTC "
+         "timestamp)\n");
+  printf("  --rename-history-export <json_path> Export filtered history audit "
+         "JSON\n");
+  printf("  --rename-history-prune <keep_count> Keep latest N history "
+         "operations\n");
   printf("  --rename-history-latest-id Print latest rename operation id\n");
   printf("  --rename-history-detail <operation_id> Print detailed history entry "
          "+ manifest\n");
+  printf("  --rename-rollback-preflight <operation_id> Validate rollback "
+         "feasibility without mutating files\n");
   printf("  --rename-rollback <operation_id> Roll back dedicated rename "
          "operation\n");
   printf("\nRollback usage:\n");
@@ -76,11 +90,18 @@ void CliPrintUsage(const char *argv0) {
   printf("\nRename apply/history/rollback usage:\n");
   printf("  %s <env_dir> --rename-preview-latest-id\n", argv0);
   printf("  %s <env_dir> --rename-history\n", argv0);
+  printf("  %s <env_dir> --rename-history --rename-history-id-prefix rop-2026\n",
+         argv0);
+  printf("  %s <env_dir> --rename-history-export history_audit.json "
+         "--rename-history-rollback no\n",
+         argv0);
+  printf("  %s <env_dir> --rename-history-prune 200\n", argv0);
   printf("  %s <env_dir> --rename-history-latest-id\n", argv0);
   printf("  %s <env_dir> --rename-history-detail <operation_id>\n", argv0);
   printf("  %s <env_dir> --rename-apply --rename-from-preview <id>\n", argv0);
   printf("  %s <env_dir> --rename-apply-latest\n", argv0);
   printf("  %s <env_dir> --rename-redo <operation_id>\n", argv0);
+  printf("  %s <env_dir> --rename-rollback-preflight <operation_id>\n", argv0);
   printf("  %s <env_dir> --rename-rollback <operation_id>\n", argv0);
 }
 

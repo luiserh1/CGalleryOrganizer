@@ -228,12 +228,28 @@ static int HandleRenameApply(AppContext *app, const char *target_dir,
   return 0;
 }
 
+static bool IsHistoryFilterActive(const CliRenameHistoryFilter *filter) {
+  if (!filter) {
+    return false;
+  }
+  return filter->operation_id_prefix[0] != '\0' ||
+         filter->rollback_filter != CLI_RENAME_ROLLBACK_FILTER_ANY ||
+         filter->created_from_utc[0] != '\0' ||
+         filter->created_to_utc[0] != '\0';
+}
+
 static int HandleRenameHistory(AppContext *app, const char *target_dir,
-                               const char *env_dir, const char *argv0) {
+                               const char *env_dir,
+                               const CliRenameHistoryFilter *filter,
+                               const char *argv0) {
   const char *history_env = CliResolveRollbackEnvDir(target_dir, env_dir);
   if (!history_env) {
     printf("Error: --rename-history requires an environment directory.\n");
     CliPrintUsage(argv0);
+    return 1;
+  }
+  if (!filter) {
+    printf("Error: invalid rename history filter.\n");
     return 1;
   }
 
@@ -251,20 +267,111 @@ static int HandleRenameHistory(AppContext *app, const char *target_dir,
     return 0;
   }
 
-  printf("Rename history entries: %d\n", count);
-  for (int i = 0; i < count; i++) {
+  int *indices = NULL;
+  int filtered_count = 0;
+  char filter_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameBuildHistoryFilterIndex(entries, count, filter, &indices,
+                                        &filtered_count, filter_error,
+                                        sizeof(filter_error))) {
+    printf("Error: Failed to filter rename history: %s\n", filter_error);
+    AppFreeRenameHistoryEntries(entries);
+    return 1;
+  }
+
+  if (filtered_count <= 0) {
+    printf("Rename history has no entries for current filter.\n");
+    AppFreeRenameHistoryEntries(entries);
+    CliRenameFreeHistoryFilterIndex(indices);
+    return 0;
+  }
+
+  if (IsHistoryFilterActive(filter)) {
+    printf("Rename history entries: %d (filtered from %d)\n", filtered_count,
+           count);
+  } else {
+    printf("Rename history entries: %d\n", filtered_count);
+  }
+  for (int i = 0; i < filtered_count; i++) {
+    const AppRenameHistoryEntry *entry = &entries[indices[i]];
     printf("%d. %s (%s) renamed=%d skipped=%d failed=%d collisions=%d"
            " rollback=%s restored=%d\n",
-           i + 1, entries[i].operation_id,
-           entries[i].created_at_utc[0] != '\0' ? entries[i].created_at_utc
-                                                : "unknown-time",
-           entries[i].renamed_count, entries[i].skipped_count,
-           entries[i].failed_count, entries[i].collision_resolved_count,
-           entries[i].rollback_performed ? "yes" : "no",
-           entries[i].rollback_restored_count);
+           i + 1, entry->operation_id,
+           entry->created_at_utc[0] != '\0' ? entry->created_at_utc
+                                            : "unknown-time",
+           entry->renamed_count, entry->skipped_count, entry->failed_count,
+           entry->collision_resolved_count,
+           entry->rollback_performed ? "yes" : "no",
+           entry->rollback_restored_count);
+  }
+
+  CliRenameFreeHistoryFilterIndex(indices);
+  AppFreeRenameHistoryEntries(entries);
+  return 0;
+}
+
+static int HandleRenameHistoryExport(AppContext *app, const char *target_dir,
+                                     const char *env_dir,
+                                     const CliRenameHistoryFilter *filter,
+                                     const char *output_path,
+                                     const char *argv0) {
+  const char *history_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!history_env) {
+    printf("Error: --rename-history-export requires an environment directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+  if (!filter || !output_path || output_path[0] == '\0') {
+    printf("Error: --rename-history-export requires a valid output path.\n");
+    return 1;
+  }
+
+  AppRenameHistoryEntry *entries = NULL;
+  int count = 0;
+  AppStatus status = AppListRenameHistory(app, history_env, &entries, &count);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Failed to list rename history");
+    return 1;
+  }
+
+  int *indices = NULL;
+  int filtered_count = 0;
+  char filter_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameBuildHistoryFilterIndex(entries, count, filter, &indices,
+                                        &filtered_count, filter_error,
+                                        sizeof(filter_error))) {
+    printf("Error: Failed to filter rename history: %s\n", filter_error);
+    AppFreeRenameHistoryEntries(entries);
+    return 1;
+  }
+
+  char export_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameExportHistoryJson(history_env, entries, indices, filtered_count,
+                                  filter, output_path, export_error,
+                                  sizeof(export_error))) {
+    printf("Error: Failed to export rename history: %s\n", export_error);
+    AppFreeRenameHistoryEntries(entries);
+    CliRenameFreeHistoryFilterIndex(indices);
+    return 1;
+  }
+
+  printf("Rename history export saved: %s\n", output_path);
+  printf("Exported entries: %d\n", filtered_count);
+  if (IsHistoryFilterActive(filter)) {
+    printf("Filter summary: prefix='%s' rollback=%s from=%s to=%s\n",
+           filter->operation_id_prefix[0] != '\0' ? filter->operation_id_prefix
+                                                  : "(none)",
+           filter->rollback_filter == CLI_RENAME_ROLLBACK_FILTER_YES
+               ? "yes"
+               : (filter->rollback_filter == CLI_RENAME_ROLLBACK_FILTER_NO ? "no"
+                                                                           : "any"),
+           filter->created_from_utc[0] != '\0' ? filter->created_from_utc
+                                               : "(none)",
+           filter->created_to_utc[0] != '\0' ? filter->created_to_utc
+                                             : "(none)");
   }
 
   AppFreeRenameHistoryEntries(entries);
+  CliRenameFreeHistoryFilterIndex(indices);
   return 0;
 }
 
@@ -428,6 +535,77 @@ static int HandleRenameRollback(AppContext *app, const char *target_dir,
   return 0;
 }
 
+static int HandleRenameRollbackPreflight(AppContext *app, const char *target_dir,
+                                         const char *env_dir,
+                                         const char *operation_id,
+                                         const char *argv0) {
+  const char *rollback_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!rollback_env) {
+    printf("Error: --rename-rollback-preflight requires an environment "
+           "directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+  if (!operation_id || operation_id[0] == '\0') {
+    printf("Error: --rename-rollback-preflight requires <operation_id>.\n");
+    return 1;
+  }
+
+  AppRenameRollbackPreflightRequest request = {
+      .env_dir = rollback_env,
+      .operation_id = operation_id,
+  };
+  AppRenameRollbackPreflightResult result = {0};
+
+  AppStatus status = AppPreflightRenameRollback(app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Rename rollback preflight failed");
+    return 1;
+  }
+
+  printf("Rename rollback preflight complete.\n");
+  printf("Operation ID: %s\n", operation_id);
+  printf("Total items: %d\n", result.total_items);
+  printf("Restorable: %d\n", result.restorable_count);
+  printf("Missing destination: %d\n", result.missing_destination_count);
+  printf("Source conflicts: %d\n", result.source_exists_conflict_count);
+  printf("Invalid items: %d\n", result.invalid_item_count);
+  printf("Fully restorable: %s\n", result.fully_restorable ? "yes" : "no");
+  return 0;
+}
+
+static int HandleRenameHistoryPrune(AppContext *app, const char *target_dir,
+                                    const char *env_dir, int keep_count,
+                                    const char *argv0) {
+  const char *history_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!history_env) {
+    printf("Error: --rename-history-prune requires an environment directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+  if (keep_count < 0) {
+    printf("Error: --rename-history-prune requires non-negative keep count.\n");
+    return 1;
+  }
+
+  AppRenameHistoryPruneRequest request = {
+      .env_dir = history_env,
+      .keep_count = keep_count,
+  };
+  AppRenameHistoryPruneResult result = {0};
+  AppStatus status = AppPruneRenameHistory(app, &request, &result);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Rename history prune failed");
+    return 1;
+  }
+
+  printf("Rename history prune completed.\n");
+  printf("Before: %d\n", result.before_count);
+  printf("After: %d\n", result.after_count);
+  printf("Pruned: %d\n", result.pruned_count);
+  return 0;
+}
+
 static int HandleDuplicates(AppContext *app, const char *env_dir,
                             AppCacheCompressionMode compression_mode,
                             int compression_level, bool move_duplicates) {
@@ -584,7 +762,7 @@ static bool LoadTextFile(const char *path, char **out_text) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.6.9\n");
+  printf("CGalleryOrganizer v0.6.10\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -603,10 +781,19 @@ int main(int argc, char **argv) {
   bool rename_init = false;
   bool rename_bootstrap_tags_from_filename = false;
   bool rename_history = false;
+  bool rename_history_export = false;
+  bool rename_history_prune = false;
   bool rename_history_latest_id = false;
   const char *rename_history_detail_operation = NULL;
+  const char *rename_history_export_path = NULL;
+  const char *rename_history_id_prefix = NULL;
+  const char *rename_history_rollback_filter = NULL;
+  const char *rename_history_from = NULL;
+  const char *rename_history_to = NULL;
+  int rename_history_prune_keep_count = -1;
   const char *rename_redo_operation = NULL;
   const char *rename_rollback_operation = NULL;
+  const char *rename_rollback_preflight_operation = NULL;
   const char *rename_pattern = NULL;
   const char *rename_tags_map_path = NULL;
   const char *rename_tag_add_csv = NULL;
@@ -816,6 +1003,54 @@ int main(int argc, char **argv) {
       rename_accept_auto_suffix = true;
     } else if (strcmp(argv[i], "--rename-history") == 0) {
       rename_history = true;
+    } else if (strcmp(argv[i], "--rename-history-export") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-export requires an output JSON path.\n");
+        return 1;
+      }
+      rename_history_export = true;
+      rename_history_export_path = argv[++i];
+    } else if (strcmp(argv[i], "--rename-history-id-prefix") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-id-prefix requires a prefix value.\n");
+        return 1;
+      }
+      rename_history_id_prefix = argv[++i];
+    } else if (strcmp(argv[i], "--rename-history-rollback") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-rollback requires any|yes|no.\n");
+        return 1;
+      }
+      rename_history_rollback_filter = argv[++i];
+    } else if (strcmp(argv[i], "--rename-history-from") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-from requires YYYY-MM-DD or "
+               "YYYY-MM-DDTHH:MM:SSZ.\n");
+        return 1;
+      }
+      rename_history_from = argv[++i];
+    } else if (strcmp(argv[i], "--rename-history-to") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-to requires YYYY-MM-DD or "
+               "YYYY-MM-DDTHH:MM:SSZ.\n");
+        return 1;
+      }
+      rename_history_to = argv[++i];
+    } else if (strcmp(argv[i], "--rename-history-prune") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-prune requires a non-negative keep "
+               "count.\n");
+        return 1;
+      }
+      char *endptr = NULL;
+      long parsed = strtol(argv[++i], &endptr, 10);
+      if (!endptr || *endptr != '\0' || parsed < 0 || parsed > 1000000) {
+        printf("Error: --rename-history-prune keep count must be a non-negative "
+               "integer.\n");
+        return 1;
+      }
+      rename_history_prune = true;
+      rename_history_prune_keep_count = (int)parsed;
     } else if (strcmp(argv[i], "--rename-history-latest-id") == 0) {
       rename_history_latest_id = true;
     } else if (strcmp(argv[i], "--rename-history-detail") == 0) {
@@ -836,6 +1071,12 @@ int main(int argc, char **argv) {
         return 1;
       }
       rename_rollback_operation = argv[++i];
+    } else if (strcmp(argv[i], "--rename-rollback-preflight") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-rollback-preflight requires an operation id.\n");
+        return 1;
+      }
+      rename_rollback_preflight_operation = argv[++i];
     } else if (argv[i][0] == '-') {
       printf("Error: Unknown option '%s'.\n", argv[i]);
       CliPrintUsage(argv[0]);
@@ -853,11 +1094,19 @@ int main(int argc, char **argv) {
 
   bool rename_rollback =
       rename_rollback_operation && rename_rollback_operation[0] != '\0';
+  bool rename_rollback_preflight = rename_rollback_preflight_operation &&
+                                   rename_rollback_preflight_operation[0] != '\0';
   bool rename_history_detail =
       rename_history_detail_operation && rename_history_detail_operation[0] != '\0';
   bool rename_redo =
       rename_redo_operation && rename_redo_operation[0] != '\0';
   bool rename_apply_action = rename_apply || rename_apply_latest || rename_redo;
+  bool rename_history_filter_active =
+      (rename_history_id_prefix && rename_history_id_prefix[0] != '\0') ||
+      (rename_history_rollback_filter &&
+       rename_history_rollback_filter[0] != '\0') ||
+      (rename_history_from && rename_history_from[0] != '\0') ||
+      (rename_history_to && rename_history_to[0] != '\0');
   int rename_apply_variant_count = 0;
   rename_apply_variant_count += rename_apply ? 1 : 0;
   rename_apply_variant_count += rename_apply_latest ? 1 : 0;
@@ -870,17 +1119,22 @@ int main(int argc, char **argv) {
   rename_action_count += rename_preview_latest_id ? 1 : 0;
   rename_action_count += rename_apply_action ? 1 : 0;
   rename_action_count += rename_history ? 1 : 0;
+  rename_action_count += rename_history_export ? 1 : 0;
+  rename_action_count += rename_history_prune ? 1 : 0;
   rename_action_count += rename_history_latest_id ? 1 : 0;
   rename_action_count += rename_history_detail ? 1 : 0;
   rename_action_count += rename_rollback ? 1 : 0;
+  rename_action_count += rename_rollback_preflight ? 1 : 0;
 
   if (rename_action_count > 1) {
     printf("Error: Rename actions are mutually exclusive "
            "(--rename-init|--rename-bootstrap-tags-from-filename|"
            "--rename-preview|--rename-preview-latest-id|"
            "--rename-apply|--rename-apply-latest|--rename-redo|"
-           "--rename-history|--rename-history-latest-id|"
-           "--rename-history-detail|--rename-rollback).\n");
+           "--rename-history|--rename-history-export|"
+           "--rename-history-prune|--rename-history-latest-id|"
+           "--rename-history-detail|--rename-rollback|"
+           "--rename-rollback-preflight).\n");
     return 1;
   }
 
@@ -935,6 +1189,20 @@ int main(int argc, char **argv) {
        rename_metadata_fields)) {
     printf("Error: rename pattern/tag edit options are only valid with "
            "--rename-preview.\n");
+    return 1;
+  }
+
+  if (rename_history_filter_active &&
+      !(rename_history || rename_history_export)) {
+    printf("Error: --rename-history-id-prefix/--rename-history-rollback/"
+           "--rename-history-from/--rename-history-to require "
+           "--rename-history or --rename-history-export.\n");
+    return 1;
+  }
+
+  if (rename_history_export &&
+      (!rename_history_export_path || rename_history_export_path[0] == '\0')) {
+    printf("Error: --rename-history-export requires an output JSON path.\n");
     return 1;
   }
 
@@ -995,6 +1263,44 @@ int main(int argc, char **argv) {
       cache_compression_mode != APP_CACHE_COMPRESSION_AUTO) {
     printf("Error: --cache-compress-level is only valid with --cache-compress "
            "zstd|auto.\n");
+    return 1;
+  }
+
+  CliRenameHistoryFilter rename_history_filter = {0};
+  rename_history_filter.rollback_filter = CLI_RENAME_ROLLBACK_FILTER_ANY;
+  if (rename_history_id_prefix && rename_history_id_prefix[0] != '\0') {
+    strncpy(rename_history_filter.operation_id_prefix, rename_history_id_prefix,
+            sizeof(rename_history_filter.operation_id_prefix) - 1);
+    rename_history_filter
+        .operation_id_prefix[sizeof(rename_history_filter.operation_id_prefix) -
+                             1] = '\0';
+  }
+  char normalize_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameParseRollbackFilter(rename_history_rollback_filter,
+                                    &rename_history_filter.rollback_filter,
+                                    normalize_error, sizeof(normalize_error))) {
+    printf("Error: %s\n", normalize_error);
+    return 1;
+  }
+  if (!CliRenameNormalizeHistoryDateBound(
+          rename_history_from, false, rename_history_filter.created_from_utc,
+          sizeof(rename_history_filter.created_from_utc), normalize_error,
+          sizeof(normalize_error))) {
+    printf("Error: %s\n", normalize_error);
+    return 1;
+  }
+  if (!CliRenameNormalizeHistoryDateBound(
+          rename_history_to, true, rename_history_filter.created_to_utc,
+          sizeof(rename_history_filter.created_to_utc), normalize_error,
+          sizeof(normalize_error))) {
+    printf("Error: %s\n", normalize_error);
+    return 1;
+  }
+  if (rename_history_filter.created_from_utc[0] != '\0' &&
+      rename_history_filter.created_to_utc[0] != '\0' &&
+      strcmp(rename_history_filter.created_from_utc,
+             rename_history_filter.created_to_utc) > 0) {
+    printf("Error: --rename-history-from must be <= --rename-history-to.\n");
     return 1;
   }
 
@@ -1075,7 +1381,22 @@ int main(int argc, char **argv) {
     return rc;
   }
   if (rename_history) {
-    int rc = HandleRenameHistory(app, target_dir, env_dir, argv[0]);
+    int rc =
+        HandleRenameHistory(app, target_dir, env_dir, &rename_history_filter,
+                            argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_history_export) {
+    int rc = HandleRenameHistoryExport(app, target_dir, env_dir,
+                                       &rename_history_filter,
+                                       rename_history_export_path, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_history_prune) {
+    int rc = HandleRenameHistoryPrune(app, target_dir, env_dir,
+                                      rename_history_prune_keep_count, argv[0]);
     AppContextDestroy(app);
     return rc;
   }
@@ -1099,6 +1420,13 @@ int main(int argc, char **argv) {
   if (rename_rollback) {
     int rc = HandleRenameRollback(app, target_dir, env_dir,
                                   rename_rollback_operation, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_rollback_preflight) {
+    int rc = HandleRenameRollbackPreflight(app, target_dir, env_dir,
+                                           rename_rollback_preflight_operation,
+                                           argv[0]);
     AppContextDestroy(app);
     return rc;
   }

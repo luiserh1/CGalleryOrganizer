@@ -33,6 +33,21 @@ typedef struct {
   int failed_count;
 } RenamerRollbackStats;
 
+typedef struct {
+  int total_items;
+  int restorable_count;
+  int missing_destination_count;
+  int source_exists_conflict_count;
+  int invalid_item_count;
+  bool fully_restorable;
+} RenamerRollbackPreflight;
+
+typedef struct {
+  int before_count;
+  int after_count;
+  int pruned_count;
+} RenamerHistoryPruneStats;
+
 bool RenamerHistoryPersistOperation(const char *env_dir,
                                     const RenamerHistoryEntry *entry,
                                     const RenamerOperationMove *moves,
@@ -48,5 +63,14 @@ void RenamerHistoryFreeEntries(RenamerHistoryEntry *entries);
 bool RenamerHistoryRollback(const char *env_dir, const char *operation_id,
                             RenamerRollbackStats *out_stats,
                             char *out_error, size_t out_error_size);
+
+bool RenamerHistoryRollbackPreflight(const char *env_dir,
+                                     const char *operation_id,
+                                     RenamerRollbackPreflight *out_preflight,
+                                     char *out_error, size_t out_error_size);
+
+bool RenamerHistoryPrune(const char *env_dir, int keep_count,
+                         RenamerHistoryPruneStats *out_stats,
+                         char *out_error, size_t out_error_size);
 
 #endif // RENAMER_HISTORY_H

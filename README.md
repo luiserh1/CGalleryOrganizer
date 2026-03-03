@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.9)
+## Key Features (v0.6.10)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -93,6 +93,17 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
     - latest operation id
   - history detail action (operation summary + manifest JSON)
   - redo action (operation -> preview -> apply path with existing safeguards)
+- Rename history management + audit export (v0.6.10):
+  - history filters in CLI/GUI:
+    - operation id prefix
+    - rollback status (`any|yes|no`)
+    - created-at date range (`from`/`to`)
+  - history export to JSON audit payload:
+    - filtered entries + manifest availability/item summaries
+  - explicit history prune action:
+    - manual keep-count cleanup in CLI/GUI
+  - rollback preflight:
+    - non-mutating feasibility validation before rollback
 
 ## Build
 
@@ -119,7 +130,7 @@ make test
 Release checklist:
 ```bash
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.9
+./scripts/release_check.sh --expected-tag v0.6.10
 ```
 
 ### Build GUI frontend
@@ -196,9 +207,16 @@ Scan tab.
 - `--rename-from-preview <preview_id>`: required handshake id for `--rename-apply`.
 - `--rename-accept-auto-suffix`: accept deterministic collision suffixing (`_1`, `_2`, ...).
 - `--rename-history`: list dedicated rename operation history.
+- `--rename-history-id-prefix <prefix>`: filter history by operation-id prefix.
+- `--rename-history-rollback <any|yes|no>`: filter history by rollback status.
+- `--rename-history-from <date>`: lower history date bound (`YYYY-MM-DD` or UTC timestamp).
+- `--rename-history-to <date>`: upper history date bound (`YYYY-MM-DD` or UTC timestamp).
+- `--rename-history-export <json_path>`: export filtered history audit JSON.
+- `--rename-history-prune <keep_count>`: keep latest N history entries and prune older ones.
 - `--rename-history-latest-id`: print latest rename operation id.
 - `--rename-history-detail <operation_id>`: print detailed history summary + operation manifest.
 - `--rename-redo <operation_id>`: resolve operation preview id and re-apply rename via standard apply path.
+- `--rename-rollback-preflight <operation_id>`: validate rollback feasibility without file mutation.
 - `--rename-rollback <operation_id>`: rollback dedicated rename operation.
 
 Notes:
@@ -264,6 +282,11 @@ Additional 0.5.4 behavior:
   - latest preview id + latest operation id lookup actions
   - history detail action with summary + manifest output
   - redo action from operation id with existing apply safeguards
+- Rename history management additions (v0.6.10):
+  - rollback-status/date filters for history list/export
+  - JSON export action for filtered history audit payloads
+  - manual history prune action with keep-count input
+  - rollback preflight action (`Rollback Check`) before mutation
 
 GUI path fields remain directly editable and now also provide picker actions on
 supported platforms.
@@ -351,8 +374,12 @@ Cache profile behavior:
 ### Rename history and rollback
 ```bash
 ./build/bin/gallery_organizer /path/to/env --rename-history
+./build/bin/gallery_organizer /path/to/env --rename-history --rename-history-rollback no --rename-history-from 2026-01-01
+./build/bin/gallery_organizer /path/to/env --rename-history-export /path/to/env/history_audit.json --rename-history-id-prefix rop-2026
+./build/bin/gallery_organizer /path/to/env --rename-history-prune 200
 ./build/bin/gallery_organizer /path/to/env --rename-history-latest-id
 ./build/bin/gallery_organizer /path/to/env --rename-history-detail <operation_id>
+./build/bin/gallery_organizer /path/to/env --rename-rollback-preflight <operation_id>
 ./build/bin/gallery_organizer /path/to/env --rename-rollback <operation_id>
 ```
 
@@ -425,6 +452,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.7`: release hardening (cross-platform CI matrix + release checklist script).
 - `v0.6.8`: rename history ergonomics (detail inspection, redo path, latest-id helpers).
 - `v0.6.9`: GUI rename history ergonomics (latest-id/detail/redo actions).
+- `v0.6.10`: rename history management + audit export (filters/export/prune/preflight across CLI/GUI).
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

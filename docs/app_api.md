@@ -273,6 +273,24 @@ Behavior:
 - Validates current filesystem constraints and reports restored/skipped/failed.
 - Required request fields: `env_dir`, `operation_id`.
 
+### `AppStatus AppPreflightRenameRollback(AppContext *ctx, const AppRenameRollbackPreflightRequest *request, AppRenameRollbackPreflightResult *out_result)`
+- Runs non-mutating rollback feasibility checks for one operation id.
+- Reports:
+  - `total_items`
+  - `restorable_count`
+  - `missing_destination_count`
+  - `source_exists_conflict_count`
+  - `invalid_item_count`
+  - `fully_restorable`
+- Required request fields: `env_dir`, `operation_id`.
+
+### `AppStatus AppPruneRenameHistory(AppContext *ctx, const AppRenameHistoryPruneRequest *request, AppRenameHistoryPruneResult *out_result)`
+- Prunes dedicated rename history to keep newest `keep_count` operations.
+- Updates `<env_dir>/.cache/rename_history/index.json` and removes oldest
+  operation manifest files beyond keep count.
+- Returns `before_count`, `after_count`, and `pruned_count`.
+- Required request fields: `env_dir`, `keep_count` (non-negative).
+
 ## Duplicates
 
 ### `AppStatus AppFindDuplicates(AppContext *ctx, const AppDuplicateFindRequest *request, AppDuplicateReport *out_report)`

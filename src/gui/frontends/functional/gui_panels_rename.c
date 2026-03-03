@@ -412,6 +412,39 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
                   state->rename_filter_warnings_only);
   GuiHelpRegister(ToRayRect(layout.filter_warnings),
                   "Show only preview rows with warning or truncation flags");
+  GuiLabel(ToRayRect(layout.history_rollback_mode_label), "Rollback");
+  bool rollback_any = state->rename_history_rollback_filter_mode == 0;
+  bool rollback_yes = state->rename_history_rollback_filter_mode == 1;
+  bool rollback_no = state->rename_history_rollback_filter_mode == 2;
+  if (GuiButtonStyled(ToRayRect(layout.history_rollback_any), "Any", true,
+                      rollback_any)) {
+    state->rename_history_rollback_filter_mode = 0;
+  }
+  if (GuiButtonStyled(ToRayRect(layout.history_rollback_yes), "Yes", true,
+                      rollback_yes)) {
+    state->rename_history_rollback_filter_mode = 1;
+  }
+  if (GuiButtonStyled(ToRayRect(layout.history_rollback_no), "No", true,
+                      rollback_no)) {
+    state->rename_history_rollback_filter_mode = 2;
+  }
+  GuiHelpRegister(ToRayRect(layout.history_rollback_any),
+                  "History/export rollback filter: any");
+  GuiHelpRegister(ToRayRect(layout.history_rollback_yes),
+                  "History/export rollback filter: rollback completed only");
+  GuiHelpRegister(ToRayRect(layout.history_rollback_no),
+                  "History/export rollback filter: rollback not performed");
+
+  GuiLabel(ToRayRect(layout.history_from_label), "From");
+  GuiTextBox(ToRayRect(layout.history_from_input), state->rename_history_from_input,
+             (int)sizeof(state->rename_history_from_input), true);
+  GuiHelpRegister(ToRayRect(layout.history_from_input),
+                  "History/export lower time bound: YYYY-MM-DD or UTC timestamp");
+  GuiLabel(ToRayRect(layout.history_to_label), "To");
+  GuiTextBox(ToRayRect(layout.history_to_input), state->rename_history_to_input,
+             (int)sizeof(state->rename_history_to_input), true);
+  GuiHelpRegister(ToRayRect(layout.history_to_input),
+                  "History/export upper time bound: YYYY-MM-DD or UTC timestamp");
 
   if (ActionButton(state, ToRayRect(layout.preview_button), "Rename Preview",
                    GUI_ACTION_RENAME_PREVIEW,
@@ -425,7 +458,8 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
   }
   if (ActionButton(state, ToRayRect(layout.history_button), "Rename History",
                    GUI_ACTION_RENAME_HISTORY,
-                   "List dedicated rename operation history")) {
+                   "List dedicated rename operation history (filters use "
+                   "Operation ID as prefix + rollback/date controls)")) {
     GuiUiStartTask(state, GUI_TASK_RENAME_HISTORY);
   }
   if (ActionButton(state, ToRayRect(layout.detail_button), "History Detail",
@@ -437,6 +471,11 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
                    GUI_ACTION_RENAME_REDO,
                    "Resolve operation->preview and re-apply with standard safeguards")) {
     GuiUiStartTask(state, GUI_TASK_RENAME_REDO);
+  }
+  if (ActionButton(state, ToRayRect(layout.preflight_button), "Rollback Check",
+                   GUI_ACTION_RENAME_ROLLBACK_PREFLIGHT,
+                   "Non-mutating rollback preflight for operation id")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_ROLLBACK_PREFLIGHT);
   }
   if (ActionButton(state, ToRayRect(layout.rollback_button), "Rename Rollback",
                    GUI_ACTION_RENAME_ROLLBACK,
@@ -533,18 +572,31 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
   GuiHelpRegister(ToRayRect(layout.selected_meta_tags_apply_button),
                   "Persist selected-row metadata tags into tags map");
 
+  GuiLabel(ToRayRect(layout.history_export_label), "Export");
+  GuiTextBox(ToRayRect(layout.history_export_input), state->rename_history_export_path,
+             (int)sizeof(state->rename_history_export_path), true);
+  GuiHelpRegister(ToRayRect(layout.history_export_input),
+                  "Output JSON path for filtered history export");
+  if (ActionButton(state, ToRayRect(layout.history_export_button), "Export JSON",
+                   GUI_ACTION_RENAME_HISTORY_EXPORT,
+                   "Export filtered rename history audit JSON")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_HISTORY_EXPORT);
+  }
+
+  GuiLabel(ToRayRect(layout.history_prune_label), "Prune");
+  GuiTextBox(ToRayRect(layout.history_prune_input),
+             state->rename_history_prune_keep_input,
+             (int)sizeof(state->rename_history_prune_keep_input), true);
+  GuiHelpRegister(ToRayRect(layout.history_prune_input),
+                  "History keep count (non-negative integer)");
+  if (ActionButton(state, ToRayRect(layout.history_prune_button), "Prune History",
+                   GUI_ACTION_RENAME_HISTORY_PRUNE,
+                   "Delete oldest history entries and keep latest N")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_HISTORY_PRUNE);
+  }
+
   int visible_rows = DrawRenamePreviewTable(state, ToRayRect(layout.preview_table));
   GuiHelpRegister(ToRayRect(layout.preview_table),
                   "Preview rows sorted by source path. Click row to edit tags");
-
-  char hint[256] = {0};
-  snprintf(hint, sizeof(hint),
-           "Last preview: id=%s files=%d visible=%d warnings=%d history=%d",
-           state->worker_snapshot.rename_preview_id[0] != '\0'
-               ? state->worker_snapshot.rename_preview_id
-               : "n/a",
-           state->worker_snapshot.rename_preview_file_count,
-           visible_rows, state->rename_preview_warning_count,
-           state->worker_snapshot.rename_history_count);
-  GuiHelpDrawHintLabel(ToRayRect(layout.info_label), hint);
+  (void)visible_rows;
 }

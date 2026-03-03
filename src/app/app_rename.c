@@ -253,6 +253,64 @@ AppStatus AppRollbackRename(AppContext *ctx,
   return APP_STATUS_OK;
 }
 
+AppStatus AppPreflightRenameRollback(
+    AppContext *ctx, const AppRenameRollbackPreflightRequest *request,
+    AppRenameRollbackPreflightResult *out_result) {
+  if (!ctx || !request || !out_result || !request->env_dir ||
+      request->env_dir[0] == '\0' || !request->operation_id ||
+      request->operation_id[0] == '\0') {
+    return APP_STATUS_INVALID_ARGUMENT;
+  }
+
+  AppClearError(ctx);
+  memset(out_result, 0, sizeof(*out_result));
+
+  RenamerRollbackPreflight preflight = {0};
+  char error[APP_MAX_ERROR] = {0};
+  if (!RenamerHistoryRollbackPreflight(request->env_dir, request->operation_id,
+                                       &preflight, error, sizeof(error))) {
+    AppSetError(ctx, "%s",
+                error[0] != '\0' ? error
+                                 : "rename rollback preflight failed");
+    return APP_STATUS_IO_ERROR;
+  }
+
+  out_result->total_items = preflight.total_items;
+  out_result->restorable_count = preflight.restorable_count;
+  out_result->missing_destination_count = preflight.missing_destination_count;
+  out_result->source_exists_conflict_count =
+      preflight.source_exists_conflict_count;
+  out_result->invalid_item_count = preflight.invalid_item_count;
+  out_result->fully_restorable = preflight.fully_restorable;
+  return APP_STATUS_OK;
+}
+
+AppStatus AppPruneRenameHistory(AppContext *ctx,
+                                const AppRenameHistoryPruneRequest *request,
+                                AppRenameHistoryPruneResult *out_result) {
+  if (!ctx || !request || !out_result || !request->env_dir ||
+      request->env_dir[0] == '\0' || request->keep_count < 0) {
+    return APP_STATUS_INVALID_ARGUMENT;
+  }
+
+  AppClearError(ctx);
+  memset(out_result, 0, sizeof(*out_result));
+
+  RenamerHistoryPruneStats prune_stats = {0};
+  char error[APP_MAX_ERROR] = {0};
+  if (!RenamerHistoryPrune(request->env_dir, request->keep_count, &prune_stats,
+                           error, sizeof(error))) {
+    AppSetError(ctx, "%s",
+                error[0] != '\0' ? error : "rename history prune failed");
+    return APP_STATUS_IO_ERROR;
+  }
+
+  out_result->before_count = prune_stats.before_count;
+  out_result->after_count = prune_stats.after_count;
+  out_result->pruned_count = prune_stats.pruned_count;
+  return APP_STATUS_OK;
+}
+
 AppStatus AppListRenameHistory(AppContext *ctx, const char *env_dir,
                                AppRenameHistoryEntry **out_entries,
                                int *out_count) {

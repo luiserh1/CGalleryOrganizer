@@ -455,6 +455,148 @@ void test_cli_rename_history_detail_redo_and_latest_ids(void) {
       2));
 }
 
+void test_cli_rename_history_export_prune_and_preflight(void) {
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_v610_src",
+                       "build/test_cli_rename_v610_env"},
+      2));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_v610_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_v610_env"));
+
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_rename_v610_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_cli_rename_v610_src/b.png"));
+
+  char output[32768] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_v610_src "
+      "build/test_cli_rename_v610_env --rename-preview "
+      "--rename-pattern 'pic-[index].[format]' 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  char preview_id_1[128] = {0};
+  ASSERT_TRUE(ExtractTokenAfterPrefix(output, "Preview ID:", preview_id_1,
+                                      sizeof(preview_id_1)));
+
+  memset(output, 0, sizeof(output));
+  char apply_cmd_1[2048] = {0};
+  snprintf(apply_cmd_1, sizeof(apply_cmd_1),
+           "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+           "--rename-apply --rename-from-preview %s 2>&1",
+           preview_id_1);
+  code = RunCommandCapture(apply_cmd_1, output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  char operation_id_1[128] = {0};
+  ASSERT_TRUE(ExtractTokenAfterPrefix(output, "Operation ID:", operation_id_1,
+                                      sizeof(operation_id_1)));
+
+  memset(output, 0, sizeof(output));
+  char preflight_cmd[2048] = {0};
+  snprintf(preflight_cmd, sizeof(preflight_cmd),
+           "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+           "--rename-rollback-preflight %s 2>&1",
+           operation_id_1);
+  code = RunCommandCapture(preflight_cmd, output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Rename rollback preflight complete") != NULL);
+  ASSERT_TRUE(strstr(output, "Fully restorable: yes") != NULL);
+
+  memset(output, 0, sizeof(output));
+  char rollback_cmd[2048] = {0};
+  snprintf(rollback_cmd, sizeof(rollback_cmd),
+           "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+           "--rename-rollback %s 2>&1",
+           operation_id_1);
+  code = RunCommandCapture(rollback_cmd, output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_v610_src "
+      "build/test_cli_rename_v610_env --rename-preview "
+      "--rename-pattern 'pic-[index]-v2.[format]' 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  char preview_id_2[128] = {0};
+  ASSERT_TRUE(ExtractTokenAfterPrefix(output, "Preview ID:", preview_id_2,
+                                      sizeof(preview_id_2)));
+
+  memset(output, 0, sizeof(output));
+  char apply_cmd_2[2048] = {0};
+  snprintf(apply_cmd_2, sizeof(apply_cmd_2),
+           "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+           "--rename-apply --rename-from-preview %s 2>&1",
+           preview_id_2);
+  code = RunCommandCapture(apply_cmd_2, output, sizeof(output));
+  ASSERT_EQ(0, code);
+
+  char operation_id_2[128] = {0};
+  ASSERT_TRUE(ExtractTokenAfterPrefix(output, "Operation ID:", operation_id_2,
+                                      sizeof(operation_id_2)));
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+      "--rename-history --rename-history-rollback yes 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, operation_id_1) != NULL);
+  ASSERT_TRUE(strstr(output, operation_id_2) == NULL);
+
+  memset(output, 0, sizeof(output));
+  char export_cmd[4096] = {0};
+  snprintf(export_cmd, sizeof(export_cmd),
+           "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+           "--rename-history-export build/test_cli_rename_v610_env/export.json "
+           "--rename-history-rollback no 2>&1");
+  code = RunCommandCapture(export_cmd, output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Rename history export saved:") != NULL);
+  ASSERT_TRUE(FileContainsText("build/test_cli_rename_v610_env/export.json",
+                               operation_id_2));
+
+  memset(output, 0, sizeof(output));
+  char history_prefix[32] = {0};
+  strncpy(history_prefix, operation_id_2, sizeof(history_prefix) - 1);
+  history_prefix[sizeof(history_prefix) - 1] = '\0';
+  history_prefix[20] = '\0';
+  char filtered_cmd[4096] = {0};
+  snprintf(filtered_cmd, sizeof(filtered_cmd),
+           "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+           "--rename-history --rename-history-id-prefix %s "
+           "--rename-history-from 2000-01-01 --rename-history-to 2100-01-01 "
+           "2>&1",
+           history_prefix);
+  code = RunCommandCapture(filtered_cmd, output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, operation_id_2) != NULL);
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+      "--rename-history-prune 1 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Pruned:") != NULL);
+
+  memset(output, 0, sizeof(output));
+  code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_v610_env "
+      "--rename-history 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Rename history entries: 1") != NULL);
+
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_v610_src",
+                       "build/test_cli_rename_v610_env"},
+      2));
+}
+
 void register_cli_rename_tests(void) {
   register_test("test_cli_rename_preview_apply_handshake_and_rollback",
                 test_cli_rename_preview_apply_handshake_and_rollback,
@@ -474,5 +616,8 @@ void register_cli_rename_tests(void) {
                 test_cli_rename_preview_path_suggestion, "integration");
   register_test("test_cli_rename_history_detail_redo_and_latest_ids",
                 test_cli_rename_history_detail_redo_and_latest_ids,
+                "integration");
+  register_test("test_cli_rename_history_export_prune_and_preflight",
+                test_cli_rename_history_export_prune_and_preflight,
                 "integration");
 }

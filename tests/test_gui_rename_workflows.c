@@ -18,6 +18,19 @@ static bool FileExists(const char *path) {
   return true;
 }
 
+static bool FileContainsText(const char *path, const char *needle) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    return false;
+  }
+
+  char buffer[32768] = {0};
+  size_t read_bytes = fread(buffer, 1, sizeof(buffer) - 1, f);
+  fclose(f);
+  buffer[read_bytes] = '\0';
+  return strstr(buffer, needle) != NULL;
+}
+
 static bool WaitForWorkerResult(GuiTaskSnapshot *out_snapshot, int timeout_ms) {
   if (!out_snapshot || timeout_ms <= 0) {
     return false;
@@ -308,6 +321,32 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
   ASSERT_TRUE(strstr(detail_snapshot.detail_text, operation_id) != NULL);
   ASSERT_TRUE(strstr(detail_snapshot.detail_text, "\"operationId\"") != NULL);
 
+  GuiTaskInput preflight_input = {0};
+  InitTaskInput(&preflight_input, GUI_TASK_RENAME_ROLLBACK_PREFLIGHT, NULL,
+                "build/test_gui_rename_detail_env");
+  strncpy(preflight_input.rename_operation_id, operation_id,
+          sizeof(preflight_input.rename_operation_id) - 1);
+  GuiTaskSnapshot preflight_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&preflight_input, &preflight_snapshot));
+  ASSERT_TRUE(preflight_snapshot.success);
+  ASSERT_TRUE(preflight_snapshot.rename_rollback_preflight_result.total_items >= 1);
+  ASSERT_TRUE(preflight_snapshot.rename_rollback_preflight_result.fully_restorable);
+
+  GuiTaskInput export_input = {0};
+  InitTaskInput(&export_input, GUI_TASK_RENAME_HISTORY_EXPORT, NULL,
+                "build/test_gui_rename_detail_env");
+  strncpy(export_input.rename_history_export_path,
+          "build/test_gui_rename_detail_env/history_export.json",
+          sizeof(export_input.rename_history_export_path) - 1);
+  strncpy(export_input.rename_history_id_prefix, operation_id,
+          sizeof(export_input.rename_history_id_prefix) - 1);
+  GuiTaskSnapshot export_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&export_input, &export_snapshot));
+  ASSERT_TRUE(export_snapshot.success);
+  ASSERT_TRUE(FileExists("build/test_gui_rename_detail_env/history_export.json"));
+  ASSERT_TRUE(FileContainsText("build/test_gui_rename_detail_env/history_export.json",
+                               operation_id));
+
   GuiTaskInput rollback_input = {0};
   InitTaskInput(&rollback_input, GUI_TASK_RENAME_ROLLBACK, NULL,
                 "build/test_gui_rename_detail_env");
@@ -330,6 +369,16 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
   ASSERT_TRUE(redo_snapshot.rename_apply_result.operation_id[0] != '\0');
   ASSERT_STR_EQ(preview_snapshot.rename_preview_id, redo_snapshot.rename_preview_id);
   ASSERT_TRUE(strstr(redo_snapshot.detail_text, "Rename redo completed") != NULL);
+
+  GuiTaskInput prune_input = {0};
+  InitTaskInput(&prune_input, GUI_TASK_RENAME_HISTORY_PRUNE, NULL,
+                "build/test_gui_rename_detail_env");
+  prune_input.rename_history_prune_keep_count = 1;
+  GuiTaskSnapshot prune_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&prune_input, &prune_snapshot));
+  ASSERT_TRUE(prune_snapshot.success);
+  ASSERT_TRUE(prune_snapshot.rename_history_prune_result.before_count >= 2);
+  ASSERT_EQ(1, prune_snapshot.rename_history_prune_result.after_count);
 
   TeardownWorker(ctx);
   ASSERT_TRUE(RemovePathsForTest(

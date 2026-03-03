@@ -29,6 +29,8 @@ static void GuiStateSetDefaults(GuiState *state) {
   strncpy(state->rename_pattern, "pic-[datetime]-[index].[format]",
           sizeof(state->rename_pattern) - 1);
   state->rename_pattern[sizeof(state->rename_pattern) - 1] = '\0';
+  state->rename_history_prune_keep_count = 200;
+  state->rename_history_rollback_filter_mode = 0;
   state->rename_accept_auto_suffix = false;
 }
 
@@ -234,6 +236,16 @@ bool GuiStateLoad(GuiState *out_state) {
       cJSON_GetObjectItem(json, "renameMetaTagRemoveCsv");
   cJSON *rename_preview_id = cJSON_GetObjectItem(json, "renamePreviewId");
   cJSON *rename_operation_id = cJSON_GetObjectItem(json, "renameOperationId");
+  cJSON *rename_history_id_prefix =
+      cJSON_GetObjectItem(json, "renameHistoryIdPrefix");
+  cJSON *rename_history_from = cJSON_GetObjectItem(json, "renameHistoryFrom");
+  cJSON *rename_history_to = cJSON_GetObjectItem(json, "renameHistoryTo");
+  cJSON *rename_history_export_path =
+      cJSON_GetObjectItem(json, "renameHistoryExportPath");
+  cJSON *rename_history_prune_keep =
+      cJSON_GetObjectItem(json, "renameHistoryPruneKeepCount");
+  cJSON *rename_history_rollback_mode =
+      cJSON_GetObjectItem(json, "renameHistoryRollbackFilterMode");
   cJSON *rename_accept_suffix =
       cJSON_GetObjectItem(json, "renameAcceptAutoSuffix");
   cJSON *updated_at = cJSON_GetObjectItem(json, "updatedAt");
@@ -329,6 +341,42 @@ bool GuiStateLoad(GuiState *out_state) {
     out_state->rename_operation_id[sizeof(out_state->rename_operation_id) - 1] =
         '\0';
   }
+  if (cJSON_IsString(rename_history_id_prefix) &&
+      rename_history_id_prefix->valuestring) {
+    strncpy(out_state->rename_history_id_prefix,
+            rename_history_id_prefix->valuestring,
+            sizeof(out_state->rename_history_id_prefix) - 1);
+    out_state->rename_history_id_prefix
+        [sizeof(out_state->rename_history_id_prefix) - 1] = '\0';
+  }
+  if (cJSON_IsString(rename_history_from) && rename_history_from->valuestring) {
+    strncpy(out_state->rename_history_from, rename_history_from->valuestring,
+            sizeof(out_state->rename_history_from) - 1);
+    out_state->rename_history_from[sizeof(out_state->rename_history_from) - 1] =
+        '\0';
+  }
+  if (cJSON_IsString(rename_history_to) && rename_history_to->valuestring) {
+    strncpy(out_state->rename_history_to, rename_history_to->valuestring,
+            sizeof(out_state->rename_history_to) - 1);
+    out_state->rename_history_to[sizeof(out_state->rename_history_to) - 1] =
+        '\0';
+  }
+  if (cJSON_IsString(rename_history_export_path) &&
+      rename_history_export_path->valuestring) {
+    strncpy(out_state->rename_history_export_path,
+            rename_history_export_path->valuestring,
+            sizeof(out_state->rename_history_export_path) - 1);
+    out_state->rename_history_export_path
+        [sizeof(out_state->rename_history_export_path) - 1] = '\0';
+  }
+  if (cJSON_IsNumber(rename_history_prune_keep)) {
+    out_state->rename_history_prune_keep_count =
+        ClampInt((int)rename_history_prune_keep->valuedouble, 0, 1000000);
+  }
+  if (cJSON_IsNumber(rename_history_rollback_mode)) {
+    out_state->rename_history_rollback_filter_mode =
+        ClampInt((int)rename_history_rollback_mode->valuedouble, 0, 2);
+  }
   if (cJSON_IsBool(rename_accept_suffix)) {
     out_state->rename_accept_auto_suffix = cJSON_IsTrue(rename_accept_suffix);
   }
@@ -376,7 +424,7 @@ bool GuiStateSave(const GuiState *state) {
     strftime(updated_at, sizeof(updated_at), "%Y-%m-%dT%H:%M:%SZ", utc);
   }
 
-  cJSON_AddNumberToObject(json, "schemaVersion", 3);
+  cJSON_AddNumberToObject(json, "schemaVersion", 4);
   cJSON_AddStringToObject(json, "galleryDir", state->gallery_dir);
   cJSON_AddStringToObject(json, "envDir", state->env_dir);
   cJSON_AddBoolToObject(json, "scanExhaustive", state->scan_exhaustive);
@@ -404,6 +452,18 @@ bool GuiStateSave(const GuiState *state) {
                           state->rename_meta_tag_remove_csv);
   cJSON_AddStringToObject(json, "renamePreviewId", state->rename_preview_id);
   cJSON_AddStringToObject(json, "renameOperationId", state->rename_operation_id);
+  cJSON_AddStringToObject(json, "renameHistoryIdPrefix",
+                          state->rename_history_id_prefix);
+  cJSON_AddStringToObject(json, "renameHistoryFrom", state->rename_history_from);
+  cJSON_AddStringToObject(json, "renameHistoryTo", state->rename_history_to);
+  cJSON_AddStringToObject(json, "renameHistoryExportPath",
+                          state->rename_history_export_path);
+  cJSON_AddNumberToObject(
+      json, "renameHistoryPruneKeepCount",
+      ClampInt(state->rename_history_prune_keep_count, 0, 1000000));
+  cJSON_AddNumberToObject(
+      json, "renameHistoryRollbackFilterMode",
+      ClampInt(state->rename_history_rollback_filter_mode, 0, 2));
   cJSON_AddBoolToObject(json, "renameAcceptAutoSuffix",
                         state->rename_accept_auto_suffix);
   if (updated_at[0] != '\0') {
