@@ -23,7 +23,10 @@ typedef struct {
   char rename_tags_map_path[GUI_STATE_MAX_PATH];
   char rename_tag_add_csv[256];
   char rename_tag_remove_csv[256];
+  char rename_meta_tag_add_csv[256];
+  char rename_meta_tag_remove_csv[256];
   char rename_selected_tags_csv[256];
+  char rename_selected_meta_tags_csv[256];
   char rename_preview_id_input[64];
   char rename_operation_id_input[64];
 

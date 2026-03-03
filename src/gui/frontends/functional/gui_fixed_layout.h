@@ -92,6 +92,10 @@ typedef struct {
   GuiRect tag_add_input;
   GuiRect tag_remove_label;
   GuiRect tag_remove_input;
+  GuiRect meta_tag_add_label;
+  GuiRect meta_tag_add_input;
+  GuiRect meta_tag_remove_label;
+  GuiRect meta_tag_remove_input;
   GuiRect preview_id_label;
   GuiRect preview_id_input;
   GuiRect operation_id_label;
@@ -106,6 +110,9 @@ typedef struct {
   GuiRect selected_tags_label;
   GuiRect selected_tags_input;
   GuiRect selected_tags_apply_button;
+  GuiRect selected_meta_tags_label;
+  GuiRect selected_meta_tags_input;
+  GuiRect selected_meta_tags_apply_button;
   GuiRect preview_table;
   GuiRect info_label;
 } GuiRenamePanelLayout;

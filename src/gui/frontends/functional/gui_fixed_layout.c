@@ -245,6 +245,14 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
       MakeRect(x + 705.0f, y, panel_right - (x + 705.0f), 34.0f);
 
   y += 44.0f;
+  out_layout->meta_tag_add_label = MakeRect(x, y, label_w, 30.0f);
+  out_layout->meta_tag_add_input =
+      MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
+  out_layout->meta_tag_remove_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
+  out_layout->meta_tag_remove_input =
+      MakeRect(x + 705.0f, y, panel_right - (x + 705.0f), 34.0f);
+
+  y += 44.0f;
   out_layout->preview_id_label = MakeRect(x, y, label_w, 30.0f);
   out_layout->preview_id_input =
       MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
@@ -265,12 +273,18 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
 
   y += 50.0f;
   out_layout->selected_tags_label = MakeRect(x, y, 110.0f, 30.0f);
-  out_layout->selected_tags_apply_button =
-      MakeRect(panel_right - 240.0f, y, 240.0f, 34.0f);
+  out_layout->selected_tags_apply_button = MakeRect(x + 370.0f, y, 180.0f, 34.0f);
   out_layout->selected_tags_input =
       MakeRect(x + 115.0f, y,
                out_layout->selected_tags_apply_button.x - (x + 115.0f) - 10.0f,
                34.0f);
+  out_layout->selected_meta_tags_label = MakeRect(x + 560.0f, y, 95.0f, 30.0f);
+  out_layout->selected_meta_tags_apply_button =
+      MakeRect(panel_right - 210.0f, y, 210.0f, 34.0f);
+  out_layout->selected_meta_tags_input = MakeRect(
+      x + 660.0f, y,
+      out_layout->selected_meta_tags_apply_button.x - (x + 660.0f) - 10.0f,
+      34.0f);
 
   y += 44.0f;
   out_layout->info_label = MakeRect(x, y, panel_right - x, 30.0f);

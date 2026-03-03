@@ -57,6 +57,7 @@ static void PopulateRenamePreviewRows(const char *details_json) {
     cJSON *source = cJSON_GetObjectItem(item, "source");
     cJSON *candidate_name = cJSON_GetObjectItem(item, "candidateName");
     cJSON *tags_manual = cJSON_GetObjectItem(item, "tagsManual");
+    cJSON *tags_meta = cJSON_GetObjectItem(item, "tagsMeta");
     cJSON *collision_batch = cJSON_GetObjectItem(item, "collisionInBatch");
     cJSON *collision_disk = cJSON_GetObjectItem(item, "collisionOnDisk");
     cJSON *truncated = cJSON_GetObjectItem(item, "truncated");
@@ -79,6 +80,11 @@ static void PopulateRenamePreviewRows(const char *details_json) {
       strncpy(row->tags_manual, tags_manual->valuestring,
               sizeof(row->tags_manual) - 1);
       row->tags_manual[sizeof(row->tags_manual) - 1] = '\0';
+    }
+    if (cJSON_IsString(tags_meta) && tags_meta->valuestring) {
+      strncpy(row->tags_meta, tags_meta->valuestring,
+              sizeof(row->tags_meta) - 1);
+      row->tags_meta[sizeof(row->tags_meta) - 1] = '\0';
     }
 
     row->collision = (cJSON_IsBool(collision_batch) && cJSON_IsTrue(collision_batch)) ||
@@ -332,6 +338,12 @@ static void WorkerRunRenamePreview(const GuiTaskInput *input) {
       .tag_remove_csv = input->rename_tag_remove_csv[0] != '\0'
                             ? input->rename_tag_remove_csv
                             : NULL,
+      .meta_tag_add_csv = input->rename_meta_tag_add_csv[0] != '\0'
+                              ? input->rename_meta_tag_add_csv
+                              : NULL,
+      .meta_tag_remove_csv = input->rename_meta_tag_remove_csv[0] != '\0'
+                                 ? input->rename_meta_tag_remove_csv
+                                 : NULL,
       .hooks = GuiWorkerBuildHooks(),
   };
 

@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
   GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
-             "CGalleryOrganizer v0.6.3 GUI");
+             "CGalleryOrganizer v0.6.4 GUI");
   InitGuiFont();
   GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
@@ -338,9 +338,15 @@ int main(int argc, char **argv) {
                   sizeof(state.rename_selected_tags_csv) - 1);
           state.rename_selected_tags_csv[sizeof(state.rename_selected_tags_csv) - 1] =
               '\0';
+          strncpy(state.rename_selected_meta_tags_csv,
+                  state.rename_preview_rows[state.rename_selected_row].tags_meta,
+                  sizeof(state.rename_selected_meta_tags_csv) - 1);
+          state.rename_selected_meta_tags_csv
+              [sizeof(state.rename_selected_meta_tags_csv) - 1] = '\0';
         } else {
           state.rename_selected_row = -1;
           state.rename_selected_tags_csv[0] = '\0';
+          state.rename_selected_meta_tags_csv[0] = '\0';
         }
       }
       if (state.worker_snapshot.rename_bootstrap_map_path[0] != '\0') {
@@ -373,7 +379,7 @@ int main(int argc, char **argv) {
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
 
-    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.3 - GUI");
+    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.4 - GUI");
 
     for (int i = 0; i < 5; i++) {
       bool selected = (state.active_tab == i);

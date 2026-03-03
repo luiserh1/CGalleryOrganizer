@@ -113,6 +113,23 @@ static bool TagExists(cJSON *array, const char *tag) {
   return false;
 }
 
+static void RemoveTagFromArray(cJSON *array, const char *tag) {
+  if (!cJSON_IsArray(array) || !tag || tag[0] == '\0') {
+    return;
+  }
+
+  int index = 0;
+  while (index < cJSON_GetArraySize(array)) {
+    cJSON *node = cJSON_GetArrayItem(array, index);
+    if (cJSON_IsString(node) && node->valuestring &&
+        strcmp(node->valuestring, tag) == 0) {
+      cJSON_DeleteItemFromArray(array, index);
+      continue;
+    }
+    index++;
+  }
+}
+
 static bool AppendCsvTags(cJSON *array, const char *csv) {
   if (!cJSON_IsArray(array) || !csv) {
     return false;
@@ -137,9 +154,12 @@ static bool AppendCsvTags(cJSON *array, const char *csv) {
   return true;
 }
 
-bool GuiRenameMapUpsertManualTags(const char *map_path, const char *source_path,
-                                  const char *manual_tags_csv,
-                                  char *out_error, size_t out_error_size) {
+static bool GuiRenameMapUpsertEntry(const char *map_path, const char *source_path,
+                                    const char *manual_tags_csv,
+                                    bool replace_manual,
+                                    const char *meta_tags_csv,
+                                    bool replace_meta, char *out_error,
+                                    size_t out_error_size) {
   if (out_error && out_error_size > 0) {
     out_error[0] = '\0';
   }
@@ -199,28 +219,74 @@ bool GuiRenameMapUpsertManualTags(const char *map_path, const char *source_path,
     entry = replacement;
   }
 
-  cJSON *manual = cJSON_CreateArray();
-  if (!manual) {
-    cJSON_Delete(root);
-    SetError(out_error, out_error_size,
-             "out of memory while preparing manual tags");
-    return false;
-  }
-  if (manual_tags_csv && manual_tags_csv[0] != '\0' &&
-      !AppendCsvTags(manual, manual_tags_csv)) {
-    cJSON_Delete(manual);
-    cJSON_Delete(root);
-    SetError(out_error, out_error_size,
-             "failed to parse manual tags csv '%s'", manual_tags_csv);
-    return false;
-  }
-  cJSON *manual_existing = cJSON_GetObjectItem(entry, "manualTags");
-  if (manual_existing) {
-    cJSON_ReplaceItemInObject(entry, "manualTags", manual);
-  } else {
-    cJSON_AddItemToObject(entry, "manualTags", manual);
+  if (replace_manual) {
+    cJSON *manual = cJSON_CreateArray();
+    if (!manual) {
+      cJSON_Delete(root);
+      SetError(out_error, out_error_size,
+               "out of memory while preparing manual tags");
+      return false;
+    }
+    if (manual_tags_csv && manual_tags_csv[0] != '\0' &&
+        !AppendCsvTags(manual, manual_tags_csv)) {
+      cJSON_Delete(manual);
+      cJSON_Delete(root);
+      SetError(out_error, out_error_size,
+               "failed to parse manual tags csv '%s'", manual_tags_csv);
+      return false;
+    }
+    cJSON *manual_existing = cJSON_GetObjectItem(entry, "manualTags");
+    if (manual_existing) {
+      cJSON_ReplaceItemInObject(entry, "manualTags", manual);
+    } else {
+      cJSON_AddItemToObject(entry, "manualTags", manual);
+    }
   }
 
+  if (replace_meta) {
+    cJSON *meta_adds = cJSON_CreateArray();
+    if (!meta_adds) {
+      cJSON_Delete(root);
+      SetError(out_error, out_error_size,
+               "out of memory while preparing metadata tags");
+      return false;
+    }
+    if (meta_tags_csv && meta_tags_csv[0] != '\0' &&
+        !AppendCsvTags(meta_adds, meta_tags_csv)) {
+      cJSON_Delete(meta_adds);
+      cJSON_Delete(root);
+      SetError(out_error, out_error_size,
+               "failed to parse metadata tags csv '%s'", meta_tags_csv);
+      return false;
+    }
+    cJSON *meta_existing = cJSON_GetObjectItem(entry, "metaTagAdds");
+    if (meta_existing) {
+      cJSON_ReplaceItemInObject(entry, "metaTagAdds", meta_adds);
+    } else {
+      cJSON_AddItemToObject(entry, "metaTagAdds", meta_adds);
+    }
+  }
+
+  if (!cJSON_GetObjectItem(entry, "manualTags")) {
+    cJSON *manual = cJSON_CreateArray();
+    if (!manual) {
+      cJSON_Delete(root);
+      SetError(out_error, out_error_size,
+               "out of memory while preparing manual tags");
+      return false;
+    }
+    cJSON_AddItemToObject(entry, "manualTags", manual);
+  }
+  if (!cJSON_GetObjectItem(entry, "metaTagAdds")) {
+    cJSON *meta_adds = cJSON_CreateArray();
+    if (!meta_adds) {
+      cJSON_Delete(root);
+      SetError(out_error, out_error_size,
+               "out of memory while preparing metadata tags");
+      return false;
+    }
+    cJSON_AddItemToObject(entry, "metaTagAdds", meta_adds);
+  }
   if (!cJSON_GetObjectItem(entry, "suppressedMetaTags")) {
     cJSON *suppressed = cJSON_CreateArray();
     if (!suppressed) {
@@ -230,6 +296,21 @@ bool GuiRenameMapUpsertManualTags(const char *map_path, const char *source_path,
       return false;
     }
     cJSON_AddItemToObject(entry, "suppressedMetaTags", suppressed);
+  }
+
+  if (replace_meta) {
+    cJSON *meta_adds = cJSON_GetObjectItem(entry, "metaTagAdds");
+    cJSON *suppressed = cJSON_GetObjectItem(entry, "suppressedMetaTags");
+    if (cJSON_IsArray(meta_adds) && cJSON_IsArray(suppressed)) {
+      int count = cJSON_GetArraySize(meta_adds);
+      for (int i = 0; i < count; i++) {
+        cJSON *tag = cJSON_GetArrayItem(meta_adds, i);
+        if (!cJSON_IsString(tag) || !tag->valuestring) {
+          continue;
+        }
+        RemoveTagFromArray(suppressed, tag->valuestring);
+      }
+    }
   }
 
   char *text = cJSON_Print(root);
@@ -248,4 +329,19 @@ bool GuiRenameMapUpsertManualTags(const char *map_path, const char *source_path,
     return false;
   }
   return true;
+}
+
+bool GuiRenameMapUpsertManualTags(const char *map_path, const char *source_path,
+                                  const char *manual_tags_csv,
+                                  char *out_error, size_t out_error_size) {
+  return GuiRenameMapUpsertEntry(map_path, source_path, manual_tags_csv, true,
+                                 NULL, false, out_error, out_error_size);
+}
+
+bool GuiRenameMapUpsertMetadataTags(const char *map_path, const char *source_path,
+                                    const char *meta_tags_csv,
+                                    char *out_error, size_t out_error_size) {
+  return GuiRenameMapUpsertEntry(map_path, source_path, NULL, false,
+                                 meta_tags_csv, true, out_error,
+                                 out_error_size);
 }

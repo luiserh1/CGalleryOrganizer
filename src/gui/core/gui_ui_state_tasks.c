@@ -223,6 +223,14 @@ static bool GuiUiStartTaskInternal(GuiUiState *state, GuiTaskType task_type,
   strncpy(input.rename_tag_remove_csv, state->rename_tag_remove_csv,
           sizeof(input.rename_tag_remove_csv) - 1);
   input.rename_tag_remove_csv[sizeof(input.rename_tag_remove_csv) - 1] = '\0';
+  strncpy(input.rename_meta_tag_add_csv, state->rename_meta_tag_add_csv,
+          sizeof(input.rename_meta_tag_add_csv) - 1);
+  input.rename_meta_tag_add_csv[sizeof(input.rename_meta_tag_add_csv) - 1] =
+      '\0';
+  strncpy(input.rename_meta_tag_remove_csv, state->rename_meta_tag_remove_csv,
+          sizeof(input.rename_meta_tag_remove_csv) - 1);
+  input.rename_meta_tag_remove_csv[sizeof(input.rename_meta_tag_remove_csv) - 1] =
+      '\0';
   strncpy(input.rename_preview_id, state->rename_preview_id_input,
           sizeof(input.rename_preview_id) - 1);
   input.rename_preview_id[sizeof(input.rename_preview_id) - 1] = '\0';

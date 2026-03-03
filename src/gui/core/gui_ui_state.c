@@ -137,6 +137,16 @@ static void BuildPersistedStateFromUi(const GuiUiState *state,
           sizeof(out_state->rename_tag_remove_csv) - 1);
   out_state->rename_tag_remove_csv[sizeof(out_state->rename_tag_remove_csv) - 1] =
       '\0';
+  strncpy(out_state->rename_meta_tag_add_csv, state->rename_meta_tag_add_csv,
+          sizeof(out_state->rename_meta_tag_add_csv) - 1);
+  out_state
+      ->rename_meta_tag_add_csv[sizeof(out_state->rename_meta_tag_add_csv) - 1] =
+      '\0';
+  strncpy(out_state->rename_meta_tag_remove_csv,
+          state->rename_meta_tag_remove_csv,
+          sizeof(out_state->rename_meta_tag_remove_csv) - 1);
+  out_state->rename_meta_tag_remove_csv
+      [sizeof(out_state->rename_meta_tag_remove_csv) - 1] = '\0';
   strncpy(out_state->rename_preview_id, state->rename_preview_id_input,
           sizeof(out_state->rename_preview_id) - 1);
   out_state->rename_preview_id[sizeof(out_state->rename_preview_id) - 1] = '\0';
@@ -220,6 +230,14 @@ static void ApplyPersistedStateToUi(GuiUiState *state, const GuiState *saved) {
   strncpy(state->rename_tag_remove_csv, saved->rename_tag_remove_csv,
           sizeof(state->rename_tag_remove_csv) - 1);
   state->rename_tag_remove_csv[sizeof(state->rename_tag_remove_csv) - 1] = '\0';
+  strncpy(state->rename_meta_tag_add_csv, saved->rename_meta_tag_add_csv,
+          sizeof(state->rename_meta_tag_add_csv) - 1);
+  state->rename_meta_tag_add_csv[sizeof(state->rename_meta_tag_add_csv) - 1] =
+      '\0';
+  strncpy(state->rename_meta_tag_remove_csv, saved->rename_meta_tag_remove_csv,
+          sizeof(state->rename_meta_tag_remove_csv) - 1);
+  state->rename_meta_tag_remove_csv
+      [sizeof(state->rename_meta_tag_remove_csv) - 1] = '\0';
   strncpy(state->rename_preview_id_input, saved->rename_preview_id,
           sizeof(state->rename_preview_id_input) - 1);
   state->rename_preview_id_input[sizeof(state->rename_preview_id_input) - 1] =
@@ -330,7 +348,10 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->rename_tags_map_path[0] = '\0';
   state->rename_tag_add_csv[0] = '\0';
   state->rename_tag_remove_csv[0] = '\0';
+  state->rename_meta_tag_add_csv[0] = '\0';
+  state->rename_meta_tag_remove_csv[0] = '\0';
   state->rename_selected_tags_csv[0] = '\0';
+  state->rename_selected_meta_tags_csv[0] = '\0';
   state->rename_preview_id_input[0] = '\0';
   state->rename_operation_id_input[0] = '\0';
   state->rename_accept_auto_suffix = false;
@@ -441,6 +462,16 @@ bool GuiUiHasUnsavedChanges(const GuiUiState *state) {
   if (strncmp(current_state.rename_tag_remove_csv,
               state->persisted_state.rename_tag_remove_csv,
               sizeof(current_state.rename_tag_remove_csv)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_meta_tag_add_csv,
+              state->persisted_state.rename_meta_tag_add_csv,
+              sizeof(current_state.rename_meta_tag_add_csv)) != 0) {
+    return true;
+  }
+  if (strncmp(current_state.rename_meta_tag_remove_csv,
+              state->persisted_state.rename_meta_tag_remove_csv,
+              sizeof(current_state.rename_meta_tag_remove_csv)) != 0) {
     return true;
   }
   if (strncmp(current_state.rename_preview_id,

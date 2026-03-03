@@ -4,10 +4,12 @@
 #include <sys/stat.h>
 
 #include "app_api.h"
+#include "cJSON.h"
 #include "cli/cli_args.h"
 #include "cli/cli_rename_utils.h"
 
 static void PrintAppError(AppContext *app, const char *prefix);
+static void PrintRenameMetadataFields(const char *details_json);
 static bool SaveTextFile(const char *path, const char *text);
 
 static int HandleRollback(AppContext *app, const char *target_dir,
@@ -99,6 +101,9 @@ static int HandleRenamePreview(AppContext *app, const char *target_dir,
                                const char *tags_map_path,
                                const char *tag_add_csv,
                                const char *tag_remove_csv,
+                               const char *meta_tag_add_csv,
+                               const char *meta_tag_remove_csv,
+                               bool show_metadata_fields,
                                bool preview_json,
                                const char *preview_json_out,
                                const char *argv0) {
@@ -127,6 +132,8 @@ static int HandleRenamePreview(AppContext *app, const char *target_dir,
       .tags_map_json_path = tags_map_path,
       .tag_add_csv = tag_add_csv,
       .tag_remove_csv = tag_remove_csv,
+      .meta_tag_add_csv = meta_tag_add_csv,
+      .meta_tag_remove_csv = meta_tag_remove_csv,
       .hooks = {0},
   };
   AppRenamePreviewResult result = {0};
@@ -168,6 +175,9 @@ static int HandleRenamePreview(AppContext *app, const char *target_dir,
   } else if (!preview_json) {
     printf("Hint: use --rename-preview-json or --rename-preview-json-out <path> "
            "for full JSON details.\n");
+  }
+  if (show_metadata_fields) {
+    PrintRenameMetadataFields(result.details_json);
   }
 
   AppFreeRenamePreviewResult(&result);
@@ -352,6 +362,39 @@ static int HandleDuplicates(AppContext *app, const char *env_dir,
   return 0;
 }
 
+static void PrintRenameMetadataFields(const char *details_json) {
+  if (!details_json || details_json[0] == '\0') {
+    printf("Metadata tag fields in scope: unavailable (no preview JSON details).\n");
+    return;
+  }
+
+  cJSON *root = cJSON_Parse(details_json);
+  if (!root) {
+    printf("Metadata tag fields in scope: unavailable (preview JSON parse failed).\n");
+    return;
+  }
+
+  cJSON *fields = cJSON_GetObjectItem(root, "metadataTagFields");
+  if (!cJSON_IsArray(fields) || cJSON_GetArraySize(fields) <= 0) {
+    printf("Metadata tag fields in scope: none detected from whitelist.\n");
+    cJSON_Delete(root);
+    return;
+  }
+
+  int count = cJSON_GetArraySize(fields);
+  printf("Metadata tag fields in scope (%d):\n", count);
+  for (int i = 0; i < count; i++) {
+    cJSON *field = cJSON_GetArrayItem(fields, i);
+    if (!cJSON_IsString(field) || !field->valuestring ||
+        field->valuestring[0] == '\0') {
+      continue;
+    }
+    printf("  - %s\n", field->valuestring);
+  }
+
+  cJSON_Delete(root);
+}
+
 static void PrintAppError(AppContext *app, const char *prefix) {
   const char *details = AppGetLastError(app);
   if (details && details[0] != '\0') {
@@ -377,7 +420,7 @@ static bool SaveTextFile(const char *path, const char *text) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.6.1\n");
+  printf("CGalleryOrganizer v0.6.4\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -400,6 +443,9 @@ int main(int argc, char **argv) {
   const char *rename_tags_map_path = NULL;
   const char *rename_tag_add_csv = NULL;
   const char *rename_tag_remove_csv = NULL;
+  const char *rename_meta_tag_add_csv = NULL;
+  const char *rename_meta_tag_remove_csv = NULL;
+  bool rename_metadata_fields = false;
   bool rename_preview_json = false;
   const char *rename_preview_json_out = NULL;
   const char *rename_from_preview = NULL;
@@ -568,6 +614,20 @@ int main(int argc, char **argv) {
         return 1;
       }
       rename_tag_remove_csv = argv[++i];
+    } else if (strcmp(argv[i], "--rename-meta-tag-add") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-meta-tag-add requires CSV tags.\n");
+        return 1;
+      }
+      rename_meta_tag_add_csv = argv[++i];
+    } else if (strcmp(argv[i], "--rename-meta-tag-remove") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-meta-tag-remove requires CSV tags.\n");
+        return 1;
+      }
+      rename_meta_tag_remove_csv = argv[++i];
+    } else if (strcmp(argv[i], "--rename-meta-fields") == 0) {
+      rename_metadata_fields = true;
     } else if (strcmp(argv[i], "--rename-preview-json") == 0) {
       rename_preview_json = true;
     } else if (strcmp(argv[i], "--rename-preview-json-out") == 0) {
@@ -666,7 +726,10 @@ int main(int argc, char **argv) {
       ((rename_pattern && rename_pattern[0] != '\0') ||
        (rename_tags_map_path && rename_tags_map_path[0] != '\0') ||
        (rename_tag_add_csv && rename_tag_add_csv[0] != '\0') ||
-       (rename_tag_remove_csv && rename_tag_remove_csv[0] != '\0'))) {
+       (rename_tag_remove_csv && rename_tag_remove_csv[0] != '\0') ||
+       (rename_meta_tag_add_csv && rename_meta_tag_add_csv[0] != '\0') ||
+       (rename_meta_tag_remove_csv && rename_meta_tag_remove_csv[0] != '\0') ||
+       rename_metadata_fields)) {
     printf("Error: rename pattern/tag edit options are only valid with "
            "--rename-preview.\n");
     return 1;
@@ -752,7 +815,9 @@ int main(int argc, char **argv) {
   if (rename_preview) {
     int rc = HandleRenamePreview(app, target_dir, env_dir, rename_pattern,
                                  rename_tags_map_path, rename_tag_add_csv,
-                                 rename_tag_remove_csv, rename_preview_json,
+                                 rename_tag_remove_csv, rename_meta_tag_add_csv,
+                                 rename_meta_tag_remove_csv,
+                                 rename_metadata_fields, rename_preview_json,
                                  rename_preview_json_out, argv[0]);
     AppContextDestroy(app);
     return rc;

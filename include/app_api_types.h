@@ -181,6 +181,10 @@ typedef struct {
   const char *tag_add_csv;
   // Optional CSV tags removed from every file in preview scope.
   const char *tag_remove_csv;
+  // Optional CSV metadata tags added to every file in preview scope.
+  const char *meta_tag_add_csv;
+  // Optional CSV metadata tags removed/suppressed from preview scope.
+  const char *meta_tag_remove_csv;
   AppOperationHooks hooks;
 } AppRenamePreviewRequest;
 

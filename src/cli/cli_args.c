@@ -44,6 +44,13 @@ void CliPrintUsage(const char *argv0) {
   printf("  --rename-tag-add <csv_tags> Bulk add manual tags for preview scope\n");
   printf("  --rename-tag-remove <csv_tags> Bulk remove/suppress tags for preview "
          "scope\n");
+  printf(
+      "  --rename-meta-tag-add <csv_tags> Bulk add metadata tags for preview "
+      "scope\n");
+  printf("  --rename-meta-tag-remove <csv_tags> Bulk suppress metadata tags for "
+         "preview scope\n");
+  printf("  --rename-meta-fields Print discovered editable metadata fields in "
+         "preview scope\n");
   printf("  --rename-preview-json Print full preview JSON payload to stdout\n");
   printf("  --rename-preview-json-out <path> Write full preview JSON payload to "
          "file\n");
