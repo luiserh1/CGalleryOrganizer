@@ -97,6 +97,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - Functional GUI fixed-layout invariants (`src/gui/frontends/functional/gui_fixed_layout.c`)
 - GUI action dependency rules (`src/gui/core/gui_action_rules.c`)
 - GUI rename panel wiring (`src/gui/frontends/functional/gui_panels_rename.c`)
+- GUI per-file tags-map upsert helper (`src/gui/core/gui_rename_map.c`)
 
 ## Manual Smoke Checklist
 
@@ -268,9 +269,14 @@ make gui
 ./build/bin/gallery_organizer_gui
 ```
 Expected:
-- manual gallery/env path inputs are editable.
+- gallery/env path inputs are editable and expose picker buttons on supported platforms.
 - scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
 - rename preview/apply/history/rollback actions are invokable from Rename tab.
+- Rename tab exposes tags-map picker and **Bootstrap Tags** action.
+- rename preview table renders source/candidate/manual-tags rows with:
+  - collision-only and warnings-only filters
+  - selectable rows
+  - per-file selected-row manual tag apply action
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.

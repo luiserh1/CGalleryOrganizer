@@ -24,6 +24,7 @@ extern void register_renamer_pattern_tests(void);
 extern void register_gui_state_tests(void);
 extern void register_gui_layout_tests(void);
 extern void register_gui_action_rules_tests(void);
+extern void register_gui_rename_map_tests(void);
 extern void register_cli_rename_tests(void);
 
 int main(int argc, char **argv) {
@@ -60,6 +61,7 @@ int main(int argc, char **argv) {
   register_gui_state_tests();
   register_gui_layout_tests();
   register_gui_action_rules_tests();
+  register_gui_rename_map_tests();
   register_cli_rename_tests();
   register_integration_tests();
 

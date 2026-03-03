@@ -200,6 +200,18 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
     SetEnabled(out);
     return;
 
+  case GUI_ACTION_RENAME_BOOTSTRAP_TAGS:
+    if (!HasGalleryDir(state)) {
+      SetDisabled(out, "Rename bootstrap requires a Gallery Directory");
+      return;
+    }
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename bootstrap requires an Environment Dir");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
   case GUI_ACTION_RENAME_APPLY:
     if (!HasEnvDir(state)) {
       SetDisabled(out, "Rename apply requires an Environment Dir");
@@ -275,6 +287,9 @@ bool GuiActionCanStartTask(const GuiUiState *state, GuiTaskType task_type,
     break;
   case GUI_TASK_RENAME_PREVIEW:
     action_id = GUI_ACTION_RENAME_PREVIEW;
+    break;
+  case GUI_TASK_RENAME_BOOTSTRAP_TAGS:
+    action_id = GUI_ACTION_RENAME_BOOTSTRAP_TAGS;
     break;
   case GUI_TASK_RENAME_APPLY:
     action_id = GUI_ACTION_RENAME_APPLY;

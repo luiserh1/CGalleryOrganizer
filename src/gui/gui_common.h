@@ -23,6 +23,7 @@ typedef struct {
   char rename_tags_map_path[GUI_STATE_MAX_PATH];
   char rename_tag_add_csv[256];
   char rename_tag_remove_csv[256];
+  char rename_selected_tags_csv[256];
   char rename_preview_id_input[64];
   char rename_operation_id_input[64];
 
@@ -36,6 +37,13 @@ typedef struct {
   int sim_topk;
   AppSimilarityMemoryMode sim_memory_mode;
   bool rename_accept_auto_suffix;
+  bool rename_filter_collisions_only;
+  bool rename_filter_warnings_only;
+  int rename_table_scroll;
+  int rename_selected_row;
+  int rename_preview_row_count;
+  int rename_preview_warning_count;
+  GuiRenamePreviewRow rename_preview_rows[GUI_RENAME_PREVIEW_ROWS_MAX];
 
   int active_tab;
   GuiTaskSnapshot worker_snapshot;

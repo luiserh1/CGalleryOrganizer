@@ -38,11 +38,12 @@ void test_gui_fixed_scan_layout_no_overlap(void) {
   GuiBuildScanPanelLayout(shell.panel_inner, &scan);
 
   GuiRect rects[] = {
-      scan.gallery_label,      scan.gallery_input,  scan.env_label,
-      scan.env_input,          scan.exhaustive,     scan.jobs_label,
-      scan.jobs_input,         scan.cache_label,    scan.cache_none,
-      scan.cache_zstd,         scan.level_label,
-      scan.level_input,        scan.scan_button,    scan.ml_button,
+      scan.gallery_label,      scan.gallery_input,  scan.gallery_pick_button,
+      scan.env_label,          scan.env_input,      scan.env_pick_button,
+      scan.exhaustive,         scan.jobs_label,     scan.jobs_input,
+      scan.cache_label,        scan.cache_none,     scan.cache_zstd,
+      scan.level_label,        scan.level_input,    scan.scan_button,
+      scan.ml_button,
       scan.download_models_button, scan.save_paths_button,
       scan.reset_paths_button, scan.info_label,
   };
@@ -111,12 +112,17 @@ void test_gui_fixed_rename_layout_no_overlap(void) {
 
   GuiRect rects[] = {
       rename.pattern_label,      rename.pattern_input,   rename.tags_map_label,
-      rename.tags_map_input,     rename.tag_add_label,   rename.tag_add_input,
+      rename.tags_map_input,     rename.tags_map_pick_button,
+      rename.tags_map_bootstrap_button, rename.tag_add_label,   rename.tag_add_input,
       rename.tag_remove_label,   rename.tag_remove_input,
       rename.preview_id_label,   rename.preview_id_input,
       rename.operation_id_label, rename.operation_id_input,
-      rename.accept_suffix,      rename.preview_button, rename.apply_button,
-      rename.history_button,     rename.rollback_button, rename.info_label,
+      rename.accept_suffix,      rename.filter_collisions,
+      rename.filter_warnings,    rename.preview_button, rename.apply_button,
+      rename.history_button,     rename.rollback_button,
+      rename.selected_tags_label, rename.selected_tags_input,
+      rename.selected_tags_apply_button, rename.info_label,
+      rename.preview_table,
   };
 
   AssertRectsInPanel(shell.panel_inner, rects,

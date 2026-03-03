@@ -101,6 +101,10 @@ void test_gui_action_rules_rename_requirements(void) {
   GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_PREVIEW, &availability);
   ASSERT_TRUE(availability.enabled);
 
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_BOOTSTRAP_TAGS,
+                               &availability);
+  ASSERT_TRUE(availability.enabled);
+
   GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_APPLY, &availability);
   ASSERT_FALSE(availability.enabled);
   strncpy(state.rename_preview_id_input, "rnp-1",
