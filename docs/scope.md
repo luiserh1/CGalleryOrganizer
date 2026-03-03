@@ -986,3 +986,43 @@ rename workflow so inspect/redo loops are fully in-panel.
 - Benchmark impact summary:
   - No benchmark schema, methodology, or benchmark command changes in this
     milestone.
+
+---
+
+## v0.6.10 Scope: Rename History Management + Audit Export (Completed)
+
+### Primary Goal
+Improve long-term usability of rename operations by adding history management
+and audit/export tools in both CLI and GUI.
+
+### Features
+- Add rename history filtering (operation id prefix, rollback status, and date
+  range) in CLI and GUI.
+- Add rename history export action to write filtered history + operation
+  summaries to JSON.
+- Add explicit history prune action (manual cleanup) while keeping default
+  retention behavior unchanged.
+- Add rollback preflight check mode (non-mutating validation of rollback
+  feasibility).
+- Keep existing preview/apply/redo/rollback semantics unchanged.
+
+### Release Notes
+- Behavior changes:
+  - CLI/GUI history filters now support:
+    - operation id prefix
+    - rollback status (`any|yes|no`)
+    - created-at date range (`from`/`to`)
+  - New CLI/GUI history export action writes filtered JSON audit payloads with
+    operation counters and manifest summaries.
+  - New manual history prune action (`keep_count`) in CLI/GUI for cache
+    hygiene.
+  - New rollback preflight path validates feasibility without filesystem
+    mutation.
+  - Runtime banners/window titles now report `v0.6.10`.
+- Migration/compat notes:
+  - Additive only; no breaking app API or artifact schema changes.
+  - Existing rename history index + operation manifests remain readable.
+  - GUI state schema advances to include rename history filter/export/prune UI
+    fields; legacy state files load with defaults.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes.

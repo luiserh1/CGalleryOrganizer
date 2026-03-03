@@ -12,7 +12,7 @@ make test
 
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.9
+./scripts/release_check.sh --expected-tag v0.6.10
 
 # Build binaries only
 make
@@ -86,9 +86,14 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
     - `--rename-preview-latest-id`
     - collision gate + `--rename-accept-auto-suffix`
     - `--rename-history`
+    - `--rename-history-id-prefix` / `--rename-history-rollback`
+    - `--rename-history-from` / `--rename-history-to`
+    - `--rename-history-export`
+    - `--rename-history-prune`
     - `--rename-history-latest-id`
     - `--rename-history-detail`
     - `--rename-redo`
+    - `--rename-rollback-preflight`
     - `--rename-rollback`
     - JSON tags-map ingest validation
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
@@ -269,14 +274,22 @@ Expected:
 List and rollback:
 ```bash
 ./build/bin/gallery_organizer build/smoke_env --rename-history
+./build/bin/gallery_organizer build/smoke_env --rename-history --rename-history-rollback no --rename-history-from 2026-01-01
+./build/bin/gallery_organizer build/smoke_env --rename-history-export build/smoke_env/history_export.json --rename-history-id-prefix rop-2026
+./build/bin/gallery_organizer build/smoke_env --rename-history-prune 200
 ./build/bin/gallery_organizer build/smoke_env --rename-history-latest-id
 ./build/bin/gallery_organizer build/smoke_env --rename-history-detail <operation_id>
 ./build/bin/gallery_organizer build/smoke_env --rename-redo <operation_id>
+./build/bin/gallery_organizer build/smoke_env --rename-rollback-preflight <operation_id>
 ./build/bin/gallery_organizer build/smoke_env --rename-rollback <operation_id>
 ```
 Expected:
 - history output contains operation id rows.
+- history filters constrain output deterministically by prefix/rollback/date range.
+- history export writes JSON payload with filtered entries + manifest summaries.
+- history prune reports before/after/pruned counts and removes oldest entries.
 - latest-id/detail/redo helpers complete without validation errors for valid ids.
+- rollback preflight reports restorable/missing/conflict counters without mutation.
 - rollback reports restored/skipped/failed counts.
 - rename tag sidecar path keys are updated on apply and rollback.
 
