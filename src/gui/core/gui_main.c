@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
   GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
-             "CGalleryOrganizer v0.6.4 GUI");
+             "CGalleryOrganizer v0.6.6 GUI");
   InitGuiFont();
   GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
@@ -379,7 +379,7 @@ int main(int argc, char **argv) {
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
 
-    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.4 - GUI");
+    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.6 - GUI");
 
     for (int i = 0; i < 5; i++) {
       bool selected = (state.active_tab == i);
