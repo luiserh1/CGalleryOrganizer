@@ -9,7 +9,8 @@
 
 static const char *RENAMER_TOKEN_ALLOWLIST[] = {
     "date", "time", "datetime", "camera", "make", "model", "format",
-    "index", "tags_manual", "tags_meta", "tags", NULL};
+    "gps_lat", "gps_lon", "location", "index", "tags_manual", "tags_meta",
+    "tags", NULL};
 
 static bool TokenIsAllowed(const char *token) {
   if (!token || token[0] == '\0') {
@@ -159,6 +160,12 @@ static void ResolveTokenValue(const char *token, const RenamerPatternContext *ct
     BuildSlug(ctx->model, out_value, out_size, "unknown-model");
   } else if (strcmp(token, "format") == 0) {
     BuildSlug(ctx->format, out_value, out_size, "unknown-format");
+  } else if (strcmp(token, "gps_lat") == 0) {
+    BuildSlug(ctx->gps_lat, out_value, out_size, "unknown-gps-lat");
+  } else if (strcmp(token, "gps_lon") == 0) {
+    BuildSlug(ctx->gps_lon, out_value, out_size, "unknown-gps-lon");
+  } else if (strcmp(token, "location") == 0) {
+    BuildSlug(ctx->location, out_value, out_size, "unknown-location");
   } else if (strcmp(token, "index") == 0) {
     int index = ctx->index > 0 ? ctx->index : 1;
     snprintf(out_value, out_size, "%d", index);

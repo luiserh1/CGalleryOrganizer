@@ -328,7 +328,8 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
   GuiLabel(ToRayRect(layout.pattern_label), "Pattern");
   GuiHelpRegister(ToRayRect(layout.pattern_label),
                   "Rename pattern tokens: [date],[time],[datetime],[camera],"
-                  "[make],[model],[format],[index],[tags_manual],"
+                  "[make],[model],[format],[gps_lat],[gps_lon],[location],"
+                  "[index],[tags_manual],"
                   "[tags_meta],[tags]");
   GuiTextBox(ToRayRect(layout.pattern_input), state->rename_pattern_input,
              (int)sizeof(state->rename_pattern_input), true);

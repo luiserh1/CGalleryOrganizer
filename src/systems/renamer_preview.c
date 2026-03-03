@@ -429,6 +429,12 @@ static void ExtractTokensFromMetadata(const ImageMetadata *md, char *out_date,
                                       size_t out_make_size,
                                       char *out_model,
                                       size_t out_model_size,
+                                      char *out_gps_lat,
+                                      size_t out_gps_lat_size,
+                                      char *out_gps_lon,
+                                      size_t out_gps_lon_size,
+                                      char *out_location,
+                                      size_t out_location_size,
                                       char *out_format,
                                       size_t out_format_size) {
   if (!md) {
@@ -452,6 +458,15 @@ static void ExtractTokensFromMetadata(const ImageMetadata *md, char *out_date,
   }
   if (out_model && out_model_size > 0) {
     out_model[0] = '\0';
+  }
+  if (out_gps_lat && out_gps_lat_size > 0) {
+    out_gps_lat[0] = '\0';
+  }
+  if (out_gps_lon && out_gps_lon_size > 0) {
+    out_gps_lon[0] = '\0';
+  }
+  if (out_location && out_location_size > 0) {
+    out_location[0] = '\0';
   }
   if (out_format && out_format_size > 0) {
     out_format[0] = '\0';
@@ -493,6 +508,26 @@ static void ExtractTokensFromMetadata(const ImageMetadata *md, char *out_date,
     } else if (md->cameraMake[0] != '\0') {
       strncpy(out_camera, md->cameraMake, out_camera_size - 1);
       out_camera[out_camera_size - 1] = '\0';
+    }
+  }
+
+  if (md->hasGps) {
+    if (out_gps_lat && out_gps_lat_size > 0) {
+      snprintf(out_gps_lat, out_gps_lat_size, "%c%.6f",
+               md->gpsLatitude < 0.0 ? 's' : 'n',
+               md->gpsLatitude < 0.0 ? -md->gpsLatitude : md->gpsLatitude);
+    }
+    if (out_gps_lon && out_gps_lon_size > 0) {
+      snprintf(out_gps_lon, out_gps_lon_size, "%c%.6f",
+               md->gpsLongitude < 0.0 ? 'w' : 'e',
+               md->gpsLongitude < 0.0 ? -md->gpsLongitude : md->gpsLongitude);
+    }
+    if (out_location && out_location_size > 0) {
+      snprintf(out_location, out_location_size, "%s-%s",
+               out_gps_lat && out_gps_lat[0] != '\0' ? out_gps_lat
+                                                     : "unknown-gps-lat",
+               out_gps_lon && out_gps_lon[0] != '\0' ? out_gps_lon
+                                                     : "unknown-gps-lon");
     }
   }
 
@@ -972,12 +1007,17 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
     char camera[128] = {0};
     char make[128] = {0};
     char model[128] = {0};
+    char gps_lat[64] = {0};
+    char gps_lon[64] = {0};
+    char location[160] = {0};
     char format[32] = {0};
 
     ExtractTokensFromMetadata(&md, date, sizeof(date), time_text,
                               sizeof(time_text), datetime, sizeof(datetime),
                               camera, sizeof(camera), make, sizeof(make), model,
-                              sizeof(model), format, sizeof(format));
+                              sizeof(model), gps_lat, sizeof(gps_lat), gps_lon,
+                              sizeof(gps_lon), location, sizeof(location),
+                              format, sizeof(format));
 
     RenamerResolvedTags resolved_tags = {0};
     if (!RenamerTagsResolve(tags_root, files.paths[i], md.allMetadataJson,
@@ -997,6 +1037,9 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
         .make = make,
         .model = model,
         .format = format,
+        .gps_lat = gps_lat,
+        .gps_lon = gps_lon,
+        .location = location,
         .tags_manual = resolved_tags.manual,
         .tags_meta = resolved_tags.meta,
         .tags = resolved_tags.merged,
