@@ -20,6 +20,7 @@ endif
 
 ifeq ($(UNAME_S),Linux)
 CFLAGS += -D_POSIX_C_SOURCE=200809L
+CFLAGS += -D_XOPEN_SOURCE=700
 endif
 
 # Directories
