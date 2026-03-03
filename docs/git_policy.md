@@ -13,13 +13,13 @@ auditable without accumulating stale branches.
 
 ## Branch Naming
 
-- Feature/milestone branches: `feature/<version-or-scope>`
-- Maintenance branches: `chore/<scope>`
+- Feature/milestone branches: `codex/<version-or-scope>`
+- Maintenance branches: `codex/<scope>`
 - Release/hotfix branches only when needed: `release/<version>`
 
 ## Development Flow
 
-1. Create a branch from `master`.
+1. Create a `codex/<scope>` branch from `master`.
 2. Implement changes with scoped commits.
 3. Open a PR targeting `master`.
 4. Ensure CI is green before merge.

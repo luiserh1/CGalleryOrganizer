@@ -453,6 +453,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.5.2`: fixed functional GUI baseline + language-agnostic frontend contract docs.
 - `v0.5.3`: guided functional GUI (dependency-locked actions, help hints/tooltips, in-app model install).
 - `v0.5.4`: persistent cache profile with parameter-aware automatic recompute.
+- `v0.5.5`: PM-audit remediation and modularity cleanup follow-up.
 - `v0.6.0`: dedicated pattern-based rename workflow with hybrid tagging and operation history rollback.
 - `v0.6.1`: CLI rename onboarding/usability (init/bootstrap/apply-latest/preview JSON controls).
 - `v0.6.2`: GUI rename UX improvements (pickers, preview table, guided per-file tagging).
@@ -464,6 +465,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.8`: rename history ergonomics (detail inspection, redo path, latest-id helpers).
 - `v0.6.9`: GUI rename history ergonomics (latest-id/detail/redo actions).
 - `v0.6.10`: rename history management + audit export (filters/export/prune/preflight across CLI/GUI).
+- `v0.6.11`: CI stabilization + coverage ratchet + test reinforcement.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

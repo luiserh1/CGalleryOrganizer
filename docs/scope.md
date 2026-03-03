@@ -527,6 +527,32 @@ automatically rebuilding cache only when tracked parameters change.
 
 ---
 
+## v0.5.5 Scope: PM Audit Remediation + Team Handover Docs (Completed)
+
+### Primary Goal
+Address post-0.5.4 audit findings with targeted behavior clarifications,
+workflow hardening, and documentation updates to support team handover.
+
+### Features
+- Clarified duplicate-flow safety so file moves remain explicit-only actions.
+- Improved workflow-level tests around CLI/app duplicate and organize paths.
+- Applied modularity/refactor follow-ups in touched workflow areas while
+  preserving existing public contracts.
+- Added/updated team-facing governance and handover documentation.
+
+### Release Notes
+- Behavior changes:
+  - duplicate move semantics remained explicit-only and were reinforced by tests
+    and docs.
+  - no breaking CLI/app API behavior changes introduced.
+- Migration/compat notes:
+  - additive and cleanup-focused milestone; existing env/cache artifacts remain
+    compatible.
+- Benchmark impact summary:
+  - no benchmark schema or benchmark command changes in this milestone.
+
+---
+
 ## v0.6.0 Scope: Dedicated Pattern-Based Renaming + Tagging (Completed)
 
 ### Primary Goal

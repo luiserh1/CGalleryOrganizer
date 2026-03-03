@@ -46,8 +46,8 @@ Examples: browser or remote UI.
 - Must not call C APIs directly from browser code.
 - Adapter owns translation between transport formats and `App*` types.
 
-No adapter service is shipped in 0.5.3; this is the required boundary contract
-for future work.
+No adapter service is currently shipped; this remains the required boundary
+contract for future work.
 
 ## Data Flow
 
