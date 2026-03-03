@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.4)
+## Key Features (v0.6.5)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -48,7 +48,8 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
   - preview handshake and explicit collision acceptance for auto suffixing
   - deterministic overlength truncate+hash naming policy
   - GUI rename usability improvements:
-    - path pickers for gallery/env/tags-map fields (supported platforms)
+    - path pickers for gallery/env/tags-map fields with normalized status
+      handling (`selected`, `cancelled`, `unavailable`, `error`)
     - in-panel bootstrap action for filename-derived tags map generation
     - preview table with collision/warning filters and row selection
     - selected-row manual tag edit + persistence helper
@@ -212,6 +213,12 @@ Additional 0.5.4 behavior:
 - rename metadata-tag additions (v0.6.4):
   - bulk metadata add/remove controls
   - selected-row metadata tag update action
+- cross-platform picker expansion (v0.6.5):
+  - macOS: `osascript`
+  - Linux: `zenity -> kdialog -> yad` fallback chain
+  - Windows: `powershell -> pwsh` fallback chain
+  - picker cancel/unavailable paths are informational; only backend failures are
+    treated as errors
 
 GUI path fields remain directly editable and now also provide picker actions on
 supported platforms.
@@ -360,7 +367,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.2`: GUI rename UX improvements (pickers, preview table, guided per-file tagging).
 - `v0.6.3`: extended rename tokens with GPS/location support (`[gps_lat]`, `[gps_lon]`, `[location]`).
 - `v0.6.4`: metadata tag editing workflow (CLI + GUI + resolver persistence).
-- `v0.6.5` (planned): cross-platform GUI picker expansion.
+- `v0.6.5`: cross-platform GUI picker expansion.
 - `v0.6.6` (planned): GUI rename integration/E2E coverage.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 

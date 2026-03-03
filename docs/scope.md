@@ -794,7 +794,7 @@ correct and curate metadata-driven tags without leaving the application flow.
 
 ---
 
-## v0.6.5 Scope: Cross-Platform GUI Picker Expansion (Planned)
+## v0.6.5 Scope: Cross-Platform GUI Picker Expansion (Completed)
 
 ### Primary Goal
 Improve GUI path/file picker coverage and reliability across supported platforms
@@ -808,11 +808,26 @@ while keeping manual-entry fallback behavior deterministic.
 
 ### Release Notes
 - Behavior changes:
-  - TBD at completion: finalized platform picker support matrix.
+  - GUI picker backend support matrix expanded:
+    - macOS: `osascript` native chooser
+    - Linux: fallback chain `zenity -> kdialog -> yad`
+    - Windows: fallback chain `powershell -> pwsh` via WinForms dialogs
+  - Picker result semantics are now normalized across platforms:
+    - `ok`: selected path returned
+    - `cancelled`: no mutation, surfaced as info banner
+    - `unavailable`: manual-entry fallback message, surfaced as info banner
+    - `error`: backend/runtime failure, surfaced as error banner
+  - Scan and Rename panel picker actions keep existing task wiring and only
+    change failure presentation semantics (informational vs error banners).
 - Migration/compat notes:
-  - TBD at completion: fallback and dependency notes by platform.
+  - No CLI or app API contract changes.
+  - Manual path/file text inputs remain the deterministic fallback behavior on
+    all platforms.
+  - Linux GUI picker usage depends on at least one installed backend:
+    `zenity`, `kdialog`, or `yad`; otherwise GUI prompts manual paste.
 - Benchmark impact summary:
-  - TBD at completion: expected no benchmark schema/methodology changes.
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
 
 ---
 

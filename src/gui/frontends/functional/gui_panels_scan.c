@@ -56,6 +56,21 @@ static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
   return availability.enabled && clicked;
 }
 
+static void HandleDirectoryPickerFailure(GuiUiState *state,
+                                         GuiPathPickerStatus status,
+                                         const char *error_message,
+                                         const char *fallback_error) {
+  const char *message = (error_message && error_message[0] != '\0')
+                            ? error_message
+                            : fallback_error;
+  if (status == GUI_PATH_PICKER_STATUS_CANCELLED ||
+      status == GUI_PATH_PICKER_STATUS_UNAVAILABLE) {
+    GuiUiSetBannerInfo(state, message);
+    return;
+  }
+  GuiUiSetBannerError(state, message);
+}
+
 void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
   if (!state) {
     return;
@@ -78,12 +93,13 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                       false)) {
     char picked[GUI_STATE_MAX_PATH] = {0};
     char error[APP_MAX_ERROR] = {0};
-    if (GuiPickDirectoryPath("Select Gallery Directory", picked, sizeof(picked),
-                             error, sizeof(error))) {
+    GuiPathPickerStatus status = GuiPickDirectoryPathEx(
+        "Select Gallery Directory", picked, sizeof(picked), error, sizeof(error));
+    if (status == GUI_PATH_PICKER_STATUS_OK) {
       strncpy(state->gallery_dir, picked, sizeof(state->gallery_dir) - 1);
       state->gallery_dir[sizeof(state->gallery_dir) - 1] = '\0';
     } else {
-      GuiUiSetBannerError(state, error[0] != '\0' ? error : "Gallery picker failed");
+      HandleDirectoryPickerFailure(state, status, error, "Gallery picker failed");
     }
   }
   GuiHelpRegister(ToRayRect(layout.gallery_pick_button),
@@ -100,12 +116,15 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
                       false)) {
     char picked[GUI_STATE_MAX_PATH] = {0};
     char error[APP_MAX_ERROR] = {0};
-    if (GuiPickDirectoryPath("Select Environment Directory", picked,
-                             sizeof(picked), error, sizeof(error))) {
+    GuiPathPickerStatus status =
+        GuiPickDirectoryPathEx("Select Environment Directory", picked,
+                               sizeof(picked), error, sizeof(error));
+    if (status == GUI_PATH_PICKER_STATUS_OK) {
       strncpy(state->env_dir, picked, sizeof(state->env_dir) - 1);
       state->env_dir[sizeof(state->env_dir) - 1] = '\0';
     } else {
-      GuiUiSetBannerError(state, error[0] != '\0' ? error : "Environment picker failed");
+      HandleDirectoryPickerFailure(state, status, error,
+                                   "Environment picker failed");
     }
   }
   GuiHelpRegister(ToRayRect(layout.env_pick_button),

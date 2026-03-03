@@ -42,6 +42,21 @@ static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
   return availability.enabled && clicked;
 }
 
+static void HandleFilePickerFailure(GuiUiState *state,
+                                    GuiPathPickerStatus status,
+                                    const char *error_message,
+                                    const char *fallback_error) {
+  const char *message = (error_message && error_message[0] != '\0')
+                            ? error_message
+                            : fallback_error;
+  if (status == GUI_PATH_PICKER_STATUS_CANCELLED ||
+      status == GUI_PATH_PICKER_STATUS_UNAVAILABLE) {
+    GuiUiSetBannerInfo(state, message);
+    return;
+  }
+  GuiUiSetBannerError(state, message);
+}
+
 static bool RowMatchesFilter(const GuiUiState *state, const GuiRenamePreviewRow *row) {
   if (!state || !row) {
     return false;
@@ -352,13 +367,15 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
                       false)) {
     char picked[GUI_STATE_MAX_PATH] = {0};
     char error[APP_MAX_ERROR] = {0};
-    if (GuiPickFilePath("Select Rename Tags Map JSON", picked, sizeof(picked), error,
-                        sizeof(error))) {
+    GuiPathPickerStatus status = GuiPickFilePathEx(
+        "Select Rename Tags Map JSON", picked, sizeof(picked), error,
+        sizeof(error));
+    if (status == GUI_PATH_PICKER_STATUS_OK) {
       strncpy(state->rename_tags_map_path, picked,
               sizeof(state->rename_tags_map_path) - 1);
       state->rename_tags_map_path[sizeof(state->rename_tags_map_path) - 1] = '\0';
     } else {
-      GuiUiSetBannerError(state, error[0] != '\0' ? error : "Tags map picker failed");
+      HandleFilePickerFailure(state, status, error, "Tags map picker failed");
     }
   }
   GuiHelpRegister(ToRayRect(layout.tags_map_pick_button),

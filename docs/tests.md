@@ -100,6 +100,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - GUI action dependency rules (`src/gui/core/gui_action_rules.c`)
 - GUI rename panel wiring (`src/gui/frontends/functional/gui_panels_rename.c`)
 - GUI per-file tags-map upsert helper (`src/gui/core/gui_rename_map.c`)
+- GUI path/file picker status handling and backend fallback logic (`src/gui/core/gui_path_picker.c`)
 
 ## Manual Smoke Checklist
 
@@ -278,6 +279,11 @@ make gui
 ```
 Expected:
 - gallery/env path inputs are editable and expose picker buttons on supported platforms.
+- picker flows normalize outcomes:
+  - selected path updates field value
+  - user cancel shows informational banner (not error)
+  - unavailable backend shows manual-paste informational guidance
+  - backend runtime failures surface error banner
 - scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
 - rename preview/apply/history/rollback actions are invokable from Rename tab.
 - Rename tab exposes tags-map picker and **Bootstrap Tags** action.
