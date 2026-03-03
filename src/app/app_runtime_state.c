@@ -2,7 +2,12 @@
 #include <string.h>
 
 #include <sys/stat.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "app/app_cache_profile.h"
 #include "app/app_internal.h"
@@ -19,6 +24,17 @@ static bool AppFileExistsRegular(const char *path) {
 }
 
 static int AppDetectLogicalCores(void) {
+#if defined(_WIN32)
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  if (info.dwNumberOfProcessors < 1) {
+    return 1;
+  }
+  if (info.dwNumberOfProcessors > 256) {
+    return 256;
+  }
+  return (int)info.dwNumberOfProcessors;
+#else
   long cores = sysconf(_SC_NPROCESSORS_ONLN);
   if (cores < 1) {
     return 1;
@@ -27,6 +43,7 @@ static int AppDetectLogicalCores(void) {
     return 256;
   }
   return (int)cores;
+#endif
 }
 
 static int AppRecommendJobs(int logical_cores) {
