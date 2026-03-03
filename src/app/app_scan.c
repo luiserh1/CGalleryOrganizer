@@ -195,7 +195,7 @@ AppStatus AppRunScan(AppContext *ctx, const AppScanRequest *request,
   };
 
   ScanRunStats stats = {0};
-  if (!CliRunScanPipeline(request->target_dir, &pipeline_ctx, request->jobs,
+  if (!AppRunScanPipeline(request->target_dir, &pipeline_ctx, request->jobs,
                           &stats)) {
     if (pipeline_ctx.cancelled) {
       AppSetError(ctx, "scan cancelled");

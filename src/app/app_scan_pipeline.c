@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cli/cli_scan_pipeline.h"
+#include "app/app_scan_pipeline.h"
 #include "fs_utils.h"
 #include "gallery_cache.h"
 #include "hash_utils.h"
@@ -400,7 +400,7 @@ static void *ScanWorkerRun(void *arg) {
   return NULL;
 }
 
-bool CliRunScanPipeline(const char *target_dir, AppScanContext *ctx,
+bool AppRunScanPipeline(const char *target_dir, AppScanContext *ctx,
                         int resolved_jobs, ScanRunStats *out_stats) {
   if (!target_dir || !ctx || !out_stats) {
     return false;

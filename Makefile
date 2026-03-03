@@ -64,7 +64,6 @@ $(GUI_OBJS): CFLAGS += $(RAYLIB_CFLAGS)
 APP_API_LIB = $(BUILD_DIR)/lib/libcgallery_app_api.$(APP_API_LIB_EXT)
 APP_API_SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/app
 APP_API_LIB_SRCS = $(wildcard $(addsuffix /*.c, $(APP_API_SRC_DIRS))) vendor/cJSON.c vendor/md5.c vendor/sha256.c
-APP_API_LIB_SRCS += src/cli/cli_scan_pipeline.c
 APP_API_LIB_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(APP_API_SRC_DIRS)))
 APP_API_LIB_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(APP_API_LIB_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(APP_API_LIB_CXX_SRCS))
 
