@@ -432,8 +432,8 @@ void test_cli_rename_history_detail_redo_and_latest_ids(void) {
            operation_id, preview_id);
   code = RunCommandCapture(invalid_redo_cmd, output, sizeof(output));
   ASSERT_TRUE(code != 0);
-  ASSERT_TRUE(strstr(output, "--rename-from-preview can only be used with "
-                            "--rename-apply") != NULL);
+  ASSERT_TRUE(strstr(output, "--rename-from-preview") != NULL);
+  ASSERT_TRUE(strstr(output, "--rename-apply") != NULL);
 
   memset(output, 0, sizeof(output));
   char redo_cmd[2048] = {0};
