@@ -831,7 +831,7 @@ while keeping manual-entry fallback behavior deterministic.
 
 ---
 
-## v0.6.6 Scope: GUI Rename Integration/E2E Coverage (Planned)
+## v0.6.6 Scope: GUI Rename Integration/E2E Coverage (Completed)
 
 ### Primary Goal
 Increase confidence in rename GUI workflows by adding broader integration/E2E
@@ -851,8 +851,22 @@ coverage for preview/apply/history/rollback and tag-edit paths.
 
 ### Release Notes
 - Behavior changes:
-  - TBD at completion: finalized test harness and coverage summary.
+  - Added GUI rename integration coverage through worker-driven workflow tests:
+    - preview generation and row materialization into GUI snapshot state
+    - apply/history/rollback end-to-end wiring via GUI task layer
+    - per-file manual-tag map update followed by preview refresh validation
+  - Added dedicated filter/selection model coverage:
+    - extracted pure helper logic for rename preview filtering/selection
+    - unit tests for collisions/warnings filters and selection fallback behavior
+  - Added negative-path integration coverage for:
+    - invalid tags-map path in GUI rename preview
+    - missing preview id on GUI rename apply
+    - missing operation id on GUI rename rollback
+    - collision-acceptance guard enforcement for GUI rename apply
 - Migration/compat notes:
-  - TBD at completion: no expected runtime behavior changes outside testing.
+  - No app API or CLI contract changes.
+  - GUI behavior remains functionally equivalent; filter/selection logic was
+    refactored into a headless helper module for deterministic testing.
 - Benchmark impact summary:
-  - TBD at completion: expected no benchmark schema/methodology changes.
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.

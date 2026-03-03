@@ -8,6 +8,7 @@
 #include "gui/core/gui_help.h"
 #include "gui/core/gui_path_picker.h"
 #include "gui/core/gui_rename_map.h"
+#include "gui/core/gui_rename_preview_model.h"
 #include "gui/frontends/functional/gui_fixed_layout.h"
 #include "gui/gui_common.h"
 
@@ -55,43 +56,6 @@ static void HandleFilePickerFailure(GuiUiState *state,
     return;
   }
   GuiUiSetBannerError(state, message);
-}
-
-static bool RowMatchesFilter(const GuiUiState *state, const GuiRenamePreviewRow *row) {
-  if (!state || !row) {
-    return false;
-  }
-
-  if (state->rename_filter_collisions_only && !row->collision) {
-    return false;
-  }
-  if (state->rename_filter_warnings_only && !row->warning) {
-    return false;
-  }
-  return true;
-}
-
-static int BuildVisibleRowIndexList(const GuiUiState *state, int *out_indices,
-                                    int max_indices) {
-  if (!state || !out_indices || max_indices <= 0) {
-    return 0;
-  }
-
-  int count = 0;
-  int total = state->rename_preview_row_count;
-  if (total < 0) {
-    total = 0;
-  }
-  if (total > GUI_RENAME_PREVIEW_ROWS_MAX) {
-    total = GUI_RENAME_PREVIEW_ROWS_MAX;
-  }
-
-  for (int i = 0; i < total && count < max_indices; i++) {
-    if (RowMatchesFilter(state, &state->rename_preview_rows[i])) {
-      out_indices[count++] = i;
-    }
-  }
-  return count;
 }
 
 static bool ResolveManualTagsMapPath(GuiUiState *state, char *out_map_path,
@@ -175,8 +139,11 @@ static int DrawRenamePreviewTable(GuiUiState *state, Rectangle table_bounds) {
   DrawRectangleLinesEx(table_bounds, 1.0f, (Color){186, 186, 186, 255});
 
   int visible_indices[GUI_RENAME_PREVIEW_ROWS_MAX] = {0};
-  int visible_count = BuildVisibleRowIndexList(
-      state, visible_indices, (int)(sizeof(visible_indices) / sizeof(visible_indices[0])));
+  int visible_count = GuiRenameBuildVisibleRowIndexList(
+      state->rename_preview_rows, state->rename_preview_row_count,
+      state->rename_filter_collisions_only, state->rename_filter_warnings_only,
+      visible_indices,
+      (int)(sizeof(visible_indices) / sizeof(visible_indices[0])));
 
   Rectangle header = {table_bounds.x + 1.0f, table_bounds.y + 1.0f,
                       table_bounds.width - 2.0f, RENAME_TABLE_HEADER_HEIGHT};
@@ -235,15 +202,10 @@ static int DrawRenamePreviewTable(GuiUiState *state, Rectangle table_bounds) {
   }
 
   if (visible_count > 0) {
-    bool selected_visible = false;
-    for (int i = 0; i < visible_count; i++) {
-      if (visible_indices[i] == state->rename_selected_row) {
-        selected_visible = true;
-        break;
-      }
-    }
-    if (!selected_visible) {
-      state->rename_selected_row = visible_indices[0];
+    int resolved_selected = GuiRenameResolveSelectedRow(
+        visible_indices, visible_count, state->rename_selected_row);
+    if (resolved_selected != state->rename_selected_row) {
+      state->rename_selected_row = resolved_selected;
       SyncSelectedTagsInput(state);
     }
   } else {

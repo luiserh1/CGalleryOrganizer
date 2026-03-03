@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.5)
+## Key Features (v0.6.6)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -53,6 +53,10 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
     - in-panel bootstrap action for filename-derived tags map generation
     - preview table with collision/warning filters and row selection
     - selected-row manual tag edit + persistence helper
+  - GUI rename integration/e2e confidence improvements:
+    - worker-driven integration tests for preview/apply/history/rollback
+    - negative-path coverage for invalid tags map, missing ids, and collision guard
+    - headless filter/selection model tests for deterministic preview-table behavior
   - CLI onboarding/usability improvements:
     - `--rename-init` for target/env preflight and cache layout setup
     - `--rename-bootstrap-tags-from-filename` to build tag map JSON from
@@ -219,6 +223,10 @@ Additional 0.5.4 behavior:
   - Windows: `powershell -> pwsh` fallback chain
   - picker cancel/unavailable paths are informational; only backend failures are
     treated as errors
+- GUI rename integration coverage expansion (v0.6.6):
+  - preview/apply/history/rollback task wiring covered by integration tests
+  - tag-update + preview-refresh workflow covered by integration tests
+  - collisions, missing ids, and invalid tags-map paths covered as negative flows
 
 GUI path fields remain directly editable and now also provide picker actions on
 supported platforms.
@@ -368,7 +376,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.3`: extended rename tokens with GPS/location support (`[gps_lat]`, `[gps_lon]`, `[location]`).
 - `v0.6.4`: metadata tag editing workflow (CLI + GUI + resolver persistence).
 - `v0.6.5`: cross-platform GUI picker expansion.
-- `v0.6.6` (planned): GUI rename integration/E2E coverage.
+- `v0.6.6`: GUI rename integration/E2E coverage.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

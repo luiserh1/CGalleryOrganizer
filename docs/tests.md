@@ -100,7 +100,9 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - GUI action dependency rules (`src/gui/core/gui_action_rules.c`)
 - GUI rename panel wiring (`src/gui/frontends/functional/gui_panels_rename.c`)
 - GUI per-file tags-map upsert helper (`src/gui/core/gui_rename_map.c`)
+- GUI rename preview filter/selection model (`src/gui/core/gui_rename_preview_model.c`)
 - GUI path/file picker status handling and backend fallback logic (`src/gui/core/gui_path_picker.c`)
+- GUI rename task integration workflows (`src/gui/gui_worker*.c`)
 
 ## Manual Smoke Checklist
 
@@ -296,6 +298,31 @@ Expected:
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.
+
+Deterministic GUI rename regression script (manual):
+```bash
+rm -rf build/gui_rename_reg_src build/gui_rename_reg_env
+mkdir -p build/gui_rename_reg_src build/gui_rename_reg_env
+cp tests/assets/png/sample_no_exif.png build/gui_rename_reg_src/a.png
+cp tests/assets/png/sample_no_exif.png build/gui_rename_reg_src/b.png
+make gui
+./build/bin/gallery_organizer_gui
+```
+In GUI:
+- set `Gallery Directory` to `build/gui_rename_reg_src`.
+- set `Environment Dir` to `build/gui_rename_reg_env`.
+- open `Rename` tab.
+- run preview with pattern `same.[format]` and verify collision flags are shown.
+- run apply without enabling accept-auto-suffix and verify rejection.
+- enable accept-auto-suffix and re-run apply; verify success + operation id.
+- run history and verify latest operation appears.
+- run rollback using operation id and verify success.
+
+Expected:
+- preview row table shows two items with collision/warning status.
+- apply is blocked unless auto-suffix acceptance is enabled for collision preview.
+- history output lists the new operation id.
+- rollback restores `a.png` and `b.png` in `build/gui_rename_reg_src`.
 - actions with unmet prerequisites are disabled and report an explicit reason when clicked.
 - each panel exposes hover tooltip help for inputs/actions.
 - Scan panel includes **Download Models** and completes model install workflow.
