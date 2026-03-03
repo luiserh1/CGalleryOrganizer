@@ -10,6 +10,10 @@ The repository uses a custom lightweight test framework in `tests/test_framework
 # Build main binary + test runner and execute all tests
 make test
 
+# Run release checklist gates (tests + optional GUI + optional tag check)
+./scripts/release_check.sh
+./scripts/release_check.sh --expected-tag v0.6.7
+
 # Build binaries only
 make
 
