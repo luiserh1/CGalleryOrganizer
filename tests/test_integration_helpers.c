@@ -57,7 +57,11 @@ static bool RemovePathRecursiveInternal(const char *path) {
   }
 
   struct stat st;
+#if defined(_WIN32)
+  if (stat(path, &st) != 0) {
+#else
   if (lstat(path, &st) != 0) {
+#endif
     return errno == ENOENT;
   }
 
