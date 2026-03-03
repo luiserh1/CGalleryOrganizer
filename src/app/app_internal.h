@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include "app_api.h"
-#include "cli/cli_scan_pipeline.h"
+#include "app/app_scan_pipeline.h"
 #include "gallery_cache.h"
 #include "similarity_engine.h"
 

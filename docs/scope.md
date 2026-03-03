@@ -238,7 +238,7 @@ Improve throughput via parallel scan->metadata->inference processing while prese
   - structured comparison report export
 
 ### Merge Policy
-- May merge to `main` without creating a release tag.
+- May merge to `master` without creating a release tag.
 - If behavior changes leak into runtime paths, defer merge to the next functional version branch.
 
 ---
@@ -524,6 +524,32 @@ automatically rebuilding cache only when tracked parameters change.
   - `cacheEntryCount` in sidecar is optional and load-tolerant.
 - Benchmark impact summary:
   - no benchmark methodology/schema changes in this milestone.
+
+---
+
+## v0.5.5 Scope: PM Audit Remediation + Team Handover Docs (Completed)
+
+### Primary Goal
+Address post-0.5.4 audit findings with targeted behavior clarifications,
+workflow hardening, and documentation updates to support team handover.
+
+### Features
+- Clarified duplicate-flow safety so file moves remain explicit-only actions.
+- Improved workflow-level tests around CLI/app duplicate and organize paths.
+- Applied modularity/refactor follow-ups in touched workflow areas while
+  preserving existing public contracts.
+- Added/updated team-facing governance and handover documentation.
+
+### Release Notes
+- Behavior changes:
+  - duplicate move semantics remained explicit-only and were reinforced by tests
+    and docs.
+  - no breaking CLI/app API behavior changes introduced.
+- Migration/compat notes:
+  - additive and cleanup-focused milestone; existing env/cache artifacts remain
+    compatible.
+- Benchmark impact summary:
+  - no benchmark schema or benchmark command changes in this milestone.
 
 ---
 
@@ -1074,3 +1100,40 @@ quality gate for tests.
   - No CLI/app API/GUI runtime contract changes.
 - Benchmark impact summary:
   - No benchmark schema or benchmark workflow changes.
+
+---
+
+## v0.6.12 Scope: Audit Remediation + Governance Alignment (Planned)
+
+### Primary Goal
+Implement the high-priority remediation backlog identified by the repository
+audit so release/process truth, architecture boundaries, and quality gates stay
+aligned as the codebase grows.
+
+### Planned Features
+- Release-truth alignment:
+  - synchronize runtime banners/window titles and docs examples to `v0.6.12`.
+  - keep roadmap/scope entries synchronized with tagged releases.
+- Coverage ratchet activation:
+  - replace zeroed bootstrap baseline with measurable non-zero baseline values.
+  - validate regression gate behavior against baseline in CI and local workflow.
+- Governance consistency:
+  - align git branch policy documentation and CI branch trigger strategy.
+  - document canonical local upstream tracking expectations for `master`.
+- Architecture/modularity remediation:
+  - remove backend dependency on CLI scan pipeline internals.
+  - decompose oversized production modules into focused units while preserving
+    public contracts and behavior.
+- Validation maintainability:
+  - reduce non-semantic CLI output-string coupling where behavior/artifact
+    assertions are more stable.
+
+### Release Notes (Planned)
+- Behavior changes:
+  - expected to be mostly behavior-preserving; focus is maintainability and
+    governance hardening.
+- Migration/compat notes:
+  - no intentional CLI/app API contract breaks.
+  - refactors must preserve existing workflows and test expectations.
+- Benchmark impact summary:
+  - no benchmark schema changes planned; performance impact will be tracked.

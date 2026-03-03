@@ -1,5 +1,5 @@
-#ifndef CLI_SCAN_PIPELINE_H
-#define CLI_SCAN_PIPELINE_H
+#ifndef APP_SCAN_PIPELINE_H
+#define APP_SCAN_PIPELINE_H
 
 #include <stdbool.h>
 
@@ -30,7 +30,7 @@ typedef struct {
   int files_cached;
 } ScanRunStats;
 
-bool CliRunScanPipeline(const char *target_dir, AppScanContext *ctx,
+bool AppRunScanPipeline(const char *target_dir, AppScanContext *ctx,
                         int resolved_jobs, ScanRunStats *out_stats);
 
-#endif // CLI_SCAN_PIPELINE_H
+#endif // APP_SCAN_PIPELINE_H

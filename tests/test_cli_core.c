@@ -16,6 +16,15 @@ static bool FileExists(const char *path) {
   return true;
 }
 
+static void AssertOutputContainsAll(const char *output, const char *left,
+                                    const char *right) {
+  ASSERT_TRUE(output != NULL);
+  ASSERT_TRUE(left != NULL);
+  ASSERT_TRUE(right != NULL);
+  ASSERT_TRUE(strstr(output, left) != NULL);
+  ASSERT_TRUE(strstr(output, right) != NULL);
+}
+
 void test_cli_exhaustive_flag_and_cache_enrichment(void) {
   ASSERT_TRUE(RemovePathsForTest(
       (const char *[]){"build/test_cli_exhaustive_src",
@@ -125,9 +134,7 @@ void test_cli_jobs_validation(void) {
       "--jobs 0 2>&1",
       output, sizeof(output));
   ASSERT_TRUE(code != 0);
-  ASSERT_TRUE(strstr(output,
-                     "--jobs/CGO_JOBS must be 'auto' or a positive integer") !=
-              NULL);
+  AssertOutputContainsAll(output, "--jobs/CGO_JOBS", "positive integer");
 }
 
 void test_cli_jobs_env_and_override(void) {
@@ -240,8 +247,7 @@ void test_cli_duplicates_move_requires_env(void) {
       "--duplicates-move 2>&1",
       output, sizeof(output));
   ASSERT_TRUE(code != 0);
-  ASSERT_TRUE(strstr(output, "--duplicates-move requires an environment directory") !=
-              NULL);
+  AssertOutputContainsAll(output, "--duplicates-move", "environment directory");
 
   ASSERT_TRUE(RemovePathRecursiveForTest("build/test_cli_dup_move_req_src"));
 }

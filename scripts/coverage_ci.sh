@@ -10,8 +10,18 @@ EXTRA_CFLAGS_VAL="${EXTRA_CFLAGS:---coverage -O0 -Wno-error}"
 EXTRA_CXXFLAGS_VAL="${EXTRA_CXXFLAGS:---coverage -O0 -Wno-error}"
 EXTRA_LDFLAGS_VAL="${EXTRA_LDFLAGS:---coverage}"
 
-if ! command -v gcovr >/dev/null 2>&1; then
+GCOVR_BIN="${GCOVR_BIN:-}"
+if [[ -z "$GCOVR_BIN" ]]; then
+  if command -v gcovr >/dev/null 2>&1; then
+    GCOVR_BIN="gcovr"
+  elif [[ -x "$ROOT_DIR/.venv/bin/gcovr" ]]; then
+    GCOVR_BIN="$ROOT_DIR/.venv/bin/gcovr"
+  fi
+fi
+
+if [[ -z "$GCOVR_BIN" ]]; then
   echo "Error: gcovr is required. Install with: python3 -m pip install --user gcovr" >&2
+  echo "       or create .venv and install gcovr there (auto-detected)." >&2
   exit 2
 fi
 
@@ -36,9 +46,9 @@ GCOVR_ARGS=(
   --exclude "$ROOT_DIR/build"
 )
 
-gcovr "${GCOVR_ARGS[@]}" --txt --output "$COVERAGE_DIR/coverage.txt"
-gcovr "${GCOVR_ARGS[@]}" --json --output "$COVERAGE_DIR/coverage.json"
-gcovr "${GCOVR_ARGS[@]}" --xml-pretty --output "$COVERAGE_DIR/coverage.xml"
+"$GCOVR_BIN" "${GCOVR_ARGS[@]}" --txt --output "$COVERAGE_DIR/coverage.txt"
+"$GCOVR_BIN" "${GCOVR_ARGS[@]}" --json --output "$COVERAGE_DIR/coverage.json"
+"$GCOVR_BIN" "${GCOVR_ARGS[@]}" --xml-pretty --output "$COVERAGE_DIR/coverage.xml"
 
 python3 - "$COVERAGE_DIR/coverage.json" "$COVERAGE_DIR/summary.json" <<'PY'
 import json
