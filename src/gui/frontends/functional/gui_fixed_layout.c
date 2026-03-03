@@ -84,16 +84,22 @@ void GuiBuildScanPanelLayout(GuiRect panel_bounds, GuiScanPanelLayout *out_layou
   float y = panel_bounds.y + PANEL_PAD;
   float panel_right = panel_bounds.x + panel_bounds.width - PANEL_PAD;
   float path_label_w = 170.0f;
-  float path_input_w = panel_right - (x + path_label_w + SHELL_GAP);
+  float pick_button_w = 100.0f;
+  float path_input_w =
+      panel_right - (x + path_label_w + SHELL_GAP + pick_button_w + SHELL_GAP);
 
   out_layout->gallery_label = MakeRect(x, y, path_label_w, 30.0f);
   out_layout->gallery_input =
       MakeRect(x + path_label_w + SHELL_GAP, y, path_input_w, 34.0f);
+  out_layout->gallery_pick_button =
+      MakeRect(panel_right - pick_button_w, y, pick_button_w, 34.0f);
 
   y += 44.0f;
   out_layout->env_label = MakeRect(x, y, path_label_w, 30.0f);
   out_layout->env_input =
       MakeRect(x + path_label_w + SHELL_GAP, y, path_input_w, 34.0f);
+  out_layout->env_pick_button =
+      MakeRect(panel_right - pick_button_w, y, pick_button_w, 34.0f);
 
   y += 46.0f;
   out_layout->exhaustive = MakeRect(x, y, 260.0f, 30.0f);
@@ -208,30 +214,56 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
   float x = panel_bounds.x + PANEL_PAD;
   float y = panel_bounds.y + PANEL_PAD;
   float label_w = 140.0f;
-  float input_w = 980.0f;
+  float panel_right = panel_bounds.x + panel_bounds.width - PANEL_PAD;
+  float input_w = panel_right - (x + label_w + 8.0f);
 
   out_layout->pattern_label = MakeRect(x, y, label_w, 30.0f);
   out_layout->pattern_input = MakeRect(x + label_w + 8.0f, y, input_w, 34.0f);
 
   y += 44.0f;
   out_layout->tags_map_label = MakeRect(x, y, label_w, 30.0f);
-  out_layout->tags_map_input = MakeRect(x + label_w + 8.0f, y, input_w, 34.0f);
+  float tags_map_x = x + label_w + 8.0f;
+  float tags_map_pick_w = 100.0f;
+  float tags_map_bootstrap_w = 210.0f;
+  float tags_map_gap = 10.0f;
+  float tags_map_input_w = panel_right - tags_map_x - tags_map_pick_w -
+                           tags_map_bootstrap_w - (tags_map_gap * 2.0f);
+  out_layout->tags_map_input = MakeRect(tags_map_x, y, tags_map_input_w, 34.0f);
+  out_layout->tags_map_pick_button =
+      MakeRect(tags_map_x + tags_map_input_w + tags_map_gap, y, tags_map_pick_w,
+               34.0f);
+  out_layout->tags_map_bootstrap_button = MakeRect(
+      tags_map_x + tags_map_input_w + tags_map_gap + tags_map_pick_w +
+          tags_map_gap,
+      y, tags_map_bootstrap_w, 34.0f);
 
   y += 44.0f;
   out_layout->tag_add_label = MakeRect(x, y, label_w, 30.0f);
   out_layout->tag_add_input = MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
   out_layout->tag_remove_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
-  out_layout->tag_remove_input = MakeRect(x + 705.0f, y, 420.0f, 34.0f);
+  out_layout->tag_remove_input =
+      MakeRect(x + 705.0f, y, panel_right - (x + 705.0f), 34.0f);
+
+  y += 44.0f;
+  out_layout->meta_tag_add_label = MakeRect(x, y, label_w, 30.0f);
+  out_layout->meta_tag_add_input =
+      MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
+  out_layout->meta_tag_remove_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
+  out_layout->meta_tag_remove_input =
+      MakeRect(x + 705.0f, y, panel_right - (x + 705.0f), 34.0f);
 
   y += 44.0f;
   out_layout->preview_id_label = MakeRect(x, y, label_w, 30.0f);
   out_layout->preview_id_input =
       MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
   out_layout->operation_id_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
-  out_layout->operation_id_input = MakeRect(x + 705.0f, y, 420.0f, 34.0f);
+  out_layout->operation_id_input =
+      MakeRect(x + 705.0f, y, panel_right - (x + 705.0f), 34.0f);
 
   y += 44.0f;
   out_layout->accept_suffix = MakeRect(x, y, 350.0f, 30.0f);
+  out_layout->filter_collisions = MakeRect(x + 370.0f, y, 210.0f, 30.0f);
+  out_layout->filter_warnings = MakeRect(x + 590.0f, y, 180.0f, 30.0f);
 
   y += 48.0f;
   out_layout->preview_button = MakeRect(x, y, 170.0f, 42.0f);
@@ -239,8 +271,27 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
   out_layout->history_button = MakeRect(x + 360.0f, y, 170.0f, 42.0f);
   out_layout->rollback_button = MakeRect(x + 540.0f, y, 170.0f, 42.0f);
 
-  y += 54.0f;
-  out_layout->info_label = MakeRect(x, y, 1080.0f, 30.0f);
+  y += 50.0f;
+  out_layout->selected_tags_label = MakeRect(x, y, 110.0f, 30.0f);
+  out_layout->selected_tags_apply_button = MakeRect(x + 370.0f, y, 180.0f, 34.0f);
+  out_layout->selected_tags_input =
+      MakeRect(x + 115.0f, y,
+               out_layout->selected_tags_apply_button.x - (x + 115.0f) - 10.0f,
+               34.0f);
+  out_layout->selected_meta_tags_label = MakeRect(x + 560.0f, y, 95.0f, 30.0f);
+  out_layout->selected_meta_tags_apply_button =
+      MakeRect(panel_right - 210.0f, y, 210.0f, 34.0f);
+  out_layout->selected_meta_tags_input = MakeRect(
+      x + 660.0f, y,
+      out_layout->selected_meta_tags_apply_button.x - (x + 660.0f) - 10.0f,
+      34.0f);
+
+  y += 44.0f;
+  out_layout->info_label = MakeRect(x, y, panel_right - x, 30.0f);
+
+  y += 34.0f;
+  float table_bottom = panel_bounds.y + panel_bounds.height - PANEL_PAD;
+  out_layout->preview_table = MakeRect(x, y, panel_right - x, table_bottom - y);
 }
 
 bool GuiRectInBounds(GuiRect outer, GuiRect inner) {

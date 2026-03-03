@@ -20,8 +20,21 @@ typedef enum {
   GUI_TASK_RENAME_PREVIEW = 10,
   GUI_TASK_RENAME_APPLY = 11,
   GUI_TASK_RENAME_HISTORY = 12,
-  GUI_TASK_RENAME_ROLLBACK = 13
+  GUI_TASK_RENAME_ROLLBACK = 13,
+  GUI_TASK_RENAME_BOOTSTRAP_TAGS = 14
 } GuiTaskType;
+
+#define GUI_RENAME_PREVIEW_ROWS_MAX 128
+
+typedef struct {
+  char source_path[GUI_STATE_MAX_PATH];
+  char source_name[192];
+  char candidate_name[256];
+  char tags_manual[256];
+  char tags_meta[256];
+  bool collision;
+  bool warning;
+} GuiRenamePreviewRow;
 
 typedef struct {
   GuiTaskType type;
@@ -40,6 +53,8 @@ typedef struct {
   char rename_tags_map_path[GUI_STATE_MAX_PATH];
   char rename_tag_add_csv[256];
   char rename_tag_remove_csv[256];
+  char rename_meta_tag_add_csv[256];
+  char rename_meta_tag_remove_csv[256];
   char rename_preview_id[64];
   char rename_operation_id[64];
   bool rename_accept_auto_suffix;
@@ -66,6 +81,12 @@ typedef struct {
   int rename_preview_file_count;
   int rename_preview_collision_count;
   bool rename_preview_requires_auto_suffix;
+  int rename_preview_row_count;
+  int rename_preview_warning_count;
+  GuiRenamePreviewRow rename_preview_rows[GUI_RENAME_PREVIEW_ROWS_MAX];
+  char rename_bootstrap_map_path[GUI_STATE_MAX_PATH];
+  int rename_bootstrap_files_scanned;
+  int rename_bootstrap_files_tagged;
   int rename_history_count;
   int duplicate_group_count;
   bool duplicate_report_ready;

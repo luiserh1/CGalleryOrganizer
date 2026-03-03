@@ -429,6 +429,12 @@ static void ExtractTokensFromMetadata(const ImageMetadata *md, char *out_date,
                                       size_t out_make_size,
                                       char *out_model,
                                       size_t out_model_size,
+                                      char *out_gps_lat,
+                                      size_t out_gps_lat_size,
+                                      char *out_gps_lon,
+                                      size_t out_gps_lon_size,
+                                      char *out_location,
+                                      size_t out_location_size,
                                       char *out_format,
                                       size_t out_format_size) {
   if (!md) {
@@ -452,6 +458,15 @@ static void ExtractTokensFromMetadata(const ImageMetadata *md, char *out_date,
   }
   if (out_model && out_model_size > 0) {
     out_model[0] = '\0';
+  }
+  if (out_gps_lat && out_gps_lat_size > 0) {
+    out_gps_lat[0] = '\0';
+  }
+  if (out_gps_lon && out_gps_lon_size > 0) {
+    out_gps_lon[0] = '\0';
+  }
+  if (out_location && out_location_size > 0) {
+    out_location[0] = '\0';
   }
   if (out_format && out_format_size > 0) {
     out_format[0] = '\0';
@@ -493,6 +508,26 @@ static void ExtractTokensFromMetadata(const ImageMetadata *md, char *out_date,
     } else if (md->cameraMake[0] != '\0') {
       strncpy(out_camera, md->cameraMake, out_camera_size - 1);
       out_camera[out_camera_size - 1] = '\0';
+    }
+  }
+
+  if (md->hasGps) {
+    if (out_gps_lat && out_gps_lat_size > 0) {
+      snprintf(out_gps_lat, out_gps_lat_size, "%c%.6f",
+               md->gpsLatitude < 0.0 ? 's' : 'n',
+               md->gpsLatitude < 0.0 ? -md->gpsLatitude : md->gpsLatitude);
+    }
+    if (out_gps_lon && out_gps_lon_size > 0) {
+      snprintf(out_gps_lon, out_gps_lon_size, "%c%.6f",
+               md->gpsLongitude < 0.0 ? 'w' : 'e',
+               md->gpsLongitude < 0.0 ? -md->gpsLongitude : md->gpsLongitude);
+    }
+    if (out_location && out_location_size > 0) {
+      snprintf(out_location, out_location_size, "%s-%s",
+               out_gps_lat && out_gps_lat[0] != '\0' ? out_gps_lat
+                                                     : "unknown-gps-lat",
+               out_gps_lon && out_gps_lon[0] != '\0' ? out_gps_lon
+                                                     : "unknown-gps-lon");
     }
   }
 
@@ -659,6 +694,8 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
                           preview->collision_group_count);
   cJSON_AddNumberToObject(root, "collisionCount", preview->collision_count);
   cJSON_AddNumberToObject(root, "truncationCount", preview->truncation_count);
+  cJSON_AddNumberToObject(root, "metadataTagFieldCount",
+                          preview->metadata_field_count);
   cJSON_AddBoolToObject(root, "requiresAutoSuffixAcceptance",
                         preview->requires_auto_suffix_acceptance);
 
@@ -673,6 +710,21 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
     cJSON_Delete(items);
     cJSON_Delete(root);
     return NULL;
+  }
+  cJSON *metadata_fields = cJSON_CreateArray();
+  if (!metadata_fields) {
+    cJSON_Delete(collision_groups);
+    cJSON_Delete(items);
+    cJSON_Delete(root);
+    return NULL;
+  }
+
+  for (int i = 0; i < preview->metadata_field_count; i++) {
+    if (preview->metadata_fields[i][0] == '\0') {
+      continue;
+    }
+    cJSON_AddItemToArray(metadata_fields,
+                         cJSON_CreateString(preview->metadata_fields[i]));
   }
 
   for (int i = 0; i < preview->file_count; i++) {
@@ -748,6 +800,7 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
 
   cJSON *warnings = cJSON_CreateArray();
   if (!warnings) {
+    cJSON_Delete(metadata_fields);
     cJSON_Delete(collision_groups);
     cJSON_Delete(items);
     cJSON_Delete(root);
@@ -768,6 +821,7 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
   }
 
   cJSON_AddItemToObject(root, "items", items);
+  cJSON_AddItemToObject(root, "metadataTagFields", metadata_fields);
   cJSON_AddItemToObject(root, "collisionGroups", collision_groups);
   cJSON_AddItemToObject(root, "warnings", warnings);
   return root;
@@ -940,7 +994,9 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
 
   if (!RenamerTagsApplyBulkCsv(tags_root, (const char **)files.paths, files.count,
                                request->tag_add_csv, request->tag_remove_csv,
-                               out_error, out_error_size)) {
+                               request->meta_tag_add_csv,
+                               request->meta_tag_remove_csv, out_error,
+                               out_error_size)) {
     cJSON_Delete(tags_root);
     PathListFree(&files);
     RenamerPreviewFree(out_preview);
@@ -972,12 +1028,28 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
     char camera[128] = {0};
     char make[128] = {0};
     char model[128] = {0};
+    char gps_lat[64] = {0};
+    char gps_lon[64] = {0};
+    char location[160] = {0};
     char format[32] = {0};
 
     ExtractTokensFromMetadata(&md, date, sizeof(date), time_text,
                               sizeof(time_text), datetime, sizeof(datetime),
                               camera, sizeof(camera), make, sizeof(make), model,
-                              sizeof(model), format, sizeof(format));
+                              sizeof(model), gps_lat, sizeof(gps_lat), gps_lon,
+                              sizeof(gps_lon), location, sizeof(location),
+                              format, sizeof(format));
+
+    if (!RenamerTagsCollectMetadataFields(
+            md.allMetadataJson, out_preview->metadata_fields,
+            RENAMER_META_FIELD_MAX, &out_preview->metadata_field_count, out_error,
+            out_error_size)) {
+      CacheFreeMetadata(&md);
+      cJSON_Delete(tags_root);
+      PathListFree(&files);
+      RenamerPreviewFree(out_preview);
+      return false;
+    }
 
     RenamerResolvedTags resolved_tags = {0};
     if (!RenamerTagsResolve(tags_root, files.paths[i], md.allMetadataJson,
@@ -997,6 +1069,9 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
         .make = make,
         .model = model,
         .format = format,
+        .gps_lat = gps_lat,
+        .gps_lon = gps_lon,
+        .location = location,
         .tags_manual = resolved_tags.manual,
         .tags_meta = resolved_tags.meta,
         .tags = resolved_tags.merged,
@@ -1199,6 +1274,9 @@ bool RenamerPreviewLoadArtifact(const char *env_dir, const char *preview_id,
   cJSON *collision_groups = cJSON_GetObjectItem(json, "collisionGroupCount");
   cJSON *collision_count = cJSON_GetObjectItem(json, "collisionCount");
   cJSON *truncation_count = cJSON_GetObjectItem(json, "truncationCount");
+  cJSON *metadata_field_count =
+      cJSON_GetObjectItem(json, "metadataTagFieldCount");
+  cJSON *metadata_fields = cJSON_GetObjectItem(json, "metadataTagFields");
   cJSON *requires_suffix =
       cJSON_GetObjectItem(json, "requiresAutoSuffixAcceptance");
   cJSON *items = cJSON_GetObjectItem(json, "items");
@@ -1257,9 +1335,39 @@ bool RenamerPreviewLoadArtifact(const char *env_dir, const char *preview_id,
       cJSON_IsNumber(collision_count) ? (int)collision_count->valuedouble : 0;
   out_preview->truncation_count =
       cJSON_IsNumber(truncation_count) ? (int)truncation_count->valuedouble : 0;
+  out_preview->metadata_field_count =
+      cJSON_IsNumber(metadata_field_count)
+          ? (int)metadata_field_count->valuedouble
+          : 0;
   out_preview->requires_auto_suffix_acceptance =
       cJSON_IsBool(requires_suffix) ? cJSON_IsTrue(requires_suffix)
                                     : (out_preview->collision_count > 0);
+
+  if (out_preview->metadata_field_count < 0) {
+    out_preview->metadata_field_count = 0;
+  }
+  if (out_preview->metadata_field_count > RENAMER_META_FIELD_MAX) {
+    out_preview->metadata_field_count = RENAMER_META_FIELD_MAX;
+  }
+  if (cJSON_IsArray(metadata_fields)) {
+    out_preview->metadata_field_count = 0;
+    int metadata_count = cJSON_GetArraySize(metadata_fields);
+    for (int i = 0; i < metadata_count &&
+                    out_preview->metadata_field_count < RENAMER_META_FIELD_MAX;
+         i++) {
+      cJSON *field = cJSON_GetArrayItem(metadata_fields, i);
+      if (!cJSON_IsString(field) || !field->valuestring ||
+          field->valuestring[0] == '\0') {
+        continue;
+      }
+      strncpy(out_preview->metadata_fields[out_preview->metadata_field_count],
+              field->valuestring, RENAMER_META_FIELD_KEY_MAX - 1);
+      out_preview
+          ->metadata_fields[out_preview->metadata_field_count]
+                          [RENAMER_META_FIELD_KEY_MAX - 1] = '\0';
+      out_preview->metadata_field_count++;
+    }
+  }
 
   if (cJSON_IsNumber(file_count)) {
     int declared = (int)file_count->valuedouble;

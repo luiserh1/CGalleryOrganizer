@@ -2,7 +2,104 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "cJSON.h"
+#include "cli/cli_rename_utils.h"
 #include "gui/gui_worker_internal.h"
+
+static void BuildBasename(const char *path, char *out_name, size_t out_name_size) {
+  if (!out_name || out_name_size == 0) {
+    return;
+  }
+  out_name[0] = '\0';
+  if (!path || path[0] == '\0') {
+    return;
+  }
+
+  const char *base = strrchr(path, '/');
+  base = base ? base + 1 : path;
+  strncpy(out_name, base, out_name_size - 1);
+  out_name[out_name_size - 1] = '\0';
+}
+
+static void PopulateRenamePreviewRows(const char *details_json) {
+  g_worker.snapshot.rename_preview_row_count = 0;
+  g_worker.snapshot.rename_preview_warning_count = 0;
+  memset(g_worker.snapshot.rename_preview_rows, 0,
+         sizeof(g_worker.snapshot.rename_preview_rows));
+
+  if (!details_json || details_json[0] == '\0') {
+    return;
+  }
+
+  cJSON *root = cJSON_Parse(details_json);
+  if (!root) {
+    return;
+  }
+
+  cJSON *items = cJSON_GetObjectItem(root, "items");
+  if (!cJSON_IsArray(items)) {
+    cJSON_Delete(root);
+    return;
+  }
+
+  int total = cJSON_GetArraySize(items);
+  int limit = total;
+  if (limit > GUI_RENAME_PREVIEW_ROWS_MAX) {
+    limit = GUI_RENAME_PREVIEW_ROWS_MAX;
+  }
+
+  for (int i = 0; i < limit; i++) {
+    cJSON *item = cJSON_GetArrayItem(items, i);
+    if (!cJSON_IsObject(item)) {
+      continue;
+    }
+
+    cJSON *source = cJSON_GetObjectItem(item, "source");
+    cJSON *candidate_name = cJSON_GetObjectItem(item, "candidateName");
+    cJSON *tags_manual = cJSON_GetObjectItem(item, "tagsManual");
+    cJSON *tags_meta = cJSON_GetObjectItem(item, "tagsMeta");
+    cJSON *collision_batch = cJSON_GetObjectItem(item, "collisionInBatch");
+    cJSON *collision_disk = cJSON_GetObjectItem(item, "collisionOnDisk");
+    cJSON *truncated = cJSON_GetObjectItem(item, "truncated");
+
+    GuiRenamePreviewRow *row =
+        &g_worker.snapshot.rename_preview_rows[g_worker.snapshot.rename_preview_row_count];
+
+    if (cJSON_IsString(source) && source->valuestring) {
+      strncpy(row->source_path, source->valuestring, sizeof(row->source_path) - 1);
+      row->source_path[sizeof(row->source_path) - 1] = '\0';
+      BuildBasename(row->source_path, row->source_name, sizeof(row->source_name));
+    }
+
+    if (cJSON_IsString(candidate_name) && candidate_name->valuestring) {
+      strncpy(row->candidate_name, candidate_name->valuestring,
+              sizeof(row->candidate_name) - 1);
+      row->candidate_name[sizeof(row->candidate_name) - 1] = '\0';
+    }
+    if (cJSON_IsString(tags_manual) && tags_manual->valuestring) {
+      strncpy(row->tags_manual, tags_manual->valuestring,
+              sizeof(row->tags_manual) - 1);
+      row->tags_manual[sizeof(row->tags_manual) - 1] = '\0';
+    }
+    if (cJSON_IsString(tags_meta) && tags_meta->valuestring) {
+      strncpy(row->tags_meta, tags_meta->valuestring,
+              sizeof(row->tags_meta) - 1);
+      row->tags_meta[sizeof(row->tags_meta) - 1] = '\0';
+    }
+
+    row->collision = (cJSON_IsBool(collision_batch) && cJSON_IsTrue(collision_batch)) ||
+                     (cJSON_IsBool(collision_disk) && cJSON_IsTrue(collision_disk));
+    row->warning =
+        row->collision || (cJSON_IsBool(truncated) && cJSON_IsTrue(truncated));
+    if (row->warning) {
+      g_worker.snapshot.rename_preview_warning_count++;
+    }
+
+    g_worker.snapshot.rename_preview_row_count++;
+  }
+
+  cJSON_Delete(root);
+}
 
 static void WorkerRunScanLike(const GuiTaskInput *input, bool ml_enrich,
                               bool similarity) {
@@ -241,6 +338,12 @@ static void WorkerRunRenamePreview(const GuiTaskInput *input) {
       .tag_remove_csv = input->rename_tag_remove_csv[0] != '\0'
                             ? input->rename_tag_remove_csv
                             : NULL,
+      .meta_tag_add_csv = input->rename_meta_tag_add_csv[0] != '\0'
+                              ? input->rename_meta_tag_add_csv
+                              : NULL,
+      .meta_tag_remove_csv = input->rename_meta_tag_remove_csv[0] != '\0'
+                                 ? input->rename_meta_tag_remove_csv
+                                 : NULL,
       .hooks = GuiWorkerBuildHooks(),
   };
 
@@ -262,6 +365,7 @@ static void WorkerRunRenamePreview(const GuiTaskInput *input) {
       result.requires_auto_suffix_acceptance;
   g_worker.snapshot.detail_text[0] = '\0';
   if (result.details_json && result.details_json[0] != '\0') {
+    PopulateRenamePreviewRows(result.details_json);
     strncpy(g_worker.snapshot.detail_text, result.details_json,
             sizeof(g_worker.snapshot.detail_text) - 1);
     g_worker.snapshot.detail_text[sizeof(g_worker.snapshot.detail_text) - 1] =
@@ -276,6 +380,36 @@ static void WorkerRunRenamePreview(const GuiTaskInput *input) {
 
   AppFreeRenamePreviewResult(&result);
   GuiWorkerSetResult(APP_STATUS_OK, "Rename preview completed", true);
+}
+
+static void WorkerRunRenameBootstrap(const GuiTaskInput *input) {
+  CliRenameBootstrapResult result = {0};
+  char error[APP_MAX_ERROR] = {0};
+  if (!CliRenameBootstrapTagsFromFilename(input->gallery_dir, input->env_dir,
+                                          &result, error, sizeof(error))) {
+    if (error[0] == '\0') {
+      strncpy(error, "Rename tag bootstrap failed", sizeof(error) - 1);
+      error[sizeof(error) - 1] = '\0';
+    }
+    GuiWorkerSetResult(APP_STATUS_IO_ERROR, error, false);
+    return;
+  }
+
+  pthread_mutex_lock(&g_worker.mutex);
+  strncpy(g_worker.snapshot.rename_bootstrap_map_path, result.map_path,
+          sizeof(g_worker.snapshot.rename_bootstrap_map_path) - 1);
+  g_worker.snapshot
+      .rename_bootstrap_map_path[sizeof(g_worker.snapshot.rename_bootstrap_map_path) -
+                                 1] = '\0';
+  g_worker.snapshot.rename_bootstrap_files_scanned = result.files_scanned;
+  g_worker.snapshot.rename_bootstrap_files_tagged = result.files_with_tags;
+  snprintf(g_worker.snapshot.detail_text, sizeof(g_worker.snapshot.detail_text),
+           "Rename tag bootstrap completed.\nTags map: %s\nFiles scanned: %d\n"
+           "Files with inferred tags: %d\n",
+           result.map_path, result.files_scanned, result.files_with_tags);
+  pthread_mutex_unlock(&g_worker.mutex);
+
+  GuiWorkerSetResult(APP_STATUS_OK, "Rename tag bootstrap completed", true);
 }
 
 static void WorkerRunRenameApply(const GuiTaskInput *input) {
@@ -412,6 +546,9 @@ void *GuiWorkerThreadMain(void *unused) {
     break;
   case GUI_TASK_RENAME_PREVIEW:
     WorkerRunRenamePreview(&input);
+    break;
+  case GUI_TASK_RENAME_BOOTSTRAP_TAGS:
+    WorkerRunRenameBootstrap(&input);
     break;
   case GUI_TASK_RENAME_APPLY:
     WorkerRunRenameApply(&input);

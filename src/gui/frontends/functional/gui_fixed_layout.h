@@ -31,8 +31,10 @@ typedef struct {
 typedef struct {
   GuiRect gallery_label;
   GuiRect gallery_input;
+  GuiRect gallery_pick_button;
   GuiRect env_label;
   GuiRect env_input;
+  GuiRect env_pick_button;
   GuiRect exhaustive;
   GuiRect jobs_label;
   GuiRect jobs_input;
@@ -84,19 +86,34 @@ typedef struct {
   GuiRect pattern_input;
   GuiRect tags_map_label;
   GuiRect tags_map_input;
+  GuiRect tags_map_pick_button;
+  GuiRect tags_map_bootstrap_button;
   GuiRect tag_add_label;
   GuiRect tag_add_input;
   GuiRect tag_remove_label;
   GuiRect tag_remove_input;
+  GuiRect meta_tag_add_label;
+  GuiRect meta_tag_add_input;
+  GuiRect meta_tag_remove_label;
+  GuiRect meta_tag_remove_input;
   GuiRect preview_id_label;
   GuiRect preview_id_input;
   GuiRect operation_id_label;
   GuiRect operation_id_input;
   GuiRect accept_suffix;
+  GuiRect filter_collisions;
+  GuiRect filter_warnings;
   GuiRect preview_button;
   GuiRect apply_button;
   GuiRect history_button;
   GuiRect rollback_button;
+  GuiRect selected_tags_label;
+  GuiRect selected_tags_input;
+  GuiRect selected_tags_apply_button;
+  GuiRect selected_meta_tags_label;
+  GuiRect selected_meta_tags_input;
+  GuiRect selected_meta_tags_apply_button;
+  GuiRect preview_table;
   GuiRect info_label;
 } GuiRenamePanelLayout;
 

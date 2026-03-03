@@ -78,6 +78,8 @@ AppStatus AppPreviewRename(AppContext *ctx,
       .tags_map_path = request->tags_map_json_path,
       .tag_add_csv = request->tag_add_csv,
       .tag_remove_csv = request->tag_remove_csv,
+      .meta_tag_add_csv = request->meta_tag_add_csv,
+      .meta_tag_remove_csv = request->meta_tag_remove_csv,
       .recursive = true,
   };
 

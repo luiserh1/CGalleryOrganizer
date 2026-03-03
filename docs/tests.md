@@ -71,8 +71,14 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
   - dedicated rename flow:
+    - `--rename-init`
+    - `--rename-bootstrap-tags-from-filename`
     - `--rename-preview`
+    - `--rename-meta-tag-add` / `--rename-meta-tag-remove`
+    - `--rename-meta-fields`
+    - `--rename-preview-json` / `--rename-preview-json-out`
     - `--rename-apply` + `--rename-from-preview`
+    - `--rename-apply-latest`
     - collision gate + `--rename-accept-auto-suffix`
     - `--rename-history`
     - `--rename-rollback`
@@ -93,6 +99,8 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - Functional GUI fixed-layout invariants (`src/gui/frontends/functional/gui_fixed_layout.c`)
 - GUI action dependency rules (`src/gui/core/gui_action_rules.c`)
 - GUI rename panel wiring (`src/gui/frontends/functional/gui_panels_rename.c`)
+- GUI per-file tags-map upsert helper (`src/gui/core/gui_rename_map.c`)
+- GUI path/file picker status handling and backend fallback logic (`src/gui/core/gui_path_picker.c`)
 
 ## Manual Smoke Checklist
 
@@ -214,11 +222,21 @@ Expected:
 
 ### 15. Dedicated rename smoke
 ```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-init
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-bootstrap-tags-from-filename
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[location]-[tags]-[camera].[format]"
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags_meta]-[camera].[format]" --rename-meta-tag-add "frag-a,frag-b" --rename-meta-fields
 ```
 Expected:
+- rename init validates paths and creates rename cache layout directories.
+- bootstrap command writes `build/smoke_env/.cache/rename_tags_bootstrap.json`.
 - preview id and preview artifact path are printed.
 - preview artifact exists under `build/smoke_env/.cache/rename_previews/`.
+- GPS/location tokens should resolve when metadata has GPS, otherwise deterministic
+  fallback values are used (`unknown-gps-lat`, `unknown-gps-lon`, `unknown-location`).
+- metadata-tag edit flags should persist into sidecar (`metaTagAdds`) and affect
+  `tagsMeta` values in preview results.
 
 Apply from preview id:
 ```bash
@@ -227,6 +245,14 @@ Apply from preview id:
 Expected:
 - operation id is printed.
 - rename history artifacts are written under `build/smoke_env/.cache/rename_history/`.
+
+Apply from latest preview shortcut:
+```bash
+./build/bin/gallery_organizer build/smoke_env --rename-apply-latest --rename-accept-auto-suffix
+```
+Expected:
+- latest preview id is resolved and printed before apply.
+- apply succeeds with the same validation semantics as explicit preview id.
 
 List and rollback:
 ```bash
@@ -252,9 +278,21 @@ make gui
 ./build/bin/gallery_organizer_gui
 ```
 Expected:
-- manual gallery/env path inputs are editable.
+- gallery/env path inputs are editable and expose picker buttons on supported platforms.
+- picker flows normalize outcomes:
+  - selected path updates field value
+  - user cancel shows informational banner (not error)
+  - unavailable backend shows manual-paste informational guidance
+  - backend runtime failures surface error banner
 - scan, ML enrich, similarity, organize, rollback, duplicate actions are invokable.
 - rename preview/apply/history/rollback actions are invokable from Rename tab.
+- Rename tab exposes tags-map picker and **Bootstrap Tags** action.
+- rename preview table renders source/candidate/manual-tags rows with:
+  - collision-only and warnings-only filters
+  - selectable rows
+  - per-file selected-row manual tag apply action
+  - per-file selected-row metadata tag apply action
+- Rename tab exposes bulk metadata add/remove inputs for preview scope edits.
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.

@@ -197,6 +197,21 @@ static bool TagListContains(char **tags, int count, const char *candidate) {
   return false;
 }
 
+static bool FieldListContains(
+    char fields[][RENAMER_META_FIELD_KEY_MAX], int count,
+    const char *candidate) {
+  if (!fields || count <= 0 || !candidate || candidate[0] == '\0') {
+    return false;
+  }
+
+  for (int i = 0; i < count; i++) {
+    if (fields[i][0] != '\0' && strcmp(fields[i], candidate) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool TagListAppend(char **tags, int *io_count, const char *tag) {
   if (!tags || !io_count || !tag || tag[0] == '\0') {
     return false;
@@ -282,6 +297,7 @@ static cJSON *EnsurePathEntry(cJSON *root, const char *absolute_path) {
     }
 
     cJSON_AddItemToObject(replacement, "manualTags", cJSON_CreateArray());
+    cJSON_AddItemToObject(replacement, "metaTagAdds", cJSON_CreateArray());
     cJSON_AddItemToObject(replacement, "suppressedMetaTags", cJSON_CreateArray());
     char updated_at[64] = {0};
     NowUtc(updated_at, sizeof(updated_at));
@@ -305,6 +321,19 @@ static cJSON *EnsurePathEntry(cJSON *root, const char *absolute_path) {
       cJSON_ReplaceItemInObject(entry, "manualTags", replacement);
     } else {
       cJSON_AddItemToObject(entry, "manualTags", replacement);
+    }
+  }
+
+  cJSON *meta_adds = cJSON_GetObjectItem(entry, "metaTagAdds");
+  if (!cJSON_IsArray(meta_adds)) {
+    cJSON *replacement = cJSON_CreateArray();
+    if (!replacement) {
+      return NULL;
+    }
+    if (meta_adds) {
+      cJSON_ReplaceItemInObject(entry, "metaTagAdds", replacement);
+    } else {
+      cJSON_AddItemToObject(entry, "metaTagAdds", replacement);
     }
   }
 
@@ -503,57 +532,83 @@ static bool CollectMetadataTags(const char *all_metadata_json, cJSON *entry,
 
   *out_meta_count = 0;
 
-  if (!all_metadata_json || all_metadata_json[0] == '\0') {
-    return true;
-  }
-
-  cJSON *json = cJSON_Parse(all_metadata_json);
-  if (!json) {
-    SetError(out_error, out_error_size,
-             "failed to parse allMetadataJson while resolving tags");
-    return false;
-  }
-
   cJSON *suppressed_array = entry ? cJSON_GetObjectItem(entry, "suppressedMetaTags")
                                   : NULL;
-
-  cJSON *node = NULL;
-  cJSON_ArrayForEach(node, json) {
-    if (!node->string || !KeyWhitelisted(node->string)) {
-      continue;
-    }
-
-    char *parsed[RENAMER_TAG_LIMIT] = {0};
-    int parsed_count = 0;
-    bool ok = ParseTagsFromNode(node, parsed, &parsed_count);
-    if (!ok) {
-      TagListFree(parsed, parsed_count);
-      cJSON_Delete(json);
+  cJSON *meta_adds_array = entry ? cJSON_GetObjectItem(entry, "metaTagAdds")
+                                 : NULL;
+  if (all_metadata_json && all_metadata_json[0] != '\0') {
+    cJSON *json = cJSON_Parse(all_metadata_json);
+    if (!json) {
       SetError(out_error, out_error_size,
-               "invalid metadata tags in key '%s'", node->string);
+               "failed to parse allMetadataJson while resolving tags");
       return false;
     }
 
-    for (int i = 0; i < parsed_count; i++) {
-      if (!parsed[i] || parsed[i][0] == '\0') {
+    cJSON *node = NULL;
+    cJSON_ArrayForEach(node, json) {
+      if (!node->string || !KeyWhitelisted(node->string)) {
         continue;
       }
-      if (JSONArrayContainsTag(suppressed_array, parsed[i])) {
-        continue;
-      }
-      if (!TagListAppend(out_meta_tags, out_meta_count, parsed[i])) {
+
+      char *parsed[RENAMER_TAG_LIMIT] = {0};
+      int parsed_count = 0;
+      bool ok = ParseTagsFromNode(node, parsed, &parsed_count);
+      if (!ok) {
         TagListFree(parsed, parsed_count);
         cJSON_Delete(json);
         SetError(out_error, out_error_size,
-                 "metadata tag limit exceeded while parsing '%s'", node->string);
+                 "invalid metadata tags in key '%s'", node->string);
         return false;
       }
+
+      for (int i = 0; i < parsed_count; i++) {
+        if (!parsed[i] || parsed[i][0] == '\0') {
+          continue;
+        }
+        if (JSONArrayContainsTag(suppressed_array, parsed[i])) {
+          continue;
+        }
+        if (!TagListAppend(out_meta_tags, out_meta_count, parsed[i])) {
+          TagListFree(parsed, parsed_count);
+          cJSON_Delete(json);
+          SetError(out_error, out_error_size,
+                   "metadata tag limit exceeded while parsing '%s'",
+                   node->string);
+          return false;
+        }
+      }
+
+      TagListFree(parsed, parsed_count);
     }
 
-    TagListFree(parsed, parsed_count);
+    cJSON_Delete(json);
   }
 
-  cJSON_Delete(json);
+  char *meta_adds[RENAMER_TAG_LIMIT] = {0};
+  int meta_adds_count = 0;
+  if (!ParseTagsFromNode(meta_adds_array, meta_adds, &meta_adds_count)) {
+    TagListFree(meta_adds, meta_adds_count);
+    SetError(out_error, out_error_size,
+             "invalid metaTagAdds while resolving tags");
+    return false;
+  }
+
+  for (int i = 0; i < meta_adds_count; i++) {
+    if (!meta_adds[i] || meta_adds[i][0] == '\0') {
+      continue;
+    }
+    if (JSONArrayContainsTag(suppressed_array, meta_adds[i])) {
+      continue;
+    }
+    if (!TagListAppend(out_meta_tags, out_meta_count, meta_adds[i])) {
+      TagListFree(meta_adds, meta_adds_count);
+      SetError(out_error, out_error_size,
+               "metadata tag limit exceeded while appending metaTagAdds");
+      return false;
+    }
+  }
+
+  TagListFree(meta_adds, meta_adds_count);
   return true;
 }
 
@@ -649,8 +704,10 @@ bool RenamerTagsSaveSidecar(const char *env_dir, const cJSON *root,
 
 bool RenamerTagsApplyBulkCsv(cJSON *root, const char **absolute_paths,
                              int path_count, const char *tag_add_csv,
-                             const char *tag_remove_csv, char *out_error,
-                             size_t out_error_size) {
+                             const char *tag_remove_csv,
+                             const char *meta_tag_add_csv,
+                             const char *meta_tag_remove_csv,
+                             char *out_error, size_t out_error_size) {
   if (out_error && out_error_size > 0) {
     out_error[0] = '\0';
   }
@@ -664,11 +721,19 @@ bool RenamerTagsApplyBulkCsv(cJSON *root, const char **absolute_paths,
   int add_count = 0;
   char *remove_tags[RENAMER_TAG_LIMIT] = {0};
   int remove_count = 0;
+  char *meta_add_tags[RENAMER_TAG_LIMIT] = {0};
+  int meta_add_count = 0;
+  char *meta_remove_tags[RENAMER_TAG_LIMIT] = {0};
+  int meta_remove_count = 0;
 
   if (!ParseCsvTags(tag_add_csv, add_tags, &add_count) ||
-      !ParseCsvTags(tag_remove_csv, remove_tags, &remove_count)) {
+      !ParseCsvTags(tag_remove_csv, remove_tags, &remove_count) ||
+      !ParseCsvTags(meta_tag_add_csv, meta_add_tags, &meta_add_count) ||
+      !ParseCsvTags(meta_tag_remove_csv, meta_remove_tags, &meta_remove_count)) {
     TagListFree(add_tags, add_count);
     TagListFree(remove_tags, remove_count);
+    TagListFree(meta_add_tags, meta_add_count);
+    TagListFree(meta_remove_tags, meta_remove_count);
     SetError(out_error, out_error_size, "failed to parse bulk tag CSV values");
     return false;
   }
@@ -683,18 +748,23 @@ bool RenamerTagsApplyBulkCsv(cJSON *root, const char **absolute_paths,
     if (!entry) {
       TagListFree(add_tags, add_count);
       TagListFree(remove_tags, remove_count);
+      TagListFree(meta_add_tags, meta_add_count);
+      TagListFree(meta_remove_tags, meta_remove_count);
       SetError(out_error, out_error_size,
                "failed to prepare tag sidecar entry for '%s'", path);
       return false;
     }
 
     cJSON *manual = cJSON_GetObjectItem(entry, "manualTags");
+    cJSON *meta_adds = cJSON_GetObjectItem(entry, "metaTagAdds");
     cJSON *suppressed = cJSON_GetObjectItem(entry, "suppressedMetaTags");
 
     for (int j = 0; j < add_count; j++) {
       if (!JSONArrayAddTag(manual, add_tags[j])) {
         TagListFree(add_tags, add_count);
         TagListFree(remove_tags, remove_count);
+        TagListFree(meta_add_tags, meta_add_count);
+        TagListFree(meta_remove_tags, meta_remove_count);
         SetError(out_error, out_error_size,
                  "failed to append manual tag '%s'", add_tags[j]);
         return false;
@@ -707,8 +777,37 @@ bool RenamerTagsApplyBulkCsv(cJSON *root, const char **absolute_paths,
       if (!JSONArrayAddTag(suppressed, remove_tags[j])) {
         TagListFree(add_tags, add_count);
         TagListFree(remove_tags, remove_count);
+        TagListFree(meta_add_tags, meta_add_count);
+        TagListFree(meta_remove_tags, meta_remove_count);
         SetError(out_error, out_error_size,
                  "failed to append suppressed tag '%s'", remove_tags[j]);
+        return false;
+      }
+    }
+
+    for (int j = 0; j < meta_add_count; j++) {
+      if (!JSONArrayAddTag(meta_adds, meta_add_tags[j])) {
+        TagListFree(add_tags, add_count);
+        TagListFree(remove_tags, remove_count);
+        TagListFree(meta_add_tags, meta_add_count);
+        TagListFree(meta_remove_tags, meta_remove_count);
+        SetError(out_error, out_error_size,
+                 "failed to append metadata add tag '%s'", meta_add_tags[j]);
+        return false;
+      }
+      JSONArrayRemoveTag(suppressed, meta_add_tags[j]);
+    }
+
+    for (int j = 0; j < meta_remove_count; j++) {
+      JSONArrayRemoveTag(meta_adds, meta_remove_tags[j]);
+      if (!JSONArrayAddTag(suppressed, meta_remove_tags[j])) {
+        TagListFree(add_tags, add_count);
+        TagListFree(remove_tags, remove_count);
+        TagListFree(meta_add_tags, meta_add_count);
+        TagListFree(meta_remove_tags, meta_remove_count);
+        SetError(out_error, out_error_size,
+                 "failed to append metadata suppressed tag '%s'",
+                 meta_remove_tags[j]);
         return false;
       }
     }
@@ -720,11 +819,14 @@ bool RenamerTagsApplyBulkCsv(cJSON *root, const char **absolute_paths,
 
   TagListFree(add_tags, add_count);
   TagListFree(remove_tags, remove_count);
+  TagListFree(meta_add_tags, meta_add_count);
+  TagListFree(meta_remove_tags, meta_remove_count);
   return true;
 }
 
 static bool ApplyMapEntry(cJSON *root, const char *path,
                           const cJSON *manual_tags_node,
+                          const cJSON *meta_adds_node,
                           const cJSON *suppressed_tags_node,
                           const char **batch_paths, int batch_count,
                           char *out_error, size_t out_error_size) {
@@ -754,6 +856,7 @@ static bool ApplyMapEntry(cJSON *root, const char *path,
   char *manual_tags[RENAMER_TAG_LIMIT] = {0};
   int manual_count = 0;
   if (!ParseTagsFromNode(manual_tags_node, manual_tags, &manual_count)) {
+    TagListFree(manual_tags, manual_count);
     SetError(out_error, out_error_size,
              "invalid manualTags in rename tags map for '%s'", absolute_path);
     return false;
@@ -770,12 +873,26 @@ static bool ApplyMapEntry(cJSON *root, const char *path,
     return false;
   }
 
+  char *meta_add_tags[RENAMER_TAG_LIMIT] = {0};
+  int meta_add_count = 0;
+  if (!ParseTagsFromNode(meta_adds_node, meta_add_tags, &meta_add_count)) {
+    TagListFree(manual_tags, manual_count);
+    TagListFree(suppressed_tags, suppressed_count);
+    SetError(out_error, out_error_size,
+             "invalid metaTagAdds in rename tags map for '%s'",
+             absolute_path);
+    return false;
+  }
+
   cJSON *manual_array = cJSON_CreateArray();
+  cJSON *meta_add_array = cJSON_CreateArray();
   cJSON *suppressed_array = cJSON_CreateArray();
-  if (!manual_array || !suppressed_array) {
+  if (!manual_array || !meta_add_array || !suppressed_array) {
     cJSON_Delete(manual_array);
+    cJSON_Delete(meta_add_array);
     cJSON_Delete(suppressed_array);
     TagListFree(manual_tags, manual_count);
+    TagListFree(meta_add_tags, meta_add_count);
     TagListFree(suppressed_tags, suppressed_count);
     SetError(out_error, out_error_size,
              "out of memory while applying tag map for '%s'", absolute_path);
@@ -789,8 +906,15 @@ static bool ApplyMapEntry(cJSON *root, const char *path,
     cJSON_AddItemToArray(suppressed_array,
                          cJSON_CreateString(suppressed_tags[i]));
   }
+  for (int i = 0; i < meta_add_count; i++) {
+    if (TagListContains(suppressed_tags, suppressed_count, meta_add_tags[i])) {
+      continue;
+    }
+    cJSON_AddItemToArray(meta_add_array, cJSON_CreateString(meta_add_tags[i]));
+  }
 
   cJSON_ReplaceItemInObject(entry, "manualTags", manual_array);
+  cJSON_ReplaceItemInObject(entry, "metaTagAdds", meta_add_array);
   cJSON_ReplaceItemInObject(entry, "suppressedMetaTags", suppressed_array);
 
   char updated_at[64] = {0};
@@ -798,6 +922,7 @@ static bool ApplyMapEntry(cJSON *root, const char *path,
   cJSON_ReplaceItemInObject(entry, "updatedAtUtc", cJSON_CreateString(updated_at));
 
   TagListFree(manual_tags, manual_count);
+  TagListFree(meta_add_tags, meta_add_count);
   TagListFree(suppressed_tags, suppressed_count);
   return true;
 }
@@ -845,9 +970,11 @@ bool RenamerTagsApplyMapFile(cJSON *root, const char *map_json_path,
         continue;
       }
       cJSON *manual_tags = cJSON_GetObjectItem(item, "manualTags");
+      cJSON *meta_add_tags = cJSON_GetObjectItem(item, "metaTagAdds");
       cJSON *suppressed_tags = cJSON_GetObjectItem(item, "suppressedMetaTags");
-      ok = ApplyMapEntry(root, path->valuestring, manual_tags, suppressed_tags,
-                         absolute_paths, path_count, out_error, out_error_size);
+      ok = ApplyMapEntry(root, path->valuestring, manual_tags, meta_add_tags,
+                         suppressed_tags, absolute_paths, path_count, out_error,
+                         out_error_size);
       if (!ok) {
         break;
       }
@@ -864,12 +991,13 @@ bool RenamerTagsApplyMapFile(cJSON *root, const char *map_json_path,
 
       if (cJSON_IsObject(node)) {
         cJSON *manual_tags = cJSON_GetObjectItem(node, "manualTags");
+        cJSON *meta_add_tags = cJSON_GetObjectItem(node, "metaTagAdds");
         cJSON *suppressed_tags = cJSON_GetObjectItem(node, "suppressedMetaTags");
-        ok = ApplyMapEntry(root, node->string, manual_tags, suppressed_tags,
-                           absolute_paths, path_count, out_error,
+        ok = ApplyMapEntry(root, node->string, manual_tags, meta_add_tags,
+                           suppressed_tags, absolute_paths, path_count, out_error,
                            out_error_size);
       } else {
-        ok = ApplyMapEntry(root, node->string, node, NULL, absolute_paths,
+        ok = ApplyMapEntry(root, node->string, node, NULL, NULL, absolute_paths,
                            path_count, out_error, out_error_size);
       }
       if (!ok) {
@@ -884,6 +1012,54 @@ bool RenamerTagsApplyMapFile(cJSON *root, const char *map_json_path,
 
   cJSON_Delete(json);
   return ok;
+}
+
+bool RenamerTagsCollectMetadataFields(
+    const char *all_metadata_json,
+    char out_fields[][RENAMER_META_FIELD_KEY_MAX], int max_fields,
+    int *io_count, char *out_error, size_t out_error_size) {
+  if (out_error && out_error_size > 0) {
+    out_error[0] = '\0';
+  }
+  if (!out_fields || max_fields <= 0 || !io_count || *io_count < 0) {
+    SetError(out_error, out_error_size,
+             "invalid arguments for metadata field collection");
+    return false;
+  }
+  if (!all_metadata_json || all_metadata_json[0] == '\0') {
+    return true;
+  }
+
+  cJSON *json = cJSON_Parse(all_metadata_json);
+  if (!json) {
+    SetError(out_error, out_error_size,
+             "failed to parse allMetadataJson while collecting fields");
+    return false;
+  }
+  if (!cJSON_IsObject(json)) {
+    cJSON_Delete(json);
+    return true;
+  }
+
+  for (int i = 0; RENAMER_META_TAG_WHITELIST[i]; i++) {
+    const char *key = RENAMER_META_TAG_WHITELIST[i];
+    cJSON *node = cJSON_GetObjectItem(json, key);
+    if (!node) {
+      continue;
+    }
+    if (FieldListContains(out_fields, *io_count, key)) {
+      continue;
+    }
+    if (*io_count >= max_fields) {
+      break;
+    }
+    strncpy(out_fields[*io_count], key, RENAMER_META_FIELD_KEY_MAX - 1);
+    out_fields[*io_count][RENAMER_META_FIELD_KEY_MAX - 1] = '\0';
+    (*io_count)++;
+  }
+
+  cJSON_Delete(json);
+  return true;
 }
 
 bool RenamerTagsResolve(const cJSON *root, const char *absolute_path,

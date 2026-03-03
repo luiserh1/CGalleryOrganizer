@@ -8,6 +8,7 @@
 
 #include "gui/core/gui_action_rules.h"
 #include "gui/core/gui_help.h"
+#include "gui/core/gui_path_picker.h"
 #include "gui/frontends/functional/gui_fixed_layout.h"
 #include "gui/gui_common.h"
 
@@ -55,6 +56,21 @@ static bool ActionButton(GuiUiState *state, Rectangle bounds, const char *text,
   return availability.enabled && clicked;
 }
 
+static void HandleDirectoryPickerFailure(GuiUiState *state,
+                                         GuiPathPickerStatus status,
+                                         const char *error_message,
+                                         const char *fallback_error) {
+  const char *message = (error_message && error_message[0] != '\0')
+                            ? error_message
+                            : fallback_error;
+  if (status == GUI_PATH_PICKER_STATUS_CANCELLED ||
+      status == GUI_PATH_PICKER_STATUS_UNAVAILABLE) {
+    GuiUiSetBannerInfo(state, message);
+    return;
+  }
+  GuiUiSetBannerError(state, message);
+}
+
 void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
   if (!state) {
     return;
@@ -73,6 +89,21 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
              true);
   GuiHelpRegister(ToRayRect(layout.gallery_input),
                   "Enter source gallery path (copy/paste supported)");
+  if (GuiButtonStyled(ToRayRect(layout.gallery_pick_button), "Pick...", true,
+                      false)) {
+    char picked[GUI_STATE_MAX_PATH] = {0};
+    char error[APP_MAX_ERROR] = {0};
+    GuiPathPickerStatus status = GuiPickDirectoryPathEx(
+        "Select Gallery Directory", picked, sizeof(picked), error, sizeof(error));
+    if (status == GUI_PATH_PICKER_STATUS_OK) {
+      strncpy(state->gallery_dir, picked, sizeof(state->gallery_dir) - 1);
+      state->gallery_dir[sizeof(state->gallery_dir) - 1] = '\0';
+    } else {
+      HandleDirectoryPickerFailure(state, status, error, "Gallery picker failed");
+    }
+  }
+  GuiHelpRegister(ToRayRect(layout.gallery_pick_button),
+                  "Open directory picker for gallery path");
 
   GuiLabel(ToRayRect(layout.env_label), "Environment Dir");
   GuiHelpRegister(ToRayRect(layout.env_label),
@@ -81,6 +112,23 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
              true);
   GuiHelpRegister(ToRayRect(layout.env_input),
                   "Enter environment path (copy/paste supported)");
+  if (GuiButtonStyled(ToRayRect(layout.env_pick_button), "Pick...", true,
+                      false)) {
+    char picked[GUI_STATE_MAX_PATH] = {0};
+    char error[APP_MAX_ERROR] = {0};
+    GuiPathPickerStatus status =
+        GuiPickDirectoryPathEx("Select Environment Directory", picked,
+                               sizeof(picked), error, sizeof(error));
+    if (status == GUI_PATH_PICKER_STATUS_OK) {
+      strncpy(state->env_dir, picked, sizeof(state->env_dir) - 1);
+      state->env_dir[sizeof(state->env_dir) - 1] = '\0';
+    } else {
+      HandleDirectoryPickerFailure(state, status, error,
+                                   "Environment picker failed");
+    }
+  }
+  GuiHelpRegister(ToRayRect(layout.env_pick_button),
+                  "Open directory picker for environment path");
 
   state->exhaustive = GuiCheckBox(ToRayRect(layout.exhaustive),
                                   "Exhaustive metadata", state->exhaustive);

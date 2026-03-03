@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
   GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
-             "CGalleryOrganizer v0.6.0 GUI");
+             "CGalleryOrganizer v0.6.4 GUI");
   InitGuiFont();
   GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
@@ -305,12 +305,55 @@ int main(int argc, char **argv) {
       if (state.worker_snapshot.detail_text[0] != '\0') {
         strncpy(state.detail_text, state.worker_snapshot.detail_text,
                 sizeof(state.detail_text) - 1);
+        state.detail_text[sizeof(state.detail_text) - 1] = '\0';
       }
       if (state.worker_snapshot.rename_preview_id[0] != '\0') {
         strncpy(state.rename_preview_id_input, state.worker_snapshot.rename_preview_id,
                 sizeof(state.rename_preview_id_input) - 1);
         state.rename_preview_id_input[sizeof(state.rename_preview_id_input) - 1] =
             '\0';
+
+        state.rename_preview_row_count =
+            state.worker_snapshot.rename_preview_row_count;
+        if (state.rename_preview_row_count < 0) {
+          state.rename_preview_row_count = 0;
+        }
+        if (state.rename_preview_row_count > GUI_RENAME_PREVIEW_ROWS_MAX) {
+          state.rename_preview_row_count = GUI_RENAME_PREVIEW_ROWS_MAX;
+        }
+
+        state.rename_preview_warning_count =
+            state.worker_snapshot.rename_preview_warning_count;
+        memcpy(state.rename_preview_rows, state.worker_snapshot.rename_preview_rows,
+               sizeof(state.rename_preview_rows));
+        state.rename_table_scroll = 0;
+
+        if (state.rename_preview_row_count > 0) {
+          if (state.rename_selected_row < 0 ||
+              state.rename_selected_row >= state.rename_preview_row_count) {
+            state.rename_selected_row = 0;
+          }
+          strncpy(state.rename_selected_tags_csv,
+                  state.rename_preview_rows[state.rename_selected_row].tags_manual,
+                  sizeof(state.rename_selected_tags_csv) - 1);
+          state.rename_selected_tags_csv[sizeof(state.rename_selected_tags_csv) - 1] =
+              '\0';
+          strncpy(state.rename_selected_meta_tags_csv,
+                  state.rename_preview_rows[state.rename_selected_row].tags_meta,
+                  sizeof(state.rename_selected_meta_tags_csv) - 1);
+          state.rename_selected_meta_tags_csv
+              [sizeof(state.rename_selected_meta_tags_csv) - 1] = '\0';
+        } else {
+          state.rename_selected_row = -1;
+          state.rename_selected_tags_csv[0] = '\0';
+          state.rename_selected_meta_tags_csv[0] = '\0';
+        }
+      }
+      if (state.worker_snapshot.rename_bootstrap_map_path[0] != '\0') {
+        strncpy(state.rename_tags_map_path,
+                state.worker_snapshot.rename_bootstrap_map_path,
+                sizeof(state.rename_tags_map_path) - 1);
+        state.rename_tags_map_path[sizeof(state.rename_tags_map_path) - 1] = '\0';
       }
       if (state.worker_snapshot.rename_apply_result.operation_id[0] != '\0') {
         strncpy(state.rename_operation_id_input,
@@ -336,7 +379,7 @@ int main(int argc, char **argv) {
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
 
-    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.0 - GUI");
+    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.4 - GUI");
 
     for (int i = 0; i < 5; i++) {
       bool selected = (state.active_tab == i);

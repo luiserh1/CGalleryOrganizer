@@ -584,3 +584,275 @@ and multi-step rollback by operation id.
   - Rename history retention is capped to the latest 200 operations.
 - Benchmark impact summary:
   - No benchmark schema or benchmark command changes in this milestone.
+
+---
+
+## v0.6.1 Scope: CLI Rename Onboarding + Usability (Completed)
+
+### Primary Goal
+Reduce first-run friction in the dedicated rename CLI workflow while keeping
+existing rename safety semantics (preview/apply handshake, collision controls,
+and rollback history) unchanged.
+
+### Features
+- Add explicit rename environment preflight command:
+  - `--rename-init` validates target/env paths, resolves canonical absolute
+    paths, creates required cache subdirectories, and prints readiness summary.
+- Add built-in tag bootstrap from filenames:
+  - `--rename-bootstrap-tags-from-filename` writes a valid rename tags map JSON
+    from numeric tokens detected in current filenames.
+- Improve path error diagnostics for rename preview:
+  - unresolved directory errors include nearby sibling suggestions when
+    available (e.g. typo/case mismatch hints).
+- Improve preview output ergonomics:
+  - default preview output remains concise summary-first.
+  - add explicit full JSON output controls:
+    - `--rename-preview-json`
+    - `--rename-preview-json-out <path>`
+- Add apply shortcut for latest preview:
+  - `--rename-apply-latest` resolves latest preview id in env and reuses
+    existing apply/fingerprint validation rules.
+- Add integration coverage for new CLI contracts and guardrails.
+- Sync documentation for CLI usage, examples, and smoke tests.
+
+### Release Notes
+- Behavior changes:
+  - Added `--rename-init` to validate target/env paths, create rename cache
+    layout, and print readiness summary.
+  - Added `--rename-bootstrap-tags-from-filename` to generate a JSON manual tag
+    map from numeric filename tokens.
+  - Added rename target typo/case suggestion hints when preview target path is
+    unresolved.
+  - Preview output is now summary-first by default; full preview JSON is
+    optional via:
+    - `--rename-preview-json`
+    - `--rename-preview-json-out <path>`
+  - Added `--rename-apply-latest` as a shortcut for applying the newest preview
+    artifact in env while preserving existing apply validation semantics.
+- Migration/compat notes:
+  - Existing rename flags remain valid and backward compatible.
+  - `--rename-apply` still requires `--rename-from-preview`; the new
+    `--rename-apply-latest` path is additive.
+  - No cache schema changes; new bootstrap output defaults to:
+    - `<env_dir>/.cache/rename_tags_bootstrap.json`
+- Benchmark impact summary:
+  - No benchmark schema or benchmark methodology changes in this milestone.
+
+---
+
+## v0.6.2 Scope: GUI Rename Workflow Usability (Completed)
+
+### Primary Goal
+Improve the dedicated Rename tab usability for first-run and iterative batch
+rename workflows without changing backend rename semantics.
+
+### Features
+- Add GUI path pickers for gallery, environment, and tags-map fields.
+  - provide native picker integration on validated platform(s) with graceful
+    manual-entry fallback on unsupported platforms.
+- Add GUI action to bootstrap manual tags from filename numeric tokens.
+- Add preview table UI (source -> candidate) with collision/warning filters.
+- Add per-file manual tag editor plus bulk add/remove controls in-panel.
+- Improve guided flow affordances:
+  - clearer preview/apply/rollback progression
+  - better preview/apply/history result summaries for large batches
+- Keep CLI/API contracts from v0.6.1 and v0.6.0 unchanged.
+- Add GUI-focused tests for:
+  - new rename panel layout non-overlap constraints
+  - rename action availability for new bootstrap workflow
+  - per-file manual tag edit sidecar/map persistence helper
+
+### Release Notes
+- Behavior changes:
+  - Added native picker-backed path selection on supported platforms for:
+    - Scan tab gallery directory
+    - Scan tab environment directory
+    - Rename tab tags-map JSON path
+  - Added Rename tab bootstrap action to generate a tags map from filename
+    numeric tokens directly from GUI (`Bootstrap Tags`).
+  - Added interactive rename preview table in GUI with:
+    - source/candidate/manual-tags columns
+    - row selection
+    - collision-only and warnings-only filters
+    - mouse-wheel scroll for large result sets
+  - Added per-file manual tag editing from selected preview rows with in-panel
+    persistence into tags-map/sidecar-compatible JSON.
+  - Improved rename summary hints in GUI to include visible-row/warning context.
+- Migration/compat notes:
+  - Existing GUI persisted state remains backward compatible; new rename filter
+    and table-selection controls are runtime-only and initialized to safe
+    defaults (`false` filters, no selected row until preview).
+  - Existing CLI/API rename contracts and semantics remain unchanged.
+  - GUI title/version string advanced to `v0.6.2`.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
+
+---
+
+## v0.6.3 Scope: Extended Rename Tokens (Location/GPS Core) (Completed)
+
+### Primary Goal
+Extend the dedicated rename pattern engine with a small, deterministic v2 token
+set focused on location/GPS-derived naming, while preserving existing rename
+preview/apply safety and backward compatibility.
+
+### Features
+- Add extended rename tokens:
+  - `[gps_lat]`
+  - `[gps_lon]`
+  - `[location]` (deterministic `lat-lon` combined token)
+- Keep strict token allowlist/unknown-token validation behavior.
+- Keep deterministic fallback behavior for missing values (no batch failure).
+- Normalize GPS token output for filename safety and stable formatting.
+- Expose new tokens in:
+  - CLI/GUI help text and examples
+  - app API token validation paths
+- Add tests for:
+  - token parsing/validation for new tokens
+  - rendering with available GPS metadata
+  - fallback behavior when GPS metadata is missing
+  - sanitize/truncate interaction with extended token output
+
+### Release Notes
+- Behavior changes:
+  - Added extended rename pattern tokens:
+    - `[gps_lat]` (hemisphere-prefixed fixed precision; e.g. `n40.416775`)
+    - `[gps_lon]` (hemisphere-prefixed fixed precision; e.g. `w3.703790`)
+    - `[location]` (deterministic combined `gps_lat-gps_lon`)
+  - Extended token rendering is available in dedicated rename preview/apply
+    flows without changing existing handshake/collision semantics.
+  - GUI rename pattern help now includes the new GPS/location tokens.
+- Migration/compat notes:
+  - Existing patterns and token behavior remain backward compatible.
+  - Missing GPS values continue to use deterministic fallback text:
+    - `unknown-gps-lat`
+    - `unknown-gps-lon`
+    - `unknown-location`
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
+
+---
+
+## v0.6.4 Scope: Metadata Tag Editing Workflow (Completed)
+
+### Primary Goal
+Add first-class metadata-tag editing support for rename workflows so users can
+correct and curate metadata-driven tags without leaving the application flow.
+
+### Features
+- Add metadata-tag edit operations in dedicated rename context:
+  - inspect editable metadata-tag fields in scope via preview metadata-field
+    summaries
+  - per-file metadata-tag update via tags-map JSON helper flow
+  - bulk metadata-tag add/remove for preview scope
+- Keep manual-tag and metadata-tag models separated while preserving merged
+  token behavior (`[tags_manual]`, `[tags_meta]`, `[tags]`).
+- Persist metadata-tag edit intents with deterministic sidecar records:
+  - `metaTagAdds`
+  - `suppressedMetaTags`
+- Add CLI surface for metadata-tag edits:
+  - `--rename-meta-tag-add <csv_tags>`
+  - `--rename-meta-tag-remove <csv_tags>`
+  - `--rename-meta-fields`
+- Add GUI controls in Rename tab for:
+  - bulk metadata-tag add/remove
+  - selected-row metadata-tag update persistence
+- Add tests for:
+  - resolver behavior (`metaTagAdds` + suppression merge)
+  - metadata field whitelist inspection helper
+  - CLI metadata tag flag flow
+  - GUI rename map metadata-tag upsert persistence
+
+### Release Notes
+- Behavior changes:
+  - Dedicated rename preview now supports explicit metadata-tag edit intents in
+    addition to manual-tag edits:
+    - bulk metadata-tag add (`metaTagAdds`)
+    - bulk metadata-tag remove/suppress (`suppressedMetaTags`)
+  - Preview artifact JSON now includes discovered editable metadata field keys:
+    - `metadataTagFieldCount`
+    - `metadataTagFields[]`
+  - Added CLI metadata-tag options:
+    - `--rename-meta-tag-add <csv_tags>`
+    - `--rename-meta-tag-remove <csv_tags>`
+    - `--rename-meta-fields` (prints discovered metadata-tag fields in scope)
+  - Added GUI Rename tab metadata-tag editing controls:
+    - bulk metadata add/remove inputs
+    - selected-row metadata-tag update action
+- Migration/compat notes:
+  - Rename tag sidecar entries now include additive field:
+    - `metaTagAdds` (array)
+  - Existing sidecars/maps without `metaTagAdds` remain supported and are
+    normalized on write.
+  - Existing manual-tag workflows and token semantics remain backward
+    compatible.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
+
+---
+
+## v0.6.5 Scope: Cross-Platform GUI Picker Expansion (Completed)
+
+### Primary Goal
+Improve GUI path/file picker coverage and reliability across supported platforms
+while keeping manual-entry fallback behavior deterministic.
+
+### Features
+- Add non-macOS native picker adapters (Linux/Windows) with safe fallbacks.
+- Normalize picker cancellation/error semantics across platforms.
+- Add picker regression tests (where feasible) and adapter-level unit coverage.
+- Keep existing GUI task/action behavior unchanged.
+
+### Release Notes
+- Behavior changes:
+  - GUI picker backend support matrix expanded:
+    - macOS: `osascript` native chooser
+    - Linux: fallback chain `zenity -> kdialog -> yad`
+    - Windows: fallback chain `powershell -> pwsh` via WinForms dialogs
+  - Picker result semantics are now normalized across platforms:
+    - `ok`: selected path returned
+    - `cancelled`: no mutation, surfaced as info banner
+    - `unavailable`: manual-entry fallback message, surfaced as info banner
+    - `error`: backend/runtime failure, surfaced as error banner
+  - Scan and Rename panel picker actions keep existing task wiring and only
+    change failure presentation semantics (informational vs error banners).
+- Migration/compat notes:
+  - No CLI or app API contract changes.
+  - Manual path/file text inputs remain the deterministic fallback behavior on
+    all platforms.
+  - Linux GUI picker usage depends on at least one installed backend:
+    `zenity`, `kdialog`, or `yad`; otherwise GUI prompts manual paste.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
+
+---
+
+## v0.6.6 Scope: GUI Rename Integration/E2E Coverage (Planned)
+
+### Primary Goal
+Increase confidence in rename GUI workflows by adding broader integration/E2E
+coverage for preview/apply/history/rollback and tag-edit paths.
+
+### Features
+- Add integration smoke coverage for GUI rename workflows:
+  - preview generation and row rendering
+  - filter/selection behavior
+  - per-file tag updates + preview refresh
+  - apply/history/rollback wiring
+- Expand negative-path coverage:
+  - invalid map paths
+  - missing preview/operation ids
+  - collision-acceptance guard behavior
+- Document deterministic manual verification script for GUI rename regression.
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized test harness and coverage summary.
+- Migration/compat notes:
+  - TBD at completion: no expected runtime behavior changes outside testing.
+- Benchmark impact summary:
+  - TBD at completion: expected no benchmark schema/methodology changes.

@@ -238,8 +238,18 @@ Behavior:
 ### `AppStatus AppPreviewRename(AppContext *ctx, const AppRenamePreviewRequest *request, AppRenamePreviewResult *out_result)`
 - Builds dedicated in-place rename preview and persists preview artifact under:
   - `<env_dir>/.cache/rename_previews/<preview_id>.json`
-- Supports pattern tokens, manual tag edits (map + bulk add/remove), collision
-  analysis, truncate+hash warnings, and preview fingerprinting.
+- Supports pattern tokens, manual/metadata tag edits (map + bulk add/remove),
+  collision analysis, truncate+hash warnings, and preview fingerprinting.
+- Token set includes:
+  - `[date]`, `[time]`, `[datetime]`, `[camera]`, `[make]`, `[model]`,
+    `[format]`, `[gps_lat]`, `[gps_lon]`, `[location]`, `[index]`,
+    `[tags_manual]`, `[tags_meta]`, `[tags]`
+- Metadata tag edit request fields:
+  - `meta_tag_add_csv`
+  - `meta_tag_remove_csv`
+- Preview details JSON includes metadata-field discovery payload:
+  - `metadataTagFieldCount`
+  - `metadataTagFields[]`
 - Required request fields: `target_dir`, `env_dir`.
 - `out_result->details_json` must be released with `AppFreeRenamePreviewResult()`.
 
