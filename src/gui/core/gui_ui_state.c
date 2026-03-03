@@ -330,9 +330,16 @@ void GuiUiInitDefaults(GuiUiState *state) {
   state->rename_tags_map_path[0] = '\0';
   state->rename_tag_add_csv[0] = '\0';
   state->rename_tag_remove_csv[0] = '\0';
+  state->rename_selected_tags_csv[0] = '\0';
   state->rename_preview_id_input[0] = '\0';
   state->rename_operation_id_input[0] = '\0';
   state->rename_accept_auto_suffix = false;
+  state->rename_filter_collisions_only = false;
+  state->rename_filter_warnings_only = false;
+  state->rename_table_scroll = 0;
+  state->rename_selected_row = -1;
+  state->rename_preview_row_count = 0;
+  state->rename_preview_warning_count = 0;
   state->runtime_state_valid = false;
   state->rebuild_confirm_pending = false;
   state->rebuild_confirm_task = GUI_TASK_NONE;

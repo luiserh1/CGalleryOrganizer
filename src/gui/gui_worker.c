@@ -147,6 +147,13 @@ bool GuiWorkerStartTask(const GuiTaskInput *input) {
   g_worker.snapshot.rename_preview_file_count = 0;
   g_worker.snapshot.rename_preview_collision_count = 0;
   g_worker.snapshot.rename_preview_requires_auto_suffix = false;
+  g_worker.snapshot.rename_preview_row_count = 0;
+  g_worker.snapshot.rename_preview_warning_count = 0;
+  memset(g_worker.snapshot.rename_preview_rows, 0,
+         sizeof(g_worker.snapshot.rename_preview_rows));
+  g_worker.snapshot.rename_bootstrap_map_path[0] = '\0';
+  g_worker.snapshot.rename_bootstrap_files_scanned = 0;
+  g_worker.snapshot.rename_bootstrap_files_tagged = 0;
   g_worker.snapshot.rename_history_count = 0;
   g_worker.snapshot.message[0] = '\0';
   g_worker.snapshot.detail_text[0] = '\0';

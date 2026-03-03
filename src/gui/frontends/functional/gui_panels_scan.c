@@ -8,6 +8,7 @@
 
 #include "gui/core/gui_action_rules.h"
 #include "gui/core/gui_help.h"
+#include "gui/core/gui_path_picker.h"
 #include "gui/frontends/functional/gui_fixed_layout.h"
 #include "gui/gui_common.h"
 
@@ -73,6 +74,20 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
              true);
   GuiHelpRegister(ToRayRect(layout.gallery_input),
                   "Enter source gallery path (copy/paste supported)");
+  if (GuiButtonStyled(ToRayRect(layout.gallery_pick_button), "Pick...", true,
+                      false)) {
+    char picked[GUI_STATE_MAX_PATH] = {0};
+    char error[APP_MAX_ERROR] = {0};
+    if (GuiPickDirectoryPath("Select Gallery Directory", picked, sizeof(picked),
+                             error, sizeof(error))) {
+      strncpy(state->gallery_dir, picked, sizeof(state->gallery_dir) - 1);
+      state->gallery_dir[sizeof(state->gallery_dir) - 1] = '\0';
+    } else {
+      GuiUiSetBannerError(state, error[0] != '\0' ? error : "Gallery picker failed");
+    }
+  }
+  GuiHelpRegister(ToRayRect(layout.gallery_pick_button),
+                  "Open directory picker for gallery path");
 
   GuiLabel(ToRayRect(layout.env_label), "Environment Dir");
   GuiHelpRegister(ToRayRect(layout.env_label),
@@ -81,6 +96,20 @@ void GuiDrawScanPanel(GuiUiState *state, Rectangle panel_bounds) {
              true);
   GuiHelpRegister(ToRayRect(layout.env_input),
                   "Enter environment path (copy/paste supported)");
+  if (GuiButtonStyled(ToRayRect(layout.env_pick_button), "Pick...", true,
+                      false)) {
+    char picked[GUI_STATE_MAX_PATH] = {0};
+    char error[APP_MAX_ERROR] = {0};
+    if (GuiPickDirectoryPath("Select Environment Directory", picked,
+                             sizeof(picked), error, sizeof(error))) {
+      strncpy(state->env_dir, picked, sizeof(state->env_dir) - 1);
+      state->env_dir[sizeof(state->env_dir) - 1] = '\0';
+    } else {
+      GuiUiSetBannerError(state, error[0] != '\0' ? error : "Environment picker failed");
+    }
+  }
+  GuiHelpRegister(ToRayRect(layout.env_pick_button),
+                  "Open directory picker for environment path");
 
   state->exhaustive = GuiCheckBox(ToRayRect(layout.exhaustive),
                                   "Exhaustive metadata", state->exhaustive);
