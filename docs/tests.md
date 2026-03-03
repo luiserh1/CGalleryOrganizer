@@ -74,6 +74,8 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
     - `--rename-init`
     - `--rename-bootstrap-tags-from-filename`
     - `--rename-preview`
+    - `--rename-meta-tag-add` / `--rename-meta-tag-remove`
+    - `--rename-meta-fields`
     - `--rename-preview-json` / `--rename-preview-json-out`
     - `--rename-apply` + `--rename-from-preview`
     - `--rename-apply-latest`
@@ -223,6 +225,7 @@ Expected:
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-bootstrap-tags-from-filename
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[location]-[tags]-[camera].[format]"
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags_meta]-[camera].[format]" --rename-meta-tag-add "frag-a,frag-b" --rename-meta-fields
 ```
 Expected:
 - rename init validates paths and creates rename cache layout directories.
@@ -231,6 +234,8 @@ Expected:
 - preview artifact exists under `build/smoke_env/.cache/rename_previews/`.
 - GPS/location tokens should resolve when metadata has GPS, otherwise deterministic
   fallback values are used (`unknown-gps-lat`, `unknown-gps-lon`, `unknown-location`).
+- metadata-tag edit flags should persist into sidecar (`metaTagAdds`) and affect
+  `tagsMeta` values in preview results.
 
 Apply from preview id:
 ```bash
@@ -280,6 +285,8 @@ Expected:
   - collision-only and warnings-only filters
   - selectable rows
   - per-file selected-row manual tag apply action
+  - per-file selected-row metadata tag apply action
+- Rename tab exposes bulk metadata add/remove inputs for preview scope edits.
 - background tasks show progress and can be cancelled.
 - active tab and selected mode controls are visually highlighted.
 - while a task is running, task-start action buttons are disabled until completion/cancel.

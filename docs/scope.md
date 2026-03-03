@@ -735,7 +735,7 @@ preview/apply safety and backward compatibility.
 
 ---
 
-## v0.6.4 Scope: Metadata Tag Editing Workflow (Planned)
+## v0.6.4 Scope: Metadata Tag Editing Workflow (Completed)
 
 ### Primary Goal
 Add first-class metadata-tag editing support for rename workflows so users can
@@ -743,24 +743,54 @@ correct and curate metadata-driven tags without leaving the application flow.
 
 ### Features
 - Add metadata-tag edit operations in dedicated rename context:
-  - inspect editable metadata-tag fields in scope
-  - per-file metadata-tag add/remove/update
-  - bulk metadata-tag add/remove for selected scope
+  - inspect editable metadata-tag fields in scope via preview metadata-field
+    summaries
+  - per-file metadata-tag update via tags-map JSON helper flow
+  - bulk metadata-tag add/remove for preview scope
 - Keep manual-tag and metadata-tag models separated while preserving merged
   token behavior (`[tags_manual]`, `[tags_meta]`, `[tags]`).
-- Persist metadata-tag edit intents with deterministic, reversible records.
-- Add CLI surface for metadata-tag edits.
-- Add GUI controls in Rename tab for per-file and bulk metadata-tag edits.
-- Add tests for edit validation, persistence, preview/apply effects, and
-  rollback compatibility.
+- Persist metadata-tag edit intents with deterministic sidecar records:
+  - `metaTagAdds`
+  - `suppressedMetaTags`
+- Add CLI surface for metadata-tag edits:
+  - `--rename-meta-tag-add <csv_tags>`
+  - `--rename-meta-tag-remove <csv_tags>`
+  - `--rename-meta-fields`
+- Add GUI controls in Rename tab for:
+  - bulk metadata-tag add/remove
+  - selected-row metadata-tag update persistence
+- Add tests for:
+  - resolver behavior (`metaTagAdds` + suppression merge)
+  - metadata field whitelist inspection helper
+  - CLI metadata tag flag flow
+  - GUI rename map metadata-tag upsert persistence
 
 ### Release Notes
 - Behavior changes:
-  - TBD at completion: finalized metadata-tag edit command/UI contract.
+  - Dedicated rename preview now supports explicit metadata-tag edit intents in
+    addition to manual-tag edits:
+    - bulk metadata-tag add (`metaTagAdds`)
+    - bulk metadata-tag remove/suppress (`suppressedMetaTags`)
+  - Preview artifact JSON now includes discovered editable metadata field keys:
+    - `metadataTagFieldCount`
+    - `metadataTagFields[]`
+  - Added CLI metadata-tag options:
+    - `--rename-meta-tag-add <csv_tags>`
+    - `--rename-meta-tag-remove <csv_tags>`
+    - `--rename-meta-fields` (prints discovered metadata-tag fields in scope)
+  - Added GUI Rename tab metadata-tag editing controls:
+    - bulk metadata add/remove inputs
+    - selected-row metadata-tag update action
 - Migration/compat notes:
-  - TBD at completion: compatibility and persistence details.
+  - Rename tag sidecar entries now include additive field:
+    - `metaTagAdds` (array)
+  - Existing sidecars/maps without `metaTagAdds` remain supported and are
+    normalized on write.
+  - Existing manual-tag workflows and token semantics remain backward
+    compatible.
 - Benchmark impact summary:
-  - TBD at completion: expected no benchmark schema/methodology changes.
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
 
 ---
 
