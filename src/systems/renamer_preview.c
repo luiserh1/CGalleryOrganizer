@@ -694,6 +694,8 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
                           preview->collision_group_count);
   cJSON_AddNumberToObject(root, "collisionCount", preview->collision_count);
   cJSON_AddNumberToObject(root, "truncationCount", preview->truncation_count);
+  cJSON_AddNumberToObject(root, "metadataTagFieldCount",
+                          preview->metadata_field_count);
   cJSON_AddBoolToObject(root, "requiresAutoSuffixAcceptance",
                         preview->requires_auto_suffix_acceptance);
 
@@ -708,6 +710,21 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
     cJSON_Delete(items);
     cJSON_Delete(root);
     return NULL;
+  }
+  cJSON *metadata_fields = cJSON_CreateArray();
+  if (!metadata_fields) {
+    cJSON_Delete(collision_groups);
+    cJSON_Delete(items);
+    cJSON_Delete(root);
+    return NULL;
+  }
+
+  for (int i = 0; i < preview->metadata_field_count; i++) {
+    if (preview->metadata_fields[i][0] == '\0') {
+      continue;
+    }
+    cJSON_AddItemToArray(metadata_fields,
+                         cJSON_CreateString(preview->metadata_fields[i]));
   }
 
   for (int i = 0; i < preview->file_count; i++) {
@@ -783,6 +800,7 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
 
   cJSON *warnings = cJSON_CreateArray();
   if (!warnings) {
+    cJSON_Delete(metadata_fields);
     cJSON_Delete(collision_groups);
     cJSON_Delete(items);
     cJSON_Delete(root);
@@ -803,6 +821,7 @@ static cJSON *BuildPreviewJson(const RenamerPreviewArtifact *preview) {
   }
 
   cJSON_AddItemToObject(root, "items", items);
+  cJSON_AddItemToObject(root, "metadataTagFields", metadata_fields);
   cJSON_AddItemToObject(root, "collisionGroups", collision_groups);
   cJSON_AddItemToObject(root, "warnings", warnings);
   return root;
@@ -975,7 +994,9 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
 
   if (!RenamerTagsApplyBulkCsv(tags_root, (const char **)files.paths, files.count,
                                request->tag_add_csv, request->tag_remove_csv,
-                               out_error, out_error_size)) {
+                               request->meta_tag_add_csv,
+                               request->meta_tag_remove_csv, out_error,
+                               out_error_size)) {
     cJSON_Delete(tags_root);
     PathListFree(&files);
     RenamerPreviewFree(out_preview);
@@ -1018,6 +1039,17 @@ bool RenamerPreviewBuild(const RenamerPreviewRequest *request,
                               sizeof(model), gps_lat, sizeof(gps_lat), gps_lon,
                               sizeof(gps_lon), location, sizeof(location),
                               format, sizeof(format));
+
+    if (!RenamerTagsCollectMetadataFields(
+            md.allMetadataJson, out_preview->metadata_fields,
+            RENAMER_META_FIELD_MAX, &out_preview->metadata_field_count, out_error,
+            out_error_size)) {
+      CacheFreeMetadata(&md);
+      cJSON_Delete(tags_root);
+      PathListFree(&files);
+      RenamerPreviewFree(out_preview);
+      return false;
+    }
 
     RenamerResolvedTags resolved_tags = {0};
     if (!RenamerTagsResolve(tags_root, files.paths[i], md.allMetadataJson,
@@ -1242,6 +1274,9 @@ bool RenamerPreviewLoadArtifact(const char *env_dir, const char *preview_id,
   cJSON *collision_groups = cJSON_GetObjectItem(json, "collisionGroupCount");
   cJSON *collision_count = cJSON_GetObjectItem(json, "collisionCount");
   cJSON *truncation_count = cJSON_GetObjectItem(json, "truncationCount");
+  cJSON *metadata_field_count =
+      cJSON_GetObjectItem(json, "metadataTagFieldCount");
+  cJSON *metadata_fields = cJSON_GetObjectItem(json, "metadataTagFields");
   cJSON *requires_suffix =
       cJSON_GetObjectItem(json, "requiresAutoSuffixAcceptance");
   cJSON *items = cJSON_GetObjectItem(json, "items");
@@ -1300,9 +1335,39 @@ bool RenamerPreviewLoadArtifact(const char *env_dir, const char *preview_id,
       cJSON_IsNumber(collision_count) ? (int)collision_count->valuedouble : 0;
   out_preview->truncation_count =
       cJSON_IsNumber(truncation_count) ? (int)truncation_count->valuedouble : 0;
+  out_preview->metadata_field_count =
+      cJSON_IsNumber(metadata_field_count)
+          ? (int)metadata_field_count->valuedouble
+          : 0;
   out_preview->requires_auto_suffix_acceptance =
       cJSON_IsBool(requires_suffix) ? cJSON_IsTrue(requires_suffix)
                                     : (out_preview->collision_count > 0);
+
+  if (out_preview->metadata_field_count < 0) {
+    out_preview->metadata_field_count = 0;
+  }
+  if (out_preview->metadata_field_count > RENAMER_META_FIELD_MAX) {
+    out_preview->metadata_field_count = RENAMER_META_FIELD_MAX;
+  }
+  if (cJSON_IsArray(metadata_fields)) {
+    out_preview->metadata_field_count = 0;
+    int metadata_count = cJSON_GetArraySize(metadata_fields);
+    for (int i = 0; i < metadata_count &&
+                    out_preview->metadata_field_count < RENAMER_META_FIELD_MAX;
+         i++) {
+      cJSON *field = cJSON_GetArrayItem(metadata_fields, i);
+      if (!cJSON_IsString(field) || !field->valuestring ||
+          field->valuestring[0] == '\0') {
+        continue;
+      }
+      strncpy(out_preview->metadata_fields[out_preview->metadata_field_count],
+              field->valuestring, RENAMER_META_FIELD_KEY_MAX - 1);
+      out_preview
+          ->metadata_fields[out_preview->metadata_field_count]
+                          [RENAMER_META_FIELD_KEY_MAX - 1] = '\0';
+      out_preview->metadata_field_count++;
+    }
+  }
 
   if (cJSON_IsNumber(file_count)) {
     int declared = (int)file_count->valuedouble;

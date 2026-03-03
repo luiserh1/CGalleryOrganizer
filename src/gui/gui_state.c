@@ -228,6 +228,10 @@ bool GuiStateLoad(GuiState *out_state) {
   cJSON *rename_tags_map = cJSON_GetObjectItem(json, "renameTagsMapPath");
   cJSON *rename_tag_add = cJSON_GetObjectItem(json, "renameTagAddCsv");
   cJSON *rename_tag_remove = cJSON_GetObjectItem(json, "renameTagRemoveCsv");
+  cJSON *rename_meta_tag_add =
+      cJSON_GetObjectItem(json, "renameMetaTagAddCsv");
+  cJSON *rename_meta_tag_remove =
+      cJSON_GetObjectItem(json, "renameMetaTagRemoveCsv");
   cJSON *rename_preview_id = cJSON_GetObjectItem(json, "renamePreviewId");
   cJSON *rename_operation_id = cJSON_GetObjectItem(json, "renameOperationId");
   cJSON *rename_accept_suffix =
@@ -300,6 +304,20 @@ bool GuiStateLoad(GuiState *out_state) {
     out_state->rename_tag_remove_csv[sizeof(out_state->rename_tag_remove_csv) - 1] =
         '\0';
   }
+  if (cJSON_IsString(rename_meta_tag_add) && rename_meta_tag_add->valuestring) {
+    strncpy(out_state->rename_meta_tag_add_csv, rename_meta_tag_add->valuestring,
+            sizeof(out_state->rename_meta_tag_add_csv) - 1);
+    out_state->rename_meta_tag_add_csv
+        [sizeof(out_state->rename_meta_tag_add_csv) - 1] = '\0';
+  }
+  if (cJSON_IsString(rename_meta_tag_remove) &&
+      rename_meta_tag_remove->valuestring) {
+    strncpy(out_state->rename_meta_tag_remove_csv,
+            rename_meta_tag_remove->valuestring,
+            sizeof(out_state->rename_meta_tag_remove_csv) - 1);
+    out_state->rename_meta_tag_remove_csv
+        [sizeof(out_state->rename_meta_tag_remove_csv) - 1] = '\0';
+  }
   if (cJSON_IsString(rename_preview_id) && rename_preview_id->valuestring) {
     strncpy(out_state->rename_preview_id, rename_preview_id->valuestring,
             sizeof(out_state->rename_preview_id) - 1);
@@ -358,7 +376,7 @@ bool GuiStateSave(const GuiState *state) {
     strftime(updated_at, sizeof(updated_at), "%Y-%m-%dT%H:%M:%SZ", utc);
   }
 
-  cJSON_AddNumberToObject(json, "schemaVersion", 2);
+  cJSON_AddNumberToObject(json, "schemaVersion", 3);
   cJSON_AddStringToObject(json, "galleryDir", state->gallery_dir);
   cJSON_AddStringToObject(json, "envDir", state->env_dir);
   cJSON_AddBoolToObject(json, "scanExhaustive", state->scan_exhaustive);
@@ -380,6 +398,10 @@ bool GuiStateSave(const GuiState *state) {
   cJSON_AddStringToObject(json, "renameTagAddCsv", state->rename_tag_add_csv);
   cJSON_AddStringToObject(json, "renameTagRemoveCsv",
                           state->rename_tag_remove_csv);
+  cJSON_AddStringToObject(json, "renameMetaTagAddCsv",
+                          state->rename_meta_tag_add_csv);
+  cJSON_AddStringToObject(json, "renameMetaTagRemoveCsv",
+                          state->rename_meta_tag_remove_csv);
   cJSON_AddStringToObject(json, "renamePreviewId", state->rename_preview_id);
   cJSON_AddStringToObject(json, "renameOperationId", state->rename_operation_id);
   cJSON_AddBoolToObject(json, "renameAcceptAutoSuffix",

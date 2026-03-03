@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "fs_utils.h"
+#include "systems/renamer_tags.h"
 
 #define RENAMER_ID_MAX 64
 
@@ -33,6 +34,8 @@ typedef struct {
   int collision_group_count;
   int collision_count;
   int truncation_count;
+  int metadata_field_count;
+  char metadata_fields[RENAMER_META_FIELD_MAX][RENAMER_META_FIELD_KEY_MAX];
   bool requires_auto_suffix_acceptance;
   RenamerPreviewItem *items;
 } RenamerPreviewArtifact;
@@ -44,6 +47,8 @@ typedef struct {
   const char *tags_map_path;
   const char *tag_add_csv;
   const char *tag_remove_csv;
+  const char *meta_tag_add_csv;
+  const char *meta_tag_remove_csv;
   bool recursive;
 } RenamerPreviewRequest;
 

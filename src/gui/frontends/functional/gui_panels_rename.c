@@ -111,6 +111,7 @@ static void SyncSelectedTagsInput(GuiUiState *state) {
   if (state->rename_selected_row < 0 ||
       state->rename_selected_row >= state->rename_preview_row_count) {
     state->rename_selected_tags_csv[0] = '\0';
+    state->rename_selected_meta_tags_csv[0] = '\0';
     return;
   }
 
@@ -119,6 +120,11 @@ static void SyncSelectedTagsInput(GuiUiState *state) {
           sizeof(state->rename_selected_tags_csv) - 1);
   state->rename_selected_tags_csv[sizeof(state->rename_selected_tags_csv) - 1] =
       '\0';
+  strncpy(state->rename_selected_meta_tags_csv,
+          state->rename_preview_rows[state->rename_selected_row].tags_meta,
+          sizeof(state->rename_selected_meta_tags_csv) - 1);
+  state->rename_selected_meta_tags_csv
+      [sizeof(state->rename_selected_meta_tags_csv) - 1] = '\0';
 }
 
 static void DrawTableText(Rectangle bounds, const char *text, Color color) {
@@ -228,6 +234,7 @@ static int DrawRenamePreviewTable(GuiUiState *state, Rectangle table_bounds) {
   } else {
     state->rename_selected_row = -1;
     state->rename_selected_tags_csv[0] = '\0';
+    state->rename_selected_meta_tags_csv[0] = '\0';
   }
 
   Vector2 mouse = GetMousePosition();
@@ -340,7 +347,7 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
   GuiTextBox(ToRayRect(layout.tags_map_input), state->rename_tags_map_path,
              (int)sizeof(state->rename_tags_map_path), true);
   GuiHelpRegister(ToRayRect(layout.tags_map_input),
-                  "Optional JSON path to apply per-file manual tag edits");
+                  "Optional JSON path to apply per-file manual/metadata tag edits");
   if (GuiButtonStyled(ToRayRect(layout.tags_map_pick_button), "Pick...", true,
                       false)) {
     char picked[GUI_STATE_MAX_PATH] = {0};
@@ -373,6 +380,19 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
              (int)sizeof(state->rename_tag_remove_csv), true);
   GuiHelpRegister(ToRayRect(layout.tag_remove_input),
                   "Optional CSV tags removed/suppressed from scope");
+
+  GuiLabel(ToRayRect(layout.meta_tag_add_label), "Bulk add meta");
+  GuiTextBox(ToRayRect(layout.meta_tag_add_input), state->rename_meta_tag_add_csv,
+             (int)sizeof(state->rename_meta_tag_add_csv), true);
+  GuiHelpRegister(ToRayRect(layout.meta_tag_add_input),
+                  "Optional CSV metadata tags added to every file in scope");
+
+  GuiLabel(ToRayRect(layout.meta_tag_remove_label), "Bulk remove meta");
+  GuiTextBox(ToRayRect(layout.meta_tag_remove_input),
+             state->rename_meta_tag_remove_csv,
+             (int)sizeof(state->rename_meta_tag_remove_csv), true);
+  GuiHelpRegister(ToRayRect(layout.meta_tag_remove_input),
+                  "Optional CSV metadata tags suppressed for preview scope");
 
   GuiLabel(ToRayRect(layout.preview_id_label), "Preview ID");
   GuiTextBox(ToRayRect(layout.preview_id_input), state->rename_preview_id_input,
@@ -425,13 +445,13 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
     GuiUiStartTask(state, GUI_TASK_RENAME_ROLLBACK);
   }
 
-  GuiLabel(ToRayRect(layout.selected_tags_label), "Selected tags");
+  GuiLabel(ToRayRect(layout.selected_tags_label), "Selected manual");
   GuiTextBox(ToRayRect(layout.selected_tags_input), state->rename_selected_tags_csv,
              (int)sizeof(state->rename_selected_tags_csv), true);
   GuiHelpRegister(ToRayRect(layout.selected_tags_input),
                   "CSV manual tags for selected preview row (ex: 001,frag-a)");
   if (GuiButtonStyled(ToRayRect(layout.selected_tags_apply_button),
-                      "Apply to Selected File", true, false)) {
+                      "Apply Manual", true, false)) {
     if (state->rename_selected_row < 0 ||
         state->rename_selected_row >= state->rename_preview_row_count) {
       GuiUiSetBannerError(state, "Select a preview row before applying tags");
@@ -469,9 +489,54 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
   GuiHelpRegister(ToRayRect(layout.selected_tags_apply_button),
                   "Persist selected-row manual tags into tags map");
 
+  GuiLabel(ToRayRect(layout.selected_meta_tags_label), "Selected meta");
+  GuiTextBox(ToRayRect(layout.selected_meta_tags_input),
+             state->rename_selected_meta_tags_csv,
+             (int)sizeof(state->rename_selected_meta_tags_csv), true);
+  GuiHelpRegister(ToRayRect(layout.selected_meta_tags_input),
+                  "CSV metadata tags for selected preview row");
+  if (GuiButtonStyled(ToRayRect(layout.selected_meta_tags_apply_button),
+                      "Apply Meta", true, false)) {
+    if (state->rename_selected_row < 0 ||
+        state->rename_selected_row >= state->rename_preview_row_count) {
+      GuiUiSetBannerError(state, "Select a preview row before applying tags");
+    } else {
+      char map_path[GUI_STATE_MAX_PATH] = {0};
+      if (!ResolveManualTagsMapPath(state, map_path, sizeof(map_path))) {
+        GuiUiSetBannerError(
+            state,
+            "Set Environment Dir or Tags map JSON before applying per-file tags");
+      } else {
+        char error[APP_MAX_ERROR] = {0};
+        GuiRenamePreviewRow *row =
+            &state->rename_preview_rows[state->rename_selected_row];
+        if (!GuiRenameMapUpsertMetadataTags(
+                map_path, row->source_path, state->rename_selected_meta_tags_csv,
+                error, sizeof(error))) {
+          GuiUiSetBannerError(state, error[0] != '\0' ? error
+                                                       : "Failed to apply metadata tags");
+        } else {
+          if (state->rename_selected_meta_tags_csv[0] != '\0') {
+            strncpy(row->tags_meta, state->rename_selected_meta_tags_csv,
+                    sizeof(row->tags_meta) - 1);
+            row->tags_meta[sizeof(row->tags_meta) - 1] = '\0';
+          } else {
+            strncpy(row->tags_meta, "untagged", sizeof(row->tags_meta) - 1);
+            row->tags_meta[sizeof(row->tags_meta) - 1] = '\0';
+          }
+          GuiUiSetBannerInfo(
+              state,
+              "Metadata tags updated. Run Rename Preview to refresh candidates.");
+        }
+      }
+    }
+  }
+  GuiHelpRegister(ToRayRect(layout.selected_meta_tags_apply_button),
+                  "Persist selected-row metadata tags into tags map");
+
   int visible_rows = DrawRenamePreviewTable(state, ToRayRect(layout.preview_table));
   GuiHelpRegister(ToRayRect(layout.preview_table),
-                  "Preview rows sorted by source path. Click row to edit manual tags");
+                  "Preview rows sorted by source path. Click row to edit tags");
 
   char hint[256] = {0};
   snprintf(hint, sizeof(hint),

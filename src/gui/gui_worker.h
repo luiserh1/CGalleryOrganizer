@@ -31,6 +31,7 @@ typedef struct {
   char source_name[192];
   char candidate_name[256];
   char tags_manual[256];
+  char tags_meta[256];
   bool collision;
   bool warning;
 } GuiRenamePreviewRow;
@@ -52,6 +53,8 @@ typedef struct {
   char rename_tags_map_path[GUI_STATE_MAX_PATH];
   char rename_tag_add_csv[256];
   char rename_tag_remove_csv[256];
+  char rename_meta_tag_add_csv[256];
+  char rename_meta_tag_remove_csv[256];
   char rename_preview_id[64];
   char rename_operation_id[64];
   bool rename_accept_auto_suffix;

@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.3)
+## Key Features (v0.6.4)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -42,6 +42,9 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
       `[format]`, `[gps_lat]`, `[gps_lon]`, `[location]`, `[index]`,
       `[tags_manual]`, `[tags_meta]`, `[tags]`
   - manual + metadata tag merge model with sidecar persistence
+  - explicit metadata-tag edit intents:
+    - sidecar-backed `metaTagAdds` + `suppressedMetaTags`
+    - preview metadata field discovery (`metadataTagFields`)
   - preview handshake and explicit collision acceptance for auto suffixing
   - deterministic overlength truncate+hash naming policy
   - GUI rename usability improvements:
@@ -54,6 +57,10 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
     - `--rename-bootstrap-tags-from-filename` to build tag map JSON from
       filename numeric tokens
     - `--rename-apply-latest` to apply from latest preview artifact
+    - `--rename-meta-tag-add` / `--rename-meta-tag-remove` for bulk metadata
+      tag edits in preview scope
+    - `--rename-meta-fields` to print discovered editable metadata fields in
+      preview scope
     - optional full preview JSON controls:
       - `--rename-preview-json`
       - `--rename-preview-json-out <path>`
@@ -146,6 +153,9 @@ Scan tab.
 - `--rename-tags-map <json_path>`: ingest per-file manual tags map.
 - `--rename-tag-add <csv_tags>`: bulk add manual tags for preview scope.
 - `--rename-tag-remove <csv_tags>`: bulk remove/suppress tags for preview scope.
+- `--rename-meta-tag-add <csv_tags>`: bulk add metadata tags for preview scope.
+- `--rename-meta-tag-remove <csv_tags>`: bulk remove/suppress metadata tags for preview scope.
+- `--rename-meta-fields`: print discovered editable metadata fields in current preview scope.
 - `--rename-preview-json`: print full preview JSON payload.
 - `--rename-preview-json-out <path>`: write full preview JSON payload to file.
 - `--rename-from-preview <preview_id>`: required handshake id for `--rename-apply`.
@@ -199,6 +209,9 @@ Additional 0.5.4 behavior:
   - tags-map picker + bootstrap action
   - preview table with collision/warning filtering
   - selected-row per-file manual tag update action
+- rename metadata-tag additions (v0.6.4):
+  - bulk metadata add/remove controls
+  - selected-row metadata tag update action
 
 GUI path fields remain directly editable and now also provide picker actions on
 supported platforms.
@@ -266,6 +279,11 @@ Cache profile behavior:
 ### Rename preview JSON export
 ```bash
 ./build/bin/gallery_organizer /path/to/source /path/to/env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]" --rename-preview-json-out /path/to/env/preview.json
+```
+
+### Rename preview with metadata tag edits
+```bash
+./build/bin/gallery_organizer /path/to/source /path/to/env --rename-preview --rename-pattern "pic-[tags_meta]-[camera].[format]" --rename-meta-tag-add "frag-a,frag-b" --rename-meta-fields
 ```
 
 ### Rename apply (preview handshake)
@@ -341,7 +359,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.1`: CLI rename onboarding/usability (init/bootstrap/apply-latest/preview JSON controls).
 - `v0.6.2`: GUI rename UX improvements (pickers, preview table, guided per-file tagging).
 - `v0.6.3`: extended rename tokens with GPS/location support (`[gps_lat]`, `[gps_lon]`, `[location]`).
-- `v0.6.4` (planned): metadata tag editing workflow.
+- `v0.6.4`: metadata tag editing workflow (CLI + GUI + resolver persistence).
 - `v0.6.5` (planned): cross-platform GUI picker expansion.
 - `v0.6.6` (planned): GUI rename integration/E2E coverage.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.

@@ -21,6 +21,7 @@ extern void register_app_runtime_state_tests(void);
 extern void register_app_workflow_tests(void);
 extern void register_app_rename_tests(void);
 extern void register_renamer_pattern_tests(void);
+extern void register_renamer_tags_tests(void);
 extern void register_gui_state_tests(void);
 extern void register_gui_layout_tests(void);
 extern void register_gui_action_rules_tests(void);
@@ -58,6 +59,7 @@ int main(int argc, char **argv) {
   register_app_workflow_tests();
   register_app_rename_tests();
   register_renamer_pattern_tests();
+  register_renamer_tags_tests();
   register_gui_state_tests();
   register_gui_layout_tests();
   register_gui_action_rules_tests();

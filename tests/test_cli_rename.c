@@ -310,6 +310,40 @@ void test_cli_rename_tags_map_ingest_and_sidecar_persist(void) {
       2));
 }
 
+void test_cli_rename_metadata_tag_flags_apply_in_preview(void) {
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_meta_src",
+                       "build/test_cli_rename_meta_env"},
+      2));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_meta_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_cli_rename_meta_env"));
+
+  ASSERT_TRUE(CopyFileForTest("tests/assets/jpg/sample_no_exif.jpg",
+                              "build/test_cli_rename_meta_src/a.jpg"));
+
+  char output[32768] = {0};
+  int code = RunCommandCapture(
+      "./build/bin/gallery_organizer build/test_cli_rename_meta_src "
+      "build/test_cli_rename_meta_env --rename-preview "
+      "--rename-pattern 'meta-[tags_meta].[format]' "
+      "--rename-meta-tag-add 'meta-a,meta-b' "
+      "--rename-meta-fields "
+      "--rename-preview-json-out build/test_cli_rename_meta_env/preview.json 2>&1",
+      output, sizeof(output));
+  ASSERT_EQ(0, code);
+  ASSERT_TRUE(strstr(output, "Rename preview ready") != NULL);
+  ASSERT_TRUE(strstr(output, "Metadata tag fields in scope") != NULL);
+  ASSERT_TRUE(FileContainsText("build/test_cli_rename_meta_env/preview.json",
+                               "meta-a-meta-b"));
+  ASSERT_TRUE(FileContainsText(
+      "build/test_cli_rename_meta_env/.cache/rename_tags.json", "metaTagAdds"));
+
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_cli_rename_meta_src",
+                       "build/test_cli_rename_meta_env"},
+      2));
+}
+
 void register_cli_rename_tests(void) {
   register_test("test_cli_rename_preview_apply_handshake_and_rollback",
                 test_cli_rename_preview_apply_handshake_and_rollback,
@@ -318,6 +352,9 @@ void register_cli_rename_tests(void) {
                 test_cli_rename_tags_map_validation_errors, "integration");
   register_test("test_cli_rename_tags_map_ingest_and_sidecar_persist",
                 test_cli_rename_tags_map_ingest_and_sidecar_persist,
+                "integration");
+  register_test("test_cli_rename_metadata_tag_flags_apply_in_preview",
+                test_cli_rename_metadata_tag_flags_apply_in_preview,
                 "integration");
   register_test("test_cli_rename_init_bootstrap_preview_json_and_apply_latest",
                 test_cli_rename_init_bootstrap_preview_json_and_apply_latest,
