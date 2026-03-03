@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.11)
+## Key Features (v0.6.12)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -135,7 +135,7 @@ make test
 Release checklist:
 ```bash
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.11
+./scripts/release_check.sh --expected-tag v0.6.12
 ```
 
 Coverage run:
@@ -466,6 +466,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.9`: GUI rename history ergonomics (latest-id/detail/redo actions).
 - `v0.6.10`: rename history management + audit export (filters/export/prune/preflight across CLI/GUI).
 - `v0.6.11`: CI stabilization + coverage ratchet + test reinforcement.
+- `v0.6.12`: audit-driven governance/modularity remediation and release-truth alignment.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

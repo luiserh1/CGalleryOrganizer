@@ -92,7 +92,7 @@ static int HandleDuplicates(AppContext *app, const char *env_dir,
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.6.10\n");
+  printf("CGalleryOrganizer v0.6.12\n");
 
   CliMainOptions options;
   CliRenameHistoryFilter rename_history_filter;
