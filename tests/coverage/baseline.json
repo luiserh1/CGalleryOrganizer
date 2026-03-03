@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "generatedAtUtc": "2026-03-03T23:59:59Z",
-  "source": "v0.6.12 audit-remediation baseline (conservative non-zero gate)",
+  "generatedAtUtc": "2026-03-03T23:24:11Z",
+  "source": "v0.6.12 audit-remediation baseline (CI coverage summary)",
   "lines": {
-    "covered": 5562,
-    "total": 9269,
-    "pct": 60.0065
+    "covered": 7426,
+    "total": 10355,
+    "pct": 71.7141
   },
   "branches": {
-    "covered": 4776,
-    "total": 6367,
-    "pct": 75.0118
+    "covered": 4139,
+    "total": 7496,
+    "pct": 55.2161
   }
 }
