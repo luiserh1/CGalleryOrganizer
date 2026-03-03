@@ -870,3 +870,39 @@ coverage for preview/apply/history/rollback and tag-edit paths.
 - Benchmark impact summary:
   - No benchmark schema, methodology, or benchmark command changes in this
     milestone.
+
+---
+
+## v0.6.7 Scope: Release Hardening (CI Matrix + Checklist) (Completed)
+
+### Primary Goal
+Harden release quality gates by adding cross-platform CI execution and a
+deterministic pre-release checklist command.
+
+### Features
+- Add CI workflow coverage for:
+  - Linux and macOS build+test jobs
+  - Windows (MSYS2/UCRT64) build+test job
+  - macOS GUI build job (`make gui`)
+- Add repository release checklist script:
+  - run test suite
+  - optional GUI build
+  - optional release-tag verification against `HEAD`
+- Keep runtime app behavior unchanged; scope focuses on delivery reliability.
+
+### Release Notes
+- Behavior changes:
+  - Added GitHub Actions workflow:
+    - `test-unix` matrix (`ubuntu-latest`, `macos-latest`)
+    - `test-windows-msys2` (`windows-latest` + MSYS2 toolchain)
+    - `gui-build-macos` (`make gui`)
+  - Added release gate script:
+    - `scripts/release_check.sh`
+    - supports `--skip-gui` and `--expected-tag vX.Y.Z`
+    - verifies expected tag points to current `HEAD` when requested
+- Migration/compat notes:
+  - No CLI/API/GUI runtime contract changes.
+  - New CI workflow and script are additive and backward compatible.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.

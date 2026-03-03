@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.6)
+## Key Features (v0.6.7)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -70,6 +70,14 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
       - `--rename-preview-json`
       - `--rename-preview-json-out <path>`
     - path typo hints for unresolved rename target directory
+- Release hardening (v0.6.7):
+  - cross-platform CI matrix:
+    - Linux/macOS build + test
+    - Windows (MSYS2) build + test
+    - macOS GUI build
+  - deterministic pre-release checklist script:
+    - `scripts/release_check.sh`
+    - optional tag verification: `--expected-tag vX.Y.Z`
 
 ## Build
 
@@ -91,6 +99,12 @@ make
 ### Run tests
 ```bash
 make test
+```
+
+Release checklist:
+```bash
+./scripts/release_check.sh
+./scripts/release_check.sh --expected-tag v0.6.7
 ```
 
 ### Build GUI frontend
@@ -377,6 +391,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.4`: metadata tag editing workflow (CLI + GUI + resolver persistence).
 - `v0.6.5`: cross-platform GUI picker expansion.
 - `v0.6.6`: GUI rename integration/E2E coverage.
+- `v0.6.7`: release hardening (cross-platform CI matrix + release checklist script).
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+      - "codex/**"
+
+jobs:
+  test-unix:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang make pkg-config libexiv2-dev libzstd-dev
+
+      - name: Install deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install exiv2 zstd
+
+      - name: Build + test
+        run: make test
+
+  test-windows-msys2:
+    name: test (windows-msys2)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            make
+            pkgconf
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-exiv2
+            mingw-w64-ucrt-x86_64-zstd
+
+      - name: Build + test
+        run: make test CC=clang CXX=clang++
+
+  gui-build-macos:
+    name: gui-build (macos)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          brew update
+          brew install exiv2 zstd raylib
+
+      - name: Build GUI
+        run: make gui
