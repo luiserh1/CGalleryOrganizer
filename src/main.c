@@ -584,7 +584,7 @@ static bool LoadTextFile(const char *path, char **out_text) {
 }
 
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.6.8\n");
+  printf("CGalleryOrganizer v0.6.9\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;

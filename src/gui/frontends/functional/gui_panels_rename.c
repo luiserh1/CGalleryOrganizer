@@ -378,6 +378,11 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
              (int)sizeof(state->rename_preview_id_input), true);
   GuiHelpRegister(ToRayRect(layout.preview_id_input),
                   "Required by Rename Apply; produced by Rename Preview");
+  if (ActionButton(state, ToRayRect(layout.preview_latest_button), "Latest",
+                   GUI_ACTION_RENAME_PREVIEW_LATEST_ID,
+                   "Resolve latest preview id from rename preview artifacts")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_PREVIEW_LATEST_ID);
+  }
 
   GuiLabel(ToRayRect(layout.operation_id_label), "Operation ID");
   GuiTextBox(ToRayRect(layout.operation_id_input),
@@ -385,6 +390,11 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
              (int)sizeof(state->rename_operation_id_input), true);
   GuiHelpRegister(ToRayRect(layout.operation_id_input),
                   "Required by Rename Rollback; produced by Rename Apply");
+  if (ActionButton(state, ToRayRect(layout.history_latest_button), "Latest",
+                   GUI_ACTION_RENAME_HISTORY_LATEST_ID,
+                   "Resolve latest operation id from rename history")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_HISTORY_LATEST_ID);
+  }
 
   state->rename_accept_auto_suffix =
       GuiCheckBox(ToRayRect(layout.accept_suffix),
@@ -417,6 +427,16 @@ void GuiDrawRenamePanel(GuiUiState *state, Rectangle panel_bounds) {
                    GUI_ACTION_RENAME_HISTORY,
                    "List dedicated rename operation history")) {
     GuiUiStartTask(state, GUI_TASK_RENAME_HISTORY);
+  }
+  if (ActionButton(state, ToRayRect(layout.detail_button), "History Detail",
+                   GUI_ACTION_RENAME_HISTORY_DETAIL,
+                   "Show detailed summary and manifest JSON for operation id")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_HISTORY_DETAIL);
+  }
+  if (ActionButton(state, ToRayRect(layout.redo_button), "Rename Redo",
+                   GUI_ACTION_RENAME_REDO,
+                   "Resolve operation->preview and re-apply with standard safeguards")) {
+    GuiUiStartTask(state, GUI_TASK_RENAME_REDO);
   }
   if (ActionButton(state, ToRayRect(layout.rollback_button), "Rename Rollback",
                    GUI_ACTION_RENAME_ROLLBACK,

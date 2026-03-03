@@ -21,7 +21,11 @@ typedef enum {
   GUI_TASK_RENAME_APPLY = 11,
   GUI_TASK_RENAME_HISTORY = 12,
   GUI_TASK_RENAME_ROLLBACK = 13,
-  GUI_TASK_RENAME_BOOTSTRAP_TAGS = 14
+  GUI_TASK_RENAME_BOOTSTRAP_TAGS = 14,
+  GUI_TASK_RENAME_PREVIEW_LATEST_ID = 15,
+  GUI_TASK_RENAME_HISTORY_LATEST_ID = 16,
+  GUI_TASK_RENAME_HISTORY_DETAIL = 17,
+  GUI_TASK_RENAME_REDO = 18
 } GuiTaskType;
 
 #define GUI_RENAME_PREVIEW_ROWS_MAX 128
@@ -88,6 +92,7 @@ typedef struct {
   int rename_bootstrap_files_scanned;
   int rename_bootstrap_files_tagged;
   int rename_history_count;
+  char rename_latest_operation_id[64];
   int duplicate_group_count;
   bool duplicate_report_ready;
   char detail_text[32768];

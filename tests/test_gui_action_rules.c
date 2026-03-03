@@ -112,10 +112,32 @@ void test_gui_action_rules_rename_requirements(void) {
   GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_APPLY, &availability);
   ASSERT_TRUE(availability.enabled);
 
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_HISTORY, &availability);
+  ASSERT_TRUE(availability.enabled);
+
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_PREVIEW_LATEST_ID,
+                               &availability);
+  ASSERT_TRUE(availability.enabled);
+
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_HISTORY_LATEST_ID,
+                               &availability);
+  ASSERT_TRUE(availability.enabled);
+
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_HISTORY_DETAIL,
+                               &availability);
+  ASSERT_FALSE(availability.enabled);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_REDO, &availability);
+  ASSERT_FALSE(availability.enabled);
+
   GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_ROLLBACK, &availability);
   ASSERT_FALSE(availability.enabled);
   strncpy(state.rename_operation_id_input, "rop-1",
           sizeof(state.rename_operation_id_input) - 1);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_HISTORY_DETAIL,
+                               &availability);
+  ASSERT_TRUE(availability.enabled);
+  GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_REDO, &availability);
+  ASSERT_TRUE(availability.enabled);
   GuiResolveActionAvailability(&state, GUI_ACTION_RENAME_ROLLBACK, &availability);
   ASSERT_TRUE(availability.enabled);
 }
