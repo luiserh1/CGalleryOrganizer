@@ -232,6 +232,46 @@ void GuiResolveActionAvailability(const GuiUiState *state, GuiActionId action_id
     SetEnabled(out);
     return;
 
+  case GUI_ACTION_RENAME_PREVIEW_LATEST_ID:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Latest preview lookup requires an Environment Dir");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_HISTORY_LATEST_ID:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Latest operation lookup requires an Environment Dir");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_HISTORY_DETAIL:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename history detail requires an Environment Dir");
+      return;
+    }
+    if (state->rename_operation_id_input[0] == '\0') {
+      SetDisabled(out, "Rename history detail requires an operation id");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
+  case GUI_ACTION_RENAME_REDO:
+    if (!HasEnvDir(state)) {
+      SetDisabled(out, "Rename redo requires an Environment Dir");
+      return;
+    }
+    if (state->rename_operation_id_input[0] == '\0') {
+      SetDisabled(out, "Rename redo requires an operation id");
+      return;
+    }
+    SetEnabled(out);
+    return;
+
   case GUI_ACTION_RENAME_ROLLBACK:
     if (!HasEnvDir(state)) {
       SetDisabled(out, "Rename rollback requires an Environment Dir");
@@ -296,6 +336,18 @@ bool GuiActionCanStartTask(const GuiUiState *state, GuiTaskType task_type,
     break;
   case GUI_TASK_RENAME_HISTORY:
     action_id = GUI_ACTION_RENAME_HISTORY;
+    break;
+  case GUI_TASK_RENAME_PREVIEW_LATEST_ID:
+    action_id = GUI_ACTION_RENAME_PREVIEW_LATEST_ID;
+    break;
+  case GUI_TASK_RENAME_HISTORY_LATEST_ID:
+    action_id = GUI_ACTION_RENAME_HISTORY_LATEST_ID;
+    break;
+  case GUI_TASK_RENAME_HISTORY_DETAIL:
+    action_id = GUI_ACTION_RENAME_HISTORY_DETAIL;
+    break;
+  case GUI_TASK_RENAME_REDO:
+    action_id = GUI_ACTION_RENAME_REDO;
     break;
   case GUI_TASK_RENAME_ROLLBACK:
     action_id = GUI_ACTION_RENAME_ROLLBACK;

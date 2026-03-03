@@ -234,6 +234,110 @@ void test_gui_rename_workflow_collision_guard_requires_acceptance(void) {
       2));
 }
 
+void test_gui_rename_workflow_latest_detail_and_redo(void) {
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_gui_rename_detail_src",
+                       "build/test_gui_rename_detail_env"},
+      2));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_gui_rename_detail_src"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_gui_rename_detail_env"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_gui_rename_detail_src/a.png"));
+  ASSERT_TRUE(CopyFileForTest("tests/assets/png/sample_no_exif.png",
+                              "build/test_gui_rename_detail_src/b.png"));
+
+  AppContext *ctx = NULL;
+  ASSERT_TRUE(SetupWorker(&ctx));
+
+  GuiTaskInput preview_input = {0};
+  InitTaskInput(&preview_input, GUI_TASK_RENAME_PREVIEW,
+                "build/test_gui_rename_detail_src",
+                "build/test_gui_rename_detail_env");
+  strncpy(preview_input.rename_pattern, "pic-[index].[format]",
+          sizeof(preview_input.rename_pattern) - 1);
+
+  GuiTaskSnapshot preview_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&preview_input, &preview_snapshot));
+  ASSERT_TRUE(preview_snapshot.success);
+  ASSERT_TRUE(preview_snapshot.rename_preview_id[0] != '\0');
+
+  GuiTaskInput apply_input = {0};
+  InitTaskInput(&apply_input, GUI_TASK_RENAME_APPLY, NULL,
+                "build/test_gui_rename_detail_env");
+  strncpy(apply_input.rename_preview_id, preview_snapshot.rename_preview_id,
+          sizeof(apply_input.rename_preview_id) - 1);
+
+  GuiTaskSnapshot apply_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&apply_input, &apply_snapshot));
+  ASSERT_TRUE(apply_snapshot.success);
+  ASSERT_TRUE(apply_snapshot.rename_apply_result.operation_id[0] != '\0');
+
+  char operation_id[64] = {0};
+  strncpy(operation_id, apply_snapshot.rename_apply_result.operation_id,
+          sizeof(operation_id) - 1);
+  operation_id[sizeof(operation_id) - 1] = '\0';
+
+  GuiTaskInput latest_preview_input = {0};
+  InitTaskInput(&latest_preview_input, GUI_TASK_RENAME_PREVIEW_LATEST_ID, NULL,
+                "build/test_gui_rename_detail_env");
+  GuiTaskSnapshot latest_preview_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&latest_preview_input, &latest_preview_snapshot));
+  ASSERT_TRUE(latest_preview_snapshot.success);
+  ASSERT_STR_EQ(preview_snapshot.rename_preview_id,
+                latest_preview_snapshot.rename_preview_id);
+
+  GuiTaskInput latest_history_input = {0};
+  InitTaskInput(&latest_history_input, GUI_TASK_RENAME_HISTORY_LATEST_ID, NULL,
+                "build/test_gui_rename_detail_env");
+  GuiTaskSnapshot latest_history_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&latest_history_input, &latest_history_snapshot));
+  ASSERT_TRUE(latest_history_snapshot.success);
+  ASSERT_STR_EQ(operation_id,
+                latest_history_snapshot.rename_latest_operation_id);
+
+  GuiTaskInput detail_input = {0};
+  InitTaskInput(&detail_input, GUI_TASK_RENAME_HISTORY_DETAIL, NULL,
+                "build/test_gui_rename_detail_env");
+  strncpy(detail_input.rename_operation_id, operation_id,
+          sizeof(detail_input.rename_operation_id) - 1);
+
+  GuiTaskSnapshot detail_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&detail_input, &detail_snapshot));
+  ASSERT_TRUE(detail_snapshot.success);
+  ASSERT_TRUE(strstr(detail_snapshot.detail_text, "Rename history detail") != NULL);
+  ASSERT_TRUE(strstr(detail_snapshot.detail_text, operation_id) != NULL);
+  ASSERT_TRUE(strstr(detail_snapshot.detail_text, "\"operationId\"") != NULL);
+
+  GuiTaskInput rollback_input = {0};
+  InitTaskInput(&rollback_input, GUI_TASK_RENAME_ROLLBACK, NULL,
+                "build/test_gui_rename_detail_env");
+  strncpy(rollback_input.rename_operation_id, operation_id,
+          sizeof(rollback_input.rename_operation_id) - 1);
+  GuiTaskSnapshot rollback_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&rollback_input, &rollback_snapshot));
+  ASSERT_TRUE(rollback_snapshot.success);
+
+  GuiTaskInput redo_input = {0};
+  InitTaskInput(&redo_input, GUI_TASK_RENAME_REDO, NULL,
+                "build/test_gui_rename_detail_env");
+  strncpy(redo_input.rename_operation_id, operation_id,
+          sizeof(redo_input.rename_operation_id) - 1);
+  redo_input.rename_accept_auto_suffix = false;
+
+  GuiTaskSnapshot redo_snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&redo_input, &redo_snapshot));
+  ASSERT_TRUE(redo_snapshot.success);
+  ASSERT_TRUE(redo_snapshot.rename_apply_result.operation_id[0] != '\0');
+  ASSERT_STR_EQ(preview_snapshot.rename_preview_id, redo_snapshot.rename_preview_id);
+  ASSERT_TRUE(strstr(redo_snapshot.detail_text, "Rename redo completed") != NULL);
+
+  TeardownWorker(ctx);
+  ASSERT_TRUE(RemovePathsForTest(
+      (const char *[]){"build/test_gui_rename_detail_src",
+                       "build/test_gui_rename_detail_env"},
+      2));
+}
+
 void test_gui_rename_workflow_invalid_tags_map_path(void) {
   ASSERT_TRUE(RemovePathsForTest(
       (const char *[]){"build/test_gui_rename_badmap_src",
@@ -358,6 +462,8 @@ void register_gui_rename_workflow_tests(void) {
   register_test("test_gui_rename_workflow_collision_guard_requires_acceptance",
                 test_gui_rename_workflow_collision_guard_requires_acceptance,
                 "integration");
+  register_test("test_gui_rename_workflow_latest_detail_and_redo",
+                test_gui_rename_workflow_latest_detail_and_redo, "integration");
   register_test("test_gui_rename_workflow_invalid_tags_map_path",
                 test_gui_rename_workflow_invalid_tags_map_path, "integration");
   register_test("test_gui_rename_workflow_missing_ids_fail",

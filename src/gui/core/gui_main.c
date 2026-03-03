@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
   GuiUiRefreshRuntimeState(&state);
 
   InitWindow(GUI_FIXED_WINDOW_WIDTH, GUI_FIXED_WINDOW_HEIGHT,
-             "CGalleryOrganizer v0.6.8 GUI");
+             "CGalleryOrganizer v0.6.9 GUI");
   InitGuiFont();
   GuiHelpSetFont(GuiGetFont(), g_gui_font_size - 2.0f);
   SetTargetFPS(60);
@@ -362,6 +362,13 @@ int main(int argc, char **argv) {
         state.rename_operation_id_input[sizeof(state.rename_operation_id_input) -
                                         1] = '\0';
       }
+      if (state.worker_snapshot.rename_latest_operation_id[0] != '\0') {
+        strncpy(state.rename_operation_id_input,
+                state.worker_snapshot.rename_latest_operation_id,
+                sizeof(state.rename_operation_id_input) - 1);
+        state.rename_operation_id_input[sizeof(state.rename_operation_id_input) -
+                                        1] = '\0';
+      }
 
       GuiWorkerClearResult();
       if (!state.worker_snapshot.busy) {
@@ -379,7 +386,7 @@ int main(int argc, char **argv) {
     GuiShellLayout layout = {0};
     GuiBuildShellLayout(&layout);
 
-    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.8 - GUI");
+    GuiLabel(ToRayRect(layout.title), "CGalleryOrganizer v0.6.9 - GUI");
 
     for (int i = 0; i < 5; i++) {
       bool selected = (state.active_tab == i);

@@ -944,3 +944,45 @@ flows, reducing operator friction during iterative rename workflows.
 - Benchmark impact summary:
   - No benchmark schema, methodology, or benchmark command changes in this
     milestone.
+
+---
+
+## v0.6.9 Scope: GUI Rename History Ergonomics (Detail + Redo + Latest IDs) (Completed)
+
+### Primary Goal
+Bring rename-history ergonomics introduced in CLI (`v0.6.8`) into the GUI
+rename workflow so inspect/redo loops are fully in-panel.
+
+### Features
+- Add GUI rename actions for:
+  - latest preview id lookup
+  - latest operation id lookup
+  - history detail by operation id
+  - redo apply by operation id
+- Reuse existing apply collision-acceptance semantics for redo path.
+- Add worker task wiring + result summaries for new rename actions.
+- Keep existing rename preview/apply/history/rollback behavior unchanged.
+
+### Release Notes
+- Behavior changes:
+  - Rename panel now includes dedicated controls for:
+    - latest preview id lookup
+    - latest operation id lookup
+    - history detail by operation id
+    - redo by operation id
+  - New GUI worker task types:
+    - `GUI_TASK_RENAME_PREVIEW_LATEST_ID`
+    - `GUI_TASK_RENAME_HISTORY_LATEST_ID`
+    - `GUI_TASK_RENAME_HISTORY_DETAIL`
+    - `GUI_TASK_RENAME_REDO`
+  - History detail output now includes operation counters plus operation
+    manifest JSON payload.
+  - Redo path resolves operation id -> preview id and executes standard rename
+    apply safety checks, including collision-acceptance requirements.
+  - Runtime banners/window titles now report `v0.6.9`.
+- Migration/compat notes:
+  - Additive GUI behavior only; no breaking CLI or app API contract changes.
+  - Existing rename history and preview artifacts remain compatible.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.

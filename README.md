@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.8)
+## Key Features (v0.6.9)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -87,6 +87,12 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
   - safe re-apply shortcut:
     - `--rename-redo <operation_id>`
     - resolves operation -> preview and reuses apply safety checks
+- GUI rename history ergonomics (v0.6.9):
+  - latest id helpers from Rename tab:
+    - latest preview id
+    - latest operation id
+  - history detail action (operation summary + manifest JSON)
+  - redo action (operation -> preview -> apply path with existing safeguards)
 
 ## Build
 
@@ -113,7 +119,7 @@ make test
 Release checklist:
 ```bash
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.8
+./scripts/release_check.sh --expected-tag v0.6.9
 ```
 
 ### Build GUI frontend
@@ -254,6 +260,10 @@ Additional 0.5.4 behavior:
   - preview/apply/history/rollback task wiring covered by integration tests
   - tag-update + preview-refresh workflow covered by integration tests
   - collisions, missing ids, and invalid tags-map paths covered as negative flows
+- GUI rename history ergonomics (v0.6.9):
+  - latest preview id + latest operation id lookup actions
+  - history detail action with summary + manifest output
+  - redo action from operation id with existing apply safeguards
 
 GUI path fields remain directly editable and now also provide picker actions on
 supported platforms.
@@ -414,6 +424,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.6`: GUI rename integration/E2E coverage.
 - `v0.6.7`: release hardening (cross-platform CI matrix + release checklist script).
 - `v0.6.8`: rename history ergonomics (detail inspection, redo path, latest-id helpers).
+- `v0.6.9`: GUI rename history ergonomics (latest-id/detail/redo actions).
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

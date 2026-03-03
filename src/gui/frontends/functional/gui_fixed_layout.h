@@ -98,14 +98,18 @@ typedef struct {
   GuiRect meta_tag_remove_input;
   GuiRect preview_id_label;
   GuiRect preview_id_input;
+  GuiRect preview_latest_button;
   GuiRect operation_id_label;
   GuiRect operation_id_input;
+  GuiRect history_latest_button;
   GuiRect accept_suffix;
   GuiRect filter_collisions;
   GuiRect filter_warnings;
   GuiRect preview_button;
   GuiRect apply_button;
   GuiRect history_button;
+  GuiRect detail_button;
+  GuiRect redo_button;
   GuiRect rollback_button;
   GuiRect selected_tags_label;
   GuiRect selected_tags_input;

@@ -254,11 +254,17 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
 
   y += 44.0f;
   out_layout->preview_id_label = MakeRect(x, y, label_w, 30.0f);
+  float preview_id_x = x + label_w + 8.0f;
+  out_layout->preview_latest_button = MakeRect(x + 470.0f, y, 120.0f, 34.0f);
   out_layout->preview_id_input =
-      MakeRect(x + label_w + 8.0f, y, 430.0f, 34.0f);
+      MakeRect(preview_id_x, y,
+               out_layout->preview_latest_button.x - preview_id_x - 10.0f, 34.0f);
   out_layout->operation_id_label = MakeRect(x + 590.0f, y, 110.0f, 30.0f);
-  out_layout->operation_id_input =
-      MakeRect(x + 705.0f, y, panel_right - (x + 705.0f), 34.0f);
+  out_layout->history_latest_button = MakeRect(panel_right - 130.0f, y, 130.0f,
+                                               34.0f);
+  out_layout->operation_id_input = MakeRect(
+      x + 705.0f, y,
+      out_layout->history_latest_button.x - (x + 705.0f) - 10.0f, 34.0f);
 
   y += 44.0f;
   out_layout->accept_suffix = MakeRect(x, y, 350.0f, 30.0f);
@@ -266,10 +272,12 @@ void GuiBuildRenamePanelLayout(GuiRect panel_bounds,
   out_layout->filter_warnings = MakeRect(x + 590.0f, y, 180.0f, 30.0f);
 
   y += 48.0f;
-  out_layout->preview_button = MakeRect(x, y, 170.0f, 42.0f);
-  out_layout->apply_button = MakeRect(x + 180.0f, y, 170.0f, 42.0f);
-  out_layout->history_button = MakeRect(x + 360.0f, y, 170.0f, 42.0f);
-  out_layout->rollback_button = MakeRect(x + 540.0f, y, 170.0f, 42.0f);
+  out_layout->preview_button = MakeRect(x, y, 150.0f, 42.0f);
+  out_layout->apply_button = MakeRect(x + 160.0f, y, 150.0f, 42.0f);
+  out_layout->history_button = MakeRect(x + 320.0f, y, 150.0f, 42.0f);
+  out_layout->detail_button = MakeRect(x + 480.0f, y, 150.0f, 42.0f);
+  out_layout->redo_button = MakeRect(x + 640.0f, y, 150.0f, 42.0f);
+  out_layout->rollback_button = MakeRect(x + 800.0f, y, 150.0f, 42.0f);
 
   y += 50.0f;
   out_layout->selected_tags_label = MakeRect(x, y, 110.0f, 30.0f);

@@ -12,7 +12,7 @@ make test
 
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.8
+./scripts/release_check.sh --expected-tag v0.6.9
 
 # Build binaries only
 make
@@ -111,6 +111,7 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
 - GUI rename preview filter/selection model (`src/gui/core/gui_rename_preview_model.c`)
 - GUI path/file picker status handling and backend fallback logic (`src/gui/core/gui_path_picker.c`)
 - GUI rename task integration workflows (`src/gui/gui_worker*.c`)
+  - latest-id/history-detail/redo task coverage
 
 ## Manual Smoke Checklist
 
