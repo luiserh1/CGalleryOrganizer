@@ -30,6 +30,7 @@ extern void register_gui_rename_preview_model_tests(void);
 extern void register_gui_path_picker_tests(void);
 extern void register_gui_rename_workflow_tests(void);
 extern void register_cli_rename_tests(void);
+extern void register_cli_main_options_tests(void);
 
 int main(int argc, char **argv) {
   setvbuf(stdout, NULL, _IONBF, 0);
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
   register_gui_path_picker_tests();
   register_gui_rename_workflow_tests();
   register_cli_rename_tests();
+  register_cli_main_options_tests();
   register_integration_tests();
 
   int run_count = 0;
