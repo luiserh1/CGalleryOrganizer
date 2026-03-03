@@ -11,6 +11,7 @@
 static void PrintAppError(AppContext *app, const char *prefix);
 static void PrintRenameMetadataFields(const char *details_json);
 static bool SaveTextFile(const char *path, const char *text);
+static bool LoadTextFile(const char *path, char **out_text);
 
 static int HandleRollback(AppContext *app, const char *target_dir,
                           const char *env_dir, const char *argv0) {
@@ -267,6 +268,133 @@ static int HandleRenameHistory(AppContext *app, const char *target_dir,
   return 0;
 }
 
+static int HandleRenameHistoryLatestId(const char *target_dir,
+                                       const char *env_dir,
+                                       const char *argv0) {
+  const char *history_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!history_env) {
+    printf("Error: --rename-history-latest-id requires an environment "
+           "directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+
+  char latest_operation_id[64] = {0};
+  char resolve_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameResolveLatestOperationId(history_env, latest_operation_id,
+                                         sizeof(latest_operation_id),
+                                         resolve_error,
+                                         sizeof(resolve_error))) {
+    printf("Error: --rename-history-latest-id failed: %s\n", resolve_error);
+    return 1;
+  }
+
+  printf("Latest operation ID: %s\n", latest_operation_id);
+  return 0;
+}
+
+static int HandleRenamePreviewLatestId(const char *target_dir, const char *env_dir,
+                                       const char *argv0) {
+  const char *preview_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!preview_env) {
+    printf("Error: --rename-preview-latest-id requires an environment "
+           "directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+
+  char latest_preview_id[64] = {0};
+  char resolve_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameResolveLatestPreviewId(preview_env, latest_preview_id,
+                                       sizeof(latest_preview_id), resolve_error,
+                                       sizeof(resolve_error))) {
+    printf("Error: --rename-preview-latest-id failed: %s\n", resolve_error);
+    return 1;
+  }
+
+  printf("Latest preview ID: %s\n", latest_preview_id);
+  return 0;
+}
+
+static int HandleRenameHistoryDetail(AppContext *app, const char *target_dir,
+                                     const char *env_dir,
+                                     const char *operation_id,
+                                     const char *argv0) {
+  const char *history_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+  if (!history_env) {
+    printf("Error: --rename-history-detail requires an environment "
+           "directory.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+  if (!operation_id || operation_id[0] == '\0') {
+    printf("Error: --rename-history-detail requires <operation_id>.\n");
+    return 1;
+  }
+
+  AppRenameHistoryEntry *entries = NULL;
+  int count = 0;
+  AppStatus status = AppListRenameHistory(app, history_env, &entries, &count);
+  if (status != APP_STATUS_OK) {
+    PrintAppError(app, "Error: Failed to list rename history");
+    return 1;
+  }
+
+  AppRenameHistoryEntry *entry = NULL;
+  for (int i = 0; i < count; i++) {
+    if (strcmp(entries[i].operation_id, operation_id) == 0) {
+      entry = &entries[i];
+      break;
+    }
+  }
+  if (!entry) {
+    printf("Error: Rename history entry '%s' was not found.\n", operation_id);
+    AppFreeRenameHistoryEntries(entries);
+    return 1;
+  }
+
+  char manifest_path[MAX_PATH_LENGTH] = {0};
+  char resolve_error[APP_MAX_ERROR] = {0};
+  if (!CliRenameResolveOperationManifestPath(history_env, operation_id,
+                                             manifest_path,
+                                             sizeof(manifest_path),
+                                             resolve_error,
+                                             sizeof(resolve_error))) {
+    printf("Error: --rename-history-detail failed: %s\n", resolve_error);
+    AppFreeRenameHistoryEntries(entries);
+    return 1;
+  }
+
+  char *manifest_text = NULL;
+  if (!LoadTextFile(manifest_path, &manifest_text)) {
+    printf("Error: Failed to load rename operation manifest '%s'.\n",
+           manifest_path);
+    AppFreeRenameHistoryEntries(entries);
+    return 1;
+  }
+
+  printf("Rename history detail:\n");
+  printf("Operation ID: %s\n", entry->operation_id);
+  printf("Preview ID: %s\n", entry->preview_id[0] != '\0' ? entry->preview_id
+                                                           : "unknown-preview");
+  printf("Created At: %s\n",
+         entry->created_at_utc[0] != '\0' ? entry->created_at_utc
+                                           : "unknown-time");
+  printf("Counts: renamed=%d skipped=%d failed=%d collisions=%d truncations=%d\n",
+         entry->renamed_count, entry->skipped_count, entry->failed_count,
+         entry->collision_resolved_count, entry->truncation_count);
+  printf("Rollback: %s restored=%d skipped=%d failed=%d\n",
+         entry->rollback_performed ? "yes" : "no",
+         entry->rollback_restored_count, entry->rollback_skipped_count,
+         entry->rollback_failed_count);
+  printf("Manifest path: %s\n", manifest_path);
+  printf("\n--- Operation Manifest (JSON) ---\n%s\n", manifest_text);
+
+  free(manifest_text);
+  AppFreeRenameHistoryEntries(entries);
+  return 0;
+}
+
 static int HandleRenameRollback(AppContext *app, const char *target_dir,
                                 const char *env_dir,
                                 const char *operation_id,
@@ -419,8 +547,44 @@ static bool SaveTextFile(const char *path, const char *text) {
   return ok;
 }
 
+static bool LoadTextFile(const char *path, char **out_text) {
+  if (!path || path[0] == '\0' || !out_text) {
+    return false;
+  }
+
+  *out_text = NULL;
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    return false;
+  }
+
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    return false;
+  }
+
+  long size = ftell(f);
+  if (size < 0) {
+    fclose(f);
+    return false;
+  }
+  rewind(f);
+
+  char *text = calloc((size_t)size + 1, 1);
+  if (!text) {
+    fclose(f);
+    return false;
+  }
+
+  size_t read_bytes = fread(text, 1, (size_t)size, f);
+  fclose(f);
+  text[read_bytes] = '\0';
+  *out_text = text;
+  return true;
+}
+
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.6.4\n");
+  printf("CGalleryOrganizer v0.6.8\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -435,9 +599,13 @@ int main(int argc, char **argv) {
   bool rename_preview = false;
   bool rename_apply = false;
   bool rename_apply_latest = false;
+  bool rename_preview_latest_id = false;
   bool rename_init = false;
   bool rename_bootstrap_tags_from_filename = false;
   bool rename_history = false;
+  bool rename_history_latest_id = false;
+  const char *rename_history_detail_operation = NULL;
+  const char *rename_redo_operation = NULL;
   const char *rename_rollback_operation = NULL;
   const char *rename_pattern = NULL;
   const char *rename_tags_map_path = NULL;
@@ -586,6 +754,8 @@ int main(int argc, char **argv) {
       rename_apply = true;
     } else if (strcmp(argv[i], "--rename-apply-latest") == 0) {
       rename_apply_latest = true;
+    } else if (strcmp(argv[i], "--rename-preview-latest-id") == 0) {
+      rename_preview_latest_id = true;
     } else if (strcmp(argv[i], "--rename-init") == 0) {
       rename_init = true;
     } else if (strcmp(argv[i], "--rename-bootstrap-tags-from-filename") == 0) {
@@ -646,6 +816,20 @@ int main(int argc, char **argv) {
       rename_accept_auto_suffix = true;
     } else if (strcmp(argv[i], "--rename-history") == 0) {
       rename_history = true;
+    } else if (strcmp(argv[i], "--rename-history-latest-id") == 0) {
+      rename_history_latest_id = true;
+    } else if (strcmp(argv[i], "--rename-history-detail") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-history-detail requires an operation id.\n");
+        return 1;
+      }
+      rename_history_detail_operation = argv[++i];
+    } else if (strcmp(argv[i], "--rename-redo") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-redo requires an operation id.\n");
+        return 1;
+      }
+      rename_redo_operation = argv[++i];
     } else if (strcmp(argv[i], "--rename-rollback") == 0) {
       if (i + 1 >= argc) {
         printf("Error: --rename-rollback requires an operation id.\n");
@@ -669,26 +853,40 @@ int main(int argc, char **argv) {
 
   bool rename_rollback =
       rename_rollback_operation && rename_rollback_operation[0] != '\0';
-  bool rename_apply_action = rename_apply || rename_apply_latest;
+  bool rename_history_detail =
+      rename_history_detail_operation && rename_history_detail_operation[0] != '\0';
+  bool rename_redo =
+      rename_redo_operation && rename_redo_operation[0] != '\0';
+  bool rename_apply_action = rename_apply || rename_apply_latest || rename_redo;
+  int rename_apply_variant_count = 0;
+  rename_apply_variant_count += rename_apply ? 1 : 0;
+  rename_apply_variant_count += rename_apply_latest ? 1 : 0;
+  rename_apply_variant_count += rename_redo ? 1 : 0;
+
   int rename_action_count = 0;
   rename_action_count += rename_init ? 1 : 0;
   rename_action_count += rename_bootstrap_tags_from_filename ? 1 : 0;
   rename_action_count += rename_preview ? 1 : 0;
+  rename_action_count += rename_preview_latest_id ? 1 : 0;
   rename_action_count += rename_apply_action ? 1 : 0;
   rename_action_count += rename_history ? 1 : 0;
+  rename_action_count += rename_history_latest_id ? 1 : 0;
+  rename_action_count += rename_history_detail ? 1 : 0;
   rename_action_count += rename_rollback ? 1 : 0;
 
   if (rename_action_count > 1) {
     printf("Error: Rename actions are mutually exclusive "
            "(--rename-init|--rename-bootstrap-tags-from-filename|"
-           "--rename-preview|--rename-apply|--rename-apply-latest|"
-           "--rename-history|--rename-rollback).\n");
+           "--rename-preview|--rename-preview-latest-id|"
+           "--rename-apply|--rename-apply-latest|--rename-redo|"
+           "--rename-history|--rename-history-latest-id|"
+           "--rename-history-detail|--rename-rollback).\n");
     return 1;
   }
 
-  if (rename_apply && rename_apply_latest) {
-    printf("Error: --rename-apply and --rename-apply-latest cannot be used "
-           "together.\n");
+  if (rename_apply_variant_count > 1) {
+    printf("Error: --rename-apply, --rename-apply-latest, and --rename-redo "
+           "cannot be used together.\n");
     return 1;
   }
 
@@ -705,6 +903,11 @@ int main(int argc, char **argv) {
   if (rename_apply_latest && rename_from_preview && rename_from_preview[0] != '\0') {
     printf("Error: --rename-from-preview cannot be used with "
            "--rename-apply-latest.\n");
+    return 1;
+  }
+
+  if (rename_redo && rename_from_preview && rename_from_preview[0] != '\0') {
+    printf("Error: --rename-from-preview cannot be used with --rename-redo.\n");
     return 1;
   }
 
@@ -825,6 +1028,7 @@ int main(int argc, char **argv) {
   if (rename_apply_action) {
     const char *resolved_preview_id = rename_from_preview;
     char latest_preview_id[64] = {0};
+    char operation_preview_id[64] = {0};
     if (rename_apply_latest) {
       const char *apply_env = CliResolveRollbackEnvDir(target_dir, env_dir);
       if (!apply_env) {
@@ -844,6 +1048,26 @@ int main(int argc, char **argv) {
       printf("Resolved latest preview id: %s\n", latest_preview_id);
       resolved_preview_id = latest_preview_id;
     }
+    if (rename_redo) {
+      const char *apply_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+      if (!apply_env) {
+        printf("Error: --rename-redo requires an environment directory.\n");
+        AppContextDestroy(app);
+        return 1;
+      }
+      char resolve_error[APP_MAX_ERROR] = {0};
+      if (!CliRenameResolvePreviewIdFromOperation(
+              apply_env, rename_redo_operation, operation_preview_id,
+              sizeof(operation_preview_id), resolve_error,
+              sizeof(resolve_error))) {
+        printf("Error: --rename-redo failed: %s\n", resolve_error);
+        AppContextDestroy(app);
+        return 1;
+      }
+      printf("Resolved preview id from operation %s: %s\n",
+             rename_redo_operation, operation_preview_id);
+      resolved_preview_id = operation_preview_id;
+    }
 
     int rc = HandleRenameApply(app, target_dir, env_dir, resolved_preview_id,
                                rename_accept_auto_suffix, argv[0]);
@@ -852,6 +1076,23 @@ int main(int argc, char **argv) {
   }
   if (rename_history) {
     int rc = HandleRenameHistory(app, target_dir, env_dir, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_history_latest_id) {
+    int rc = HandleRenameHistoryLatestId(target_dir, env_dir, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_history_detail) {
+    int rc = HandleRenameHistoryDetail(app, target_dir, env_dir,
+                                       rename_history_detail_operation,
+                                       argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_preview_latest_id) {
+    int rc = HandleRenamePreviewLatestId(target_dir, env_dir, argv[0]);
     AppContextDestroy(app);
     return rc;
   }

@@ -12,7 +12,7 @@ make test
 
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.7
+./scripts/release_check.sh --expected-tag v0.6.8
 
 # Build binaries only
 make
@@ -83,8 +83,12 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
     - `--rename-preview-json` / `--rename-preview-json-out`
     - `--rename-apply` + `--rename-from-preview`
     - `--rename-apply-latest`
+    - `--rename-preview-latest-id`
     - collision gate + `--rename-accept-auto-suffix`
     - `--rename-history`
+    - `--rename-history-latest-id`
+    - `--rename-history-detail`
+    - `--rename-redo`
     - `--rename-rollback`
     - JSON tags-map ingest validation
 - App API layer validation (`src/app/*`), including request validation and cancellation handling
@@ -233,6 +237,7 @@ Expected:
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[location]-[tags]-[camera].[format]"
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags_meta]-[camera].[format]" --rename-meta-tag-add "frag-a,frag-b" --rename-meta-fields
+./build/bin/gallery_organizer build/smoke_env --rename-preview-latest-id
 ```
 Expected:
 - rename init validates paths and creates rename cache layout directories.
@@ -263,10 +268,14 @@ Expected:
 List and rollback:
 ```bash
 ./build/bin/gallery_organizer build/smoke_env --rename-history
+./build/bin/gallery_organizer build/smoke_env --rename-history-latest-id
+./build/bin/gallery_organizer build/smoke_env --rename-history-detail <operation_id>
+./build/bin/gallery_organizer build/smoke_env --rename-redo <operation_id>
 ./build/bin/gallery_organizer build/smoke_env --rename-rollback <operation_id>
 ```
 Expected:
 - history output contains operation id rows.
+- latest-id/detail/redo helpers complete without validation errors for valid ids.
 - rollback reports restored/skipped/failed counts.
 - rename tag sidecar path keys are updated on apply and rollback.
 

@@ -36,9 +36,11 @@ void CliPrintUsage(const char *argv0) {
   printf("  --rename-bootstrap-tags-from-filename Infer manual tags map from "
          "filename numeric tokens\n");
   printf("  --rename-preview  Build dedicated pattern-based rename preview\n");
+  printf("  --rename-preview-latest-id Print latest preview id in env\n");
   printf("  --rename-apply    Apply dedicated rename from preview id\n");
   printf("  --rename-apply-latest Apply dedicated rename from latest preview in "
          "env\n");
+  printf("  --rename-redo <operation_id> Resolve operation -> preview and apply\n");
   printf("  --rename-pattern <pattern> Pattern template used for rename preview\n");
   printf("  --rename-tags-map <json_path> Per-file manual tags map (JSON)\n");
   printf("  --rename-tag-add <csv_tags> Bulk add manual tags for preview scope\n");
@@ -59,6 +61,9 @@ void CliPrintUsage(const char *argv0) {
   printf("  --rename-accept-auto-suffix Accept deterministic _N collision "
          "suffixing\n");
   printf("  --rename-history  List dedicated rename operation history\n");
+  printf("  --rename-history-latest-id Print latest rename operation id\n");
+  printf("  --rename-history-detail <operation_id> Print detailed history entry "
+         "+ manifest\n");
   printf("  --rename-rollback <operation_id> Roll back dedicated rename "
          "operation\n");
   printf("\nRollback usage:\n");
@@ -69,9 +74,13 @@ void CliPrintUsage(const char *argv0) {
   printf("  %s <target_dir> <env_dir> --rename-bootstrap-tags-from-filename\n",
          argv0);
   printf("\nRename apply/history/rollback usage:\n");
+  printf("  %s <env_dir> --rename-preview-latest-id\n", argv0);
   printf("  %s <env_dir> --rename-history\n", argv0);
+  printf("  %s <env_dir> --rename-history-latest-id\n", argv0);
+  printf("  %s <env_dir> --rename-history-detail <operation_id>\n", argv0);
   printf("  %s <env_dir> --rename-apply --rename-from-preview <id>\n", argv0);
   printf("  %s <env_dir> --rename-apply-latest\n", argv0);
+  printf("  %s <env_dir> --rename-redo <operation_id>\n", argv0);
   printf("  %s <env_dir> --rename-rollback <operation_id>\n", argv0);
 }
 
