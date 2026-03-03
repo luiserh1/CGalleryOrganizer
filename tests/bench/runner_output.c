@@ -35,7 +35,11 @@ void BenchFillNowUtcIso(char out[64]) {
 
 void BenchFillGitCommit(char out[32]) {
   out[0] = '\0';
+#if defined(_WIN32)
+  FILE *pipe = popen("git rev-parse --short HEAD 2>nul", "r");
+#else
   FILE *pipe = popen("git rev-parse --short HEAD 2>/dev/null", "r");
+#endif
   if (!pipe) {
     snprintf(out, 32, "unknown");
     return;

@@ -89,9 +89,15 @@ void test_fs_utils_get_absolute_path(void) {
       FsGetAbsolutePath("temp_test_file.txt", out_path, sizeof(out_path)));
   ASSERT_TRUE(IsAbsolutePathForPlatform(out_path));
 
-  // Reject non-existent file
+  // Non-existent path handling is platform-specific.
+#if defined(_WIN32)
+  ASSERT_TRUE(FsGetAbsolutePath("does_not_exist_at_all.test", out_path,
+                                sizeof(out_path)));
+  ASSERT_TRUE(IsAbsolutePathForPlatform(out_path));
+#else
   ASSERT_FALSE(FsGetAbsolutePath("does_not_exist_at_all.test", out_path,
                                  sizeof(out_path)));
+#endif
 
   // Clean up
   ASSERT_TRUE(FsDeleteFile("temp_test_file.txt"));

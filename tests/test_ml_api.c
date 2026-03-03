@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "fs_utils.h"
+#include "integration_test_helpers.h"
 #include "ml_api.h"
 #include "test_framework.h"
 
@@ -18,13 +19,13 @@ static void WriteFile(const char *path, const char *content) {
 }
 
 void test_ml_init_missing_models(void) {
-  system("rm -rf build/test_models_missing");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_models_missing"));
   ASSERT_FALSE(MlInit("build/test_models_missing"));
   MlShutdown();
 }
 
 void test_ml_infer_success(void) {
-  system("rm -rf build/test_models_ok");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_models_ok"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_models_ok"));
   WriteFile("build/test_models_ok/clf-default.onnx", "dummy-clf");
   WriteFile("build/test_models_ok/text-default.onnx", "dummy-text");
@@ -48,7 +49,7 @@ void test_ml_infer_success(void) {
 }
 
 void test_ml_infer_invalid_feature_set(void) {
-  system("rm -rf build/test_models_invalid");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_models_invalid"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_models_invalid"));
   WriteFile("build/test_models_invalid/clf-default.onnx", "dummy-clf");
   WriteFile("build/test_models_invalid/text-default.onnx", "dummy-text");
@@ -64,7 +65,7 @@ void test_ml_infer_invalid_feature_set(void) {
 }
 
 void test_ml_embedding_support(void) {
-  system("rm -rf build/test_models_embed");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_models_embed"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_models_embed"));
   WriteFile("build/test_models_embed/clf-default.onnx", "dummy-clf");
   WriteFile("build/test_models_embed/text-default.onnx", "dummy-text");

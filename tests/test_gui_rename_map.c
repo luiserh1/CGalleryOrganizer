@@ -4,6 +4,7 @@
 
 #include "cJSON.h"
 #include "gui/core/gui_rename_map.h"
+#include "integration_test_helpers.h"
 #include "test_framework.h"
 
 static char *ReadFileText(const char *path) {
@@ -38,8 +39,7 @@ static char *ReadFileText(const char *path) {
 }
 
 void test_gui_rename_map_upsert_creates_and_replaces_entry(void) {
-  system("rm -rf build/test_gui_rename_map");
-  system("mkdir -p build/test_gui_rename_map");
+  ASSERT_TRUE(ResetDirForTest("build/test_gui_rename_map"));
 
   const char *map_path = "build/test_gui_rename_map/tags_map.json";
   const char *source_path = "/tmp/source_a.jpg";
@@ -84,12 +84,11 @@ void test_gui_rename_map_upsert_creates_and_replaces_entry(void) {
   ASSERT_STR_EQ("alpha", cJSON_GetArrayItem(manual_tags, 0)->valuestring);
   cJSON_Delete(root);
 
-  system("rm -rf build/test_gui_rename_map");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_gui_rename_map"));
 }
 
 void test_gui_rename_map_upsert_metadata_tags_preserves_manual_tags(void) {
-  system("rm -rf build/test_gui_rename_map_meta");
-  system("mkdir -p build/test_gui_rename_map_meta");
+  ASSERT_TRUE(ResetDirForTest("build/test_gui_rename_map_meta"));
 
   const char *map_path = "build/test_gui_rename_map_meta/tags_map.json";
   const char *source_path = "/tmp/source_meta.jpg";
@@ -124,7 +123,7 @@ void test_gui_rename_map_upsert_metadata_tags_preserves_manual_tags(void) {
   ASSERT_STR_EQ("meta-b", cJSON_GetArrayItem(meta_adds, 1)->valuestring);
 
   cJSON_Delete(root);
-  system("rm -rf build/test_gui_rename_map_meta");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_gui_rename_map_meta"));
 }
 
 void test_gui_rename_map_upsert_requires_paths(void) {

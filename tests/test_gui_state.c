@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "gui/gui_state.h"
+#include "integration_test_helpers.h"
 #include "test_framework.h"
 
 static int TestSetEnv(const char *key, const char *value) {
@@ -34,8 +35,7 @@ static void ReadFileText(const char *path, char *out, size_t out_size) {
 }
 
 void test_gui_state_roundtrip_with_override(void) {
-  system("rm -rf build/test_gui_state");
-  system("mkdir -p build/test_gui_state");
+  ASSERT_TRUE(ResetDirForTest("build/test_gui_state"));
   ASSERT_EQ(0, TestSetEnv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json"));
 
   GuiState in = {0};
@@ -88,7 +88,7 @@ void test_gui_state_roundtrip_with_override(void) {
   ASSERT_FALSE(GuiStateLoad(&out));
 
   TestUnsetEnv("CGO_GUI_STATE_PATH");
-  system("rm -rf build/test_gui_state");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_gui_state"));
 }
 
 void test_gui_state_resolve_default_path(void) {
@@ -100,8 +100,7 @@ void test_gui_state_resolve_default_path(void) {
 }
 
 void test_gui_state_legacy_defaults(void) {
-  system("rm -rf build/test_gui_state");
-  system("mkdir -p build/test_gui_state");
+  ASSERT_TRUE(ResetDirForTest("build/test_gui_state"));
   ASSERT_EQ(0, TestSetEnv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json"));
 
   FILE *f = fopen("build/test_gui_state/state.json", "wb");
@@ -135,12 +134,11 @@ void test_gui_state_legacy_defaults(void) {
   ASSERT_TRUE(strstr(rewritten_json, "windowHeight") == NULL);
 
   TestUnsetEnv("CGO_GUI_STATE_PATH");
-  system("rm -rf build/test_gui_state");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_gui_state"));
 }
 
 void test_gui_state_invalid_values_are_clamped(void) {
-  system("rm -rf build/test_gui_state");
-  system("mkdir -p build/test_gui_state");
+  ASSERT_TRUE(ResetDirForTest("build/test_gui_state"));
   ASSERT_EQ(0, TestSetEnv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json"));
 
   FILE *f = fopen("build/test_gui_state/state.json", "wb");
@@ -170,7 +168,7 @@ void test_gui_state_invalid_values_are_clamped(void) {
   ASSERT_STR_EQ("date", loaded.organize_group_by);
 
   TestUnsetEnv("CGO_GUI_STATE_PATH");
-  system("rm -rf build/test_gui_state");
+  ASSERT_TRUE(RemovePathRecursiveForTest("build/test_gui_state"));
 }
 
 void register_gui_state_tests(void) {

@@ -28,12 +28,12 @@ void test_benchmark_output_jsonl_contract(void) {
   ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_DATASET", "tests/assets/png"));
   ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_HISTORY_PATH",
                              "build/test_bench_output/history.jsonl"));
-  ASSERT_EQ(0,
-            SetTestEnvVar("BENCHMARK_LAST_PATH", "build/test_bench_output/last.json"));
+  ASSERT_EQ(
+      0, SetTestEnvVar("BENCHMARK_LAST_PATH", "build/test_bench_output/last.json"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
-      "./build/tests/bin/benchmark_runner --profile uncompressed --workload "
+      "build/tests/bin/benchmark_runner --profile uncompressed --workload "
       "cache_metadata_only 2>&1",
       output, sizeof(output));
   ClearTestEnvVar("BENCHMARK_LAST_PATH");
@@ -72,11 +72,12 @@ void test_benchmark_stats_and_comparison_report(void) {
   ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_HISTORY_PATH",
                              "build/test_bench_stats/history.jsonl"));
   ASSERT_EQ(0,
-            SetTestEnvVar("BENCHMARK_LAST_PATH", "build/test_bench_stats/last.json"));
+            SetTestEnvVar("BENCHMARK_LAST_PATH",
+                          "build/test_bench_stats/last.json"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
-      "./build/tests/bin/benchmark_runner --profile uncompressed "
+      "build/tests/bin/benchmark_runner --profile uncompressed "
       "--compare-profile uncompressed --comparison-path "
       "build/test_bench_stats/compare.json --workload cache_metadata_only "
       "--runs 2 --warmup-runs 1 2>&1",
