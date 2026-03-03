@@ -33,6 +33,25 @@ bool CliRenameResolveLatestPreviewId(const char *env_dir, char *out_preview_id,
                                      char *out_error,
                                      size_t out_error_size);
 
+bool CliRenameResolveLatestOperationId(const char *env_dir, char *out_operation_id,
+                                       size_t out_operation_id_size,
+                                       char *out_error,
+                                       size_t out_error_size);
+
+bool CliRenameResolvePreviewIdFromOperation(const char *env_dir,
+                                            const char *operation_id,
+                                            char *out_preview_id,
+                                            size_t out_preview_id_size,
+                                            char *out_error,
+                                            size_t out_error_size);
+
+bool CliRenameResolveOperationManifestPath(const char *env_dir,
+                                           const char *operation_id,
+                                           char *out_manifest_path,
+                                           size_t out_manifest_path_size,
+                                           char *out_error,
+                                           size_t out_error_size);
+
 bool CliRenameSuggestPath(const char *missing_path, char *out_suggestion,
                           size_t out_suggestion_size);
 

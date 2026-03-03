@@ -906,3 +906,41 @@ deterministic pre-release checklist command.
 - Benchmark impact summary:
   - No benchmark schema, methodology, or benchmark command changes in this
     milestone.
+
+---
+
+## v0.6.8 Scope: Rename History Ergonomics (CLI Detail + Redo Helpers) (Completed)
+
+### Primary Goal
+Improve dedicated rename CLI ergonomics for history inspection and safe reapply
+flows, reducing operator friction during iterative rename workflows.
+
+### Features
+- Add rename history detail inspection command for a single operation id.
+- Add rename redo command that resolves operation id -> preview id and reuses
+  existing apply safety semantics.
+- Add latest-id helper commands for:
+  - latest preview id
+  - latest rename operation id
+- Keep existing preview/apply/rollback execution semantics unchanged.
+
+### Release Notes
+- Behavior changes:
+  - Added dedicated rename CLI command flags:
+    - `--rename-preview-latest-id`
+    - `--rename-history-latest-id`
+    - `--rename-history-detail <operation_id>`
+    - `--rename-redo <operation_id>`
+  - `--rename-redo` resolves operation id -> preview id from rename history and
+    reuses the existing apply path (`AppApplyRename`) and preview fingerprint
+    safety checks.
+  - `--rename-history-detail` now prints both summary counters and the stored
+    operation manifest JSON payload for targeted audit/diagnostics.
+  - CLI version banner updated to `v0.6.8`.
+- Migration/compat notes:
+  - Additive CLI changes only; no app API contract changes.
+  - Existing rename history and preview artifacts remain compatible.
+  - Existing `--rename-apply`/`--rename-apply-latest` flows remain unchanged.
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.

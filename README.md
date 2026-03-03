@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.7)
+## Key Features (v0.6.8)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -78,6 +78,15 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
   - deterministic pre-release checklist script:
     - `scripts/release_check.sh`
     - optional tag verification: `--expected-tag vX.Y.Z`
+- Rename history ergonomics (v0.6.8):
+  - latest id helper commands:
+    - `--rename-preview-latest-id`
+    - `--rename-history-latest-id`
+  - operation deep inspection:
+    - `--rename-history-detail <operation_id>`
+  - safe re-apply shortcut:
+    - `--rename-redo <operation_id>`
+    - resolves operation -> preview and reuses apply safety checks
 
 ## Build
 
@@ -104,7 +113,7 @@ make test
 Release checklist:
 ```bash
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.7
+./scripts/release_check.sh --expected-tag v0.6.8
 ```
 
 ### Build GUI frontend
@@ -168,6 +177,7 @@ Scan tab.
 - `--rename-preview`: build dedicated pattern-based rename preview.
 - `--rename-apply`: apply rename from preview id.
 - `--rename-apply-latest`: apply rename from latest preview artifact in env.
+- `--rename-preview-latest-id`: print latest preview id from env preview cache.
 - `--rename-pattern <pattern>`: set pattern for rename preview.
 - `--rename-tags-map <json_path>`: ingest per-file manual tags map.
 - `--rename-tag-add <csv_tags>`: bulk add manual tags for preview scope.
@@ -180,6 +190,9 @@ Scan tab.
 - `--rename-from-preview <preview_id>`: required handshake id for `--rename-apply`.
 - `--rename-accept-auto-suffix`: accept deterministic collision suffixing (`_1`, `_2`, ...).
 - `--rename-history`: list dedicated rename operation history.
+- `--rename-history-latest-id`: print latest rename operation id.
+- `--rename-history-detail <operation_id>`: print detailed history summary + operation manifest.
+- `--rename-redo <operation_id>`: resolve operation preview id and re-apply rename via standard apply path.
 - `--rename-rollback <operation_id>`: rollback dedicated rename operation.
 
 Notes:
@@ -328,7 +341,15 @@ Cache profile behavior:
 ### Rename history and rollback
 ```bash
 ./build/bin/gallery_organizer /path/to/env --rename-history
+./build/bin/gallery_organizer /path/to/env --rename-history-latest-id
+./build/bin/gallery_organizer /path/to/env --rename-history-detail <operation_id>
 ./build/bin/gallery_organizer /path/to/env --rename-rollback <operation_id>
+```
+
+### Rename redo and latest preview helper
+```bash
+./build/bin/gallery_organizer /path/to/env --rename-preview-latest-id
+./build/bin/gallery_organizer /path/to/env --rename-redo <operation_id> --rename-accept-auto-suffix
 ```
 
 ### Compressed cache
@@ -392,6 +413,7 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.5`: cross-platform GUI picker expansion.
 - `v0.6.6`: GUI rename integration/E2E coverage.
 - `v0.6.7`: release hardening (cross-platform CI matrix + release checklist script).
+- `v0.6.8`: rename history ergonomics (detail inspection, redo path, latest-id helpers).
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping
