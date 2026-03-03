@@ -4,7 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#if !defined(_WIN32)
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 
 #include "cJSON.h"
@@ -38,10 +41,14 @@ int RunCommandCapture(const char *cmd, char *output, size_t output_size) {
     return -1;
   }
 
+#if defined(_WIN32)
+  return status;
+#else
   if (WIFEXITED(status)) {
     return WEXITSTATUS(status);
   }
   return -1;
+#endif
 }
 
 static bool RemovePathRecursiveInternal(const char *path) {

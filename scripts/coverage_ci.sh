@@ -36,9 +36,9 @@ GCOVR_ARGS=(
   --exclude "$ROOT_DIR/build"
 )
 
-gcovr "${GCOVR_ARGS[@]}" --txt "$COVERAGE_DIR/coverage.txt"
-gcovr "${GCOVR_ARGS[@]}" --json "$COVERAGE_DIR/coverage.json"
-gcovr "${GCOVR_ARGS[@]}" --xml-pretty "$COVERAGE_DIR/coverage.xml"
+gcovr "${GCOVR_ARGS[@]}" --txt --output "$COVERAGE_DIR/coverage.txt"
+gcovr "${GCOVR_ARGS[@]}" --json --output "$COVERAGE_DIR/coverage.json"
+gcovr "${GCOVR_ARGS[@]}" --xml-pretty --output "$COVERAGE_DIR/coverage.xml"
 
 python3 - "$COVERAGE_DIR/coverage.json" "$COVERAGE_DIR/summary.json" <<'PY'
 import json
