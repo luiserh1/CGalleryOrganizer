@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.2)
+## Key Features (v0.6.3)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -37,9 +37,10 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
   - strict numeric range validation with inline clamp feedback
 - Dedicated pattern-based rename workflow (CLI + GUI):
   - preview/apply/history/rollback API-backed flow
-  - curated v1 tokens:
+  - curated token set:
     - `[date]`, `[time]`, `[datetime]`, `[camera]`, `[make]`, `[model]`,
-      `[format]`, `[index]`, `[tags_manual]`, `[tags_meta]`, `[tags]`
+      `[format]`, `[gps_lat]`, `[gps_lon]`, `[location]`, `[index]`,
+      `[tags_manual]`, `[tags_meta]`, `[tags]`
   - manual + metadata tag merge model with sidecar persistence
   - preview handshake and explicit collision acceptance for auto suffixing
   - deterministic overlength truncate+hash naming policy
@@ -339,6 +340,10 @@ Suggested comparison rubric (zstd vs uncompressed):
 - `v0.6.0`: dedicated pattern-based rename workflow with hybrid tagging and operation history rollback.
 - `v0.6.1`: CLI rename onboarding/usability (init/bootstrap/apply-latest/preview JSON controls).
 - `v0.6.2`: GUI rename UX improvements (pickers, preview table, guided per-file tagging).
+- `v0.6.3`: extended rename tokens with GPS/location support (`[gps_lat]`, `[gps_lon]`, `[location]`).
+- `v0.6.4` (planned): metadata tag editing workflow.
+- `v0.6.5` (planned): cross-platform GUI picker expansion.
+- `v0.6.6` (planned): GUI rename integration/E2E coverage.
 - future: OS-specific frontends (e.g. SwiftUI) and additional frontend variants.
 
 ### Preview with compound grouping

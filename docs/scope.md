@@ -690,7 +690,7 @@ rename workflows without changing backend rename semantics.
 
 ---
 
-## v0.6.3 Scope: Extended Rename Tokens (Location/GPS Core) (Planned)
+## v0.6.3 Scope: Extended Rename Tokens (Location/GPS Core) (Completed)
 
 ### Primary Goal
 Extend the dedicated rename pattern engine with a small, deterministic v2 token
@@ -716,8 +716,98 @@ preview/apply safety and backward compatibility.
 
 ### Release Notes
 - Behavior changes:
-  - TBD at completion: finalized extended token list and formatting details.
+  - Added extended rename pattern tokens:
+    - `[gps_lat]` (hemisphere-prefixed fixed precision; e.g. `n40.416775`)
+    - `[gps_lon]` (hemisphere-prefixed fixed precision; e.g. `w3.703790`)
+    - `[location]` (deterministic combined `gps_lat-gps_lon`)
+  - Extended token rendering is available in dedicated rename preview/apply
+    flows without changing existing handshake/collision semantics.
+  - GUI rename pattern help now includes the new GPS/location tokens.
 - Migration/compat notes:
-  - TBD at completion: compatibility notes for existing patterns and previews.
+  - Existing patterns and token behavior remain backward compatible.
+  - Missing GPS values continue to use deterministic fallback text:
+    - `unknown-gps-lat`
+    - `unknown-gps-lon`
+    - `unknown-location`
+- Benchmark impact summary:
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.
+
+---
+
+## v0.6.4 Scope: Metadata Tag Editing Workflow (Planned)
+
+### Primary Goal
+Add first-class metadata-tag editing support for rename workflows so users can
+correct and curate metadata-driven tags without leaving the application flow.
+
+### Features
+- Add metadata-tag edit operations in dedicated rename context:
+  - inspect editable metadata-tag fields in scope
+  - per-file metadata-tag add/remove/update
+  - bulk metadata-tag add/remove for selected scope
+- Keep manual-tag and metadata-tag models separated while preserving merged
+  token behavior (`[tags_manual]`, `[tags_meta]`, `[tags]`).
+- Persist metadata-tag edit intents with deterministic, reversible records.
+- Add CLI surface for metadata-tag edits.
+- Add GUI controls in Rename tab for per-file and bulk metadata-tag edits.
+- Add tests for edit validation, persistence, preview/apply effects, and
+  rollback compatibility.
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized metadata-tag edit command/UI contract.
+- Migration/compat notes:
+  - TBD at completion: compatibility and persistence details.
+- Benchmark impact summary:
+  - TBD at completion: expected no benchmark schema/methodology changes.
+
+---
+
+## v0.6.5 Scope: Cross-Platform GUI Picker Expansion (Planned)
+
+### Primary Goal
+Improve GUI path/file picker coverage and reliability across supported platforms
+while keeping manual-entry fallback behavior deterministic.
+
+### Features
+- Add non-macOS native picker adapters (Linux/Windows) with safe fallbacks.
+- Normalize picker cancellation/error semantics across platforms.
+- Add picker regression tests (where feasible) and adapter-level unit coverage.
+- Keep existing GUI task/action behavior unchanged.
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized platform picker support matrix.
+- Migration/compat notes:
+  - TBD at completion: fallback and dependency notes by platform.
+- Benchmark impact summary:
+  - TBD at completion: expected no benchmark schema/methodology changes.
+
+---
+
+## v0.6.6 Scope: GUI Rename Integration/E2E Coverage (Planned)
+
+### Primary Goal
+Increase confidence in rename GUI workflows by adding broader integration/E2E
+coverage for preview/apply/history/rollback and tag-edit paths.
+
+### Features
+- Add integration smoke coverage for GUI rename workflows:
+  - preview generation and row rendering
+  - filter/selection behavior
+  - per-file tag updates + preview refresh
+  - apply/history/rollback wiring
+- Expand negative-path coverage:
+  - invalid map paths
+  - missing preview/operation ids
+  - collision-acceptance guard behavior
+- Document deterministic manual verification script for GUI rename regression.
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized test harness and coverage summary.
+- Migration/compat notes:
+  - TBD at completion: no expected runtime behavior changes outside testing.
 - Benchmark impact summary:
   - TBD at completion: expected no benchmark schema/methodology changes.

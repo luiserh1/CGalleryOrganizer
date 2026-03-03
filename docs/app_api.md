@@ -240,6 +240,10 @@ Behavior:
   - `<env_dir>/.cache/rename_previews/<preview_id>.json`
 - Supports pattern tokens, manual tag edits (map + bulk add/remove), collision
   analysis, truncate+hash warnings, and preview fingerprinting.
+- Token set includes:
+  - `[date]`, `[time]`, `[datetime]`, `[camera]`, `[make]`, `[model]`,
+    `[format]`, `[gps_lat]`, `[gps_lon]`, `[location]`, `[index]`,
+    `[tags_manual]`, `[tags_meta]`, `[tags]`
 - Required request fields: `target_dir`, `env_dir`.
 - `out_result->details_json` must be released with `AppFreeRenamePreviewResult()`.
 

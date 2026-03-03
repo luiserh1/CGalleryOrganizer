@@ -222,12 +222,15 @@ Expected:
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-init
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-bootstrap-tags-from-filename
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[location]-[tags]-[camera].[format]"
 ```
 Expected:
 - rename init validates paths and creates rename cache layout directories.
 - bootstrap command writes `build/smoke_env/.cache/rename_tags_bootstrap.json`.
 - preview id and preview artifact path are printed.
 - preview artifact exists under `build/smoke_env/.cache/rename_previews/`.
+- GPS/location tokens should resolve when metadata has GPS, otherwise deterministic
+  fallback values are used (`unknown-gps-lat`, `unknown-gps-lon`, `unknown-location`).
 
 Apply from preview id:
 ```bash
