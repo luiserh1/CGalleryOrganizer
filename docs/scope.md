@@ -687,3 +687,37 @@ rename workflows without changing backend rename semantics.
 - Benchmark impact summary:
   - No benchmark schema, methodology, or benchmark command changes in this
     milestone.
+
+---
+
+## v0.6.3 Scope: Extended Rename Tokens (Location/GPS Core) (Planned)
+
+### Primary Goal
+Extend the dedicated rename pattern engine with a small, deterministic v2 token
+set focused on location/GPS-derived naming, while preserving existing rename
+preview/apply safety and backward compatibility.
+
+### Features
+- Add extended rename tokens:
+  - `[gps_lat]`
+  - `[gps_lon]`
+  - `[location]` (deterministic `lat-lon` combined token)
+- Keep strict token allowlist/unknown-token validation behavior.
+- Keep deterministic fallback behavior for missing values (no batch failure).
+- Normalize GPS token output for filename safety and stable formatting.
+- Expose new tokens in:
+  - CLI/GUI help text and examples
+  - app API token validation paths
+- Add tests for:
+  - token parsing/validation for new tokens
+  - rendering with available GPS metadata
+  - fallback behavior when GPS metadata is missing
+  - sanitize/truncate interaction with extended token output
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized extended token list and formatting details.
+- Migration/compat notes:
+  - TBD at completion: compatibility notes for existing patterns and previews.
+- Benchmark impact summary:
+  - TBD at completion: expected no benchmark schema/methodology changes.
