@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COVERAGE_DIR="$ROOT_DIR/build/coverage"
 
-CC_BIN="${CC:-clang}"
-CXX_BIN="${CXX:-clang++}"
-EXTRA_CFLAGS_VAL="${EXTRA_CFLAGS:---coverage -O0}"
-EXTRA_CXXFLAGS_VAL="${EXTRA_CXXFLAGS:---coverage -O0}"
+CC_BIN="${CC:-gcc}"
+CXX_BIN="${CXX:-g++}"
+EXTRA_CFLAGS_VAL="${EXTRA_CFLAGS:---coverage -O0 -Wno-error}"
+EXTRA_CXXFLAGS_VAL="${EXTRA_CXXFLAGS:---coverage -O0 -Wno-error}"
 EXTRA_LDFLAGS_VAL="${EXTRA_LDFLAGS:---coverage}"
 
 if ! command -v gcovr >/dev/null 2>&1; then
