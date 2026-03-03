@@ -10,6 +10,12 @@ void test_renamer_pattern_unknown_token_rejected(void) {
   ASSERT_TRUE(strstr(error, "unknown token") != NULL);
 }
 
+void test_renamer_pattern_extended_gps_tokens_validate(void) {
+  char error[256] = {0};
+  ASSERT_TRUE(RenamerPatternValidate("[location]-[gps_lat]-[gps_lon].[format]",
+                                     error, sizeof(error)));
+}
+
 void test_renamer_pattern_escape_and_render(void) {
   RenamerPatternContext ctx = {
       .format = "JPG",
@@ -34,11 +40,34 @@ void test_renamer_pattern_missing_values_use_fallbacks(void) {
   bool truncated = false;
   char warning[128] = {0};
   char error[128] = {0};
-  ASSERT_TRUE(RenamerPatternRender("[date]-[camera]-[tags].[format]", &ctx,
-                                   output, sizeof(output), &truncated, warning,
-                                   sizeof(warning), error, sizeof(error)));
+  ASSERT_TRUE(RenamerPatternRender(
+      "[date]-[camera]-[location]-[gps_lat]-[gps_lon]-[tags].[format]", &ctx,
+      output, sizeof(output), &truncated, warning, sizeof(warning), error,
+      sizeof(error)));
   ASSERT_FALSE(truncated);
-  ASSERT_STR_EQ("unknown-date-unknown-camera-untagged.unknown-format", output);
+  ASSERT_STR_EQ(
+      "unknown-date-unknown-camera-unknown-location-unknown-gps-lat-unknown-gps-lon-untagged.unknown-format",
+      output);
+}
+
+void test_renamer_pattern_renders_location_tokens_when_present(void) {
+  RenamerPatternContext ctx = {
+      .location = "n40.416775-w3.703790",
+      .gps_lat = "n40.416775",
+      .gps_lon = "w3.703790",
+      .format = "jpg",
+  };
+
+  char output[256] = {0};
+  bool truncated = false;
+  char warning[128] = {0};
+  char error[128] = {0};
+  ASSERT_TRUE(RenamerPatternRender("[location]-[gps_lat]-[gps_lon].[format]",
+                                   &ctx, output, sizeof(output), &truncated,
+                                   warning, sizeof(warning), error,
+                                   sizeof(error)));
+  ASSERT_FALSE(truncated);
+  ASSERT_STR_EQ("n40.416775-w3.703790-n40.416775-w3.703790.jpg", output);
 }
 
 void test_renamer_pattern_truncate_hash_is_deterministic(void) {
@@ -77,10 +106,15 @@ void test_renamer_pattern_truncate_hash_is_deterministic(void) {
 void register_renamer_pattern_tests(void) {
   register_test("test_renamer_pattern_unknown_token_rejected",
                 test_renamer_pattern_unknown_token_rejected, "unit");
+  register_test("test_renamer_pattern_extended_gps_tokens_validate",
+                test_renamer_pattern_extended_gps_tokens_validate, "unit");
   register_test("test_renamer_pattern_escape_and_render",
                 test_renamer_pattern_escape_and_render, "unit");
   register_test("test_renamer_pattern_missing_values_use_fallbacks",
                 test_renamer_pattern_missing_values_use_fallbacks, "unit");
+  register_test("test_renamer_pattern_renders_location_tokens_when_present",
+                test_renamer_pattern_renders_location_tokens_when_present,
+                "unit");
   register_test("test_renamer_pattern_truncate_hash_is_deterministic",
                 test_renamer_pattern_truncate_hash_is_deterministic, "unit");
 }

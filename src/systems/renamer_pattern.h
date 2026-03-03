@@ -15,6 +15,9 @@ typedef struct {
   const char *make;
   const char *model;
   const char *format;
+  const char *gps_lat;
+  const char *gps_lon;
+  const char *location;
   const char *tags_manual;
   const char *tags_meta;
   const char *tags;
