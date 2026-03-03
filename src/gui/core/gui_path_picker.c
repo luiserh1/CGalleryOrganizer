@@ -92,6 +92,7 @@ static bool EscapeSingleQuotedShell(const char *input, char *out,
 }
 #endif
 
+#if defined(__APPLE__)
 static bool EscapeAppleScriptString(const char *input, char *out,
                                     size_t out_size) {
   if (!out || out_size == 0) {
@@ -124,6 +125,7 @@ static bool EscapeAppleScriptString(const char *input, char *out,
   out[used] = '\0';
   return true;
 }
+#endif
 
 #if defined(_WIN32)
 static bool EscapePowerShellSingleQuoted(const char *input, char *out,
