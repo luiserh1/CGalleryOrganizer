@@ -584,3 +584,82 @@ and multi-step rollback by operation id.
   - Rename history retention is capped to the latest 200 operations.
 - Benchmark impact summary:
   - No benchmark schema or benchmark command changes in this milestone.
+
+---
+
+## v0.6.1 Scope: CLI Rename Onboarding + Usability (Completed)
+
+### Primary Goal
+Reduce first-run friction in the dedicated rename CLI workflow while keeping
+existing rename safety semantics (preview/apply handshake, collision controls,
+and rollback history) unchanged.
+
+### Features
+- Add explicit rename environment preflight command:
+  - `--rename-init` validates target/env paths, resolves canonical absolute
+    paths, creates required cache subdirectories, and prints readiness summary.
+- Add built-in tag bootstrap from filenames:
+  - `--rename-bootstrap-tags-from-filename` writes a valid rename tags map JSON
+    from numeric tokens detected in current filenames.
+- Improve path error diagnostics for rename preview:
+  - unresolved directory errors include nearby sibling suggestions when
+    available (e.g. typo/case mismatch hints).
+- Improve preview output ergonomics:
+  - default preview output remains concise summary-first.
+  - add explicit full JSON output controls:
+    - `--rename-preview-json`
+    - `--rename-preview-json-out <path>`
+- Add apply shortcut for latest preview:
+  - `--rename-apply-latest` resolves latest preview id in env and reuses
+    existing apply/fingerprint validation rules.
+- Add integration coverage for new CLI contracts and guardrails.
+- Sync documentation for CLI usage, examples, and smoke tests.
+
+### Release Notes
+- Behavior changes:
+  - Added `--rename-init` to validate target/env paths, create rename cache
+    layout, and print readiness summary.
+  - Added `--rename-bootstrap-tags-from-filename` to generate a JSON manual tag
+    map from numeric filename tokens.
+  - Added rename target typo/case suggestion hints when preview target path is
+    unresolved.
+  - Preview output is now summary-first by default; full preview JSON is
+    optional via:
+    - `--rename-preview-json`
+    - `--rename-preview-json-out <path>`
+  - Added `--rename-apply-latest` as a shortcut for applying the newest preview
+    artifact in env while preserving existing apply validation semantics.
+- Migration/compat notes:
+  - Existing rename flags remain valid and backward compatible.
+  - `--rename-apply` still requires `--rename-from-preview`; the new
+    `--rename-apply-latest` path is additive.
+  - No cache schema changes; new bootstrap output defaults to:
+    - `<env_dir>/.cache/rename_tags_bootstrap.json`
+- Benchmark impact summary:
+  - No benchmark schema or benchmark methodology changes in this milestone.
+
+---
+
+## v0.6.2 Scope: GUI Rename Workflow Usability (Planned)
+
+### Primary Goal
+Improve the dedicated Rename tab usability for first-run and iterative batch
+rename workflows without changing backend rename semantics.
+
+### Features
+- Add GUI path pickers for gallery, environment, and tags-map fields.
+- Add GUI action to bootstrap manual tags from filename numeric tokens.
+- Add preview table UI (source -> candidate) with collision/warning filters.
+- Add per-file manual tag editor plus bulk add/remove controls in-panel.
+- Improve guided flow affordances:
+  - clearer preview/apply/rollback progression
+  - better preview/apply/history result summaries for large batches
+- Keep CLI/API contracts from v0.6.1 and v0.6.0 unchanged.
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized GUI rename panel improvements.
+- Migration/compat notes:
+  - TBD at completion: GUI state compatibility and defaults.
+- Benchmark impact summary:
+  - TBD at completion: expected no benchmark schema/methodology changes.

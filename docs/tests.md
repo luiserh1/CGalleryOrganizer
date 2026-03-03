@@ -71,8 +71,12 @@ Tests are registered with `register_test(name, fn, category)` and executed by th
   - `--jobs` and `CGO_JOBS` validation/override behavior
   - `--cache-compress auto` threshold selection
   - dedicated rename flow:
+    - `--rename-init`
+    - `--rename-bootstrap-tags-from-filename`
     - `--rename-preview`
+    - `--rename-preview-json` / `--rename-preview-json-out`
     - `--rename-apply` + `--rename-from-preview`
+    - `--rename-apply-latest`
     - collision gate + `--rename-accept-auto-suffix`
     - `--rename-history`
     - `--rename-rollback`
@@ -214,9 +218,13 @@ Expected:
 
 ### 15. Dedicated rename smoke
 ```bash
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-init
+./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-bootstrap-tags-from-filename
 ./build/bin/gallery_organizer build/smoke_source build/smoke_env --rename-preview --rename-pattern "pic-[tags]-[camera].[format]"
 ```
 Expected:
+- rename init validates paths and creates rename cache layout directories.
+- bootstrap command writes `build/smoke_env/.cache/rename_tags_bootstrap.json`.
 - preview id and preview artifact path are printed.
 - preview artifact exists under `build/smoke_env/.cache/rename_previews/`.
 
@@ -227,6 +235,14 @@ Apply from preview id:
 Expected:
 - operation id is printed.
 - rename history artifacts are written under `build/smoke_env/.cache/rename_history/`.
+
+Apply from latest preview shortcut:
+```bash
+./build/bin/gallery_organizer build/smoke_env --rename-apply-latest --rename-accept-auto-suffix
+```
+Expected:
+- latest preview id is resolved and printed before apply.
+- apply succeeds with the same validation semantics as explicit preview id.
 
 List and rollback:
 ```bash

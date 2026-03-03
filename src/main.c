@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "app_api.h"
 #include "cli/cli_args.h"
+#include "cli/cli_rename_utils.h"
 
 static void PrintAppError(AppContext *app, const char *prefix);
+static bool SaveTextFile(const char *path, const char *text);
 
 static int HandleRollback(AppContext *app, const char *target_dir,
                           const char *env_dir, const char *argv0) {
@@ -29,15 +32,91 @@ static int HandleRollback(AppContext *app, const char *target_dir,
   return 0;
 }
 
+static int HandleRenameInit(const char *target_dir, const char *env_dir,
+                            const char *argv0) {
+  if (!target_dir || target_dir[0] == '\0' || !env_dir || env_dir[0] == '\0') {
+    printf("Error: --rename-init requires <target_dir> <env_dir>.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+
+  CliRenameInitResult result = {0};
+  char error[APP_MAX_ERROR] = {0};
+  if (!CliRenameInitEnvironment(target_dir, env_dir, &result, error,
+                                sizeof(error))) {
+    printf("Error: Rename init failed: %s\n", error);
+    if (strstr(error, "does not exist") != NULL) {
+      char suggestion[MAX_PATH_LENGTH] = {0};
+      if (CliRenameSuggestPath(target_dir, suggestion, sizeof(suggestion))) {
+        printf("Hint: did you mean '%s'?\n", suggestion);
+      }
+    }
+    return 1;
+  }
+
+  printf("Rename init ready.\n");
+  printf("Target (abs): %s\n", result.target_abs);
+  printf("Env (abs): %s\n", result.env_abs);
+  printf("Files in scope: %d\n", result.media_files_in_scope);
+  printf("Cache layout: %s/.cache/{rename_previews,rename_history}\n",
+         result.env_abs);
+  return 0;
+}
+
+static int HandleRenameBootstrap(const char *target_dir, const char *env_dir,
+                                 const char *argv0) {
+  if (!target_dir || target_dir[0] == '\0' || !env_dir || env_dir[0] == '\0') {
+    printf("Error: --rename-bootstrap-tags-from-filename requires <target_dir> "
+           "<env_dir>.\n");
+    CliPrintUsage(argv0);
+    return 1;
+  }
+
+  CliRenameBootstrapResult result = {0};
+  char error[APP_MAX_ERROR] = {0};
+  if (!CliRenameBootstrapTagsFromFilename(target_dir, env_dir, &result, error,
+                                          sizeof(error))) {
+    printf("Error: rename bootstrap failed: %s\n", error);
+    if (strstr(error, "does not exist") != NULL) {
+      char suggestion[MAX_PATH_LENGTH] = {0};
+      if (CliRenameSuggestPath(target_dir, suggestion, sizeof(suggestion))) {
+        printf("Hint: did you mean '%s'?\n", suggestion);
+      }
+    }
+    return 1;
+  }
+
+  printf("Rename tag bootstrap completed.\n");
+  printf("Tags map: %s\n", result.map_path);
+  printf("Files scanned: %d\n", result.files_scanned);
+  printf("Files with inferred tags: %d\n", result.files_with_tags);
+  printf("Use with preview: --rename-tags-map \"%s\"\n", result.map_path);
+  return 0;
+}
+
 static int HandleRenamePreview(AppContext *app, const char *target_dir,
                                const char *env_dir, const char *pattern,
                                const char *tags_map_path,
                                const char *tag_add_csv,
                                const char *tag_remove_csv,
+                               bool preview_json,
+                               const char *preview_json_out,
                                const char *argv0) {
   if (!target_dir || target_dir[0] == '\0' || !env_dir || env_dir[0] == '\0') {
     printf("Error: --rename-preview requires <target_dir> <env_dir>.\n");
     CliPrintUsage(argv0);
+    return 1;
+  }
+
+  struct stat st;
+  if (stat(target_dir, &st) != 0 || !S_ISDIR(st.st_mode)) {
+    printf("Error: Failed to generate rename preview: target directory '%s' "
+           "does not exist.\n",
+           target_dir);
+    char suggestion[MAX_PATH_LENGTH] = {0};
+    if (CliRenameSuggestPath(target_dir, suggestion, sizeof(suggestion))) {
+      printf("Hint: did you mean '%s'?\n", suggestion);
+    }
     return 1;
   }
 
@@ -71,8 +150,24 @@ static int HandleRenamePreview(AppContext *app, const char *target_dir,
     printf("Apply guard: collisions detected; --rename-accept-auto-suffix "
            "is required on apply.\n");
   }
-  if (result.details_json && result.details_json[0] != '\0') {
+  if (preview_json_out && preview_json_out[0] != '\0') {
+    if (!result.details_json || result.details_json[0] == '\0') {
+      printf("Warning: preview details JSON was empty; nothing written to '%s'.\n",
+             preview_json_out);
+    } else if (!SaveTextFile(preview_json_out, result.details_json)) {
+      printf("Error: Failed to write preview JSON to '%s'.\n",
+             preview_json_out);
+      AppFreeRenamePreviewResult(&result);
+      return 1;
+    } else {
+      printf("Preview JSON saved: %s\n", preview_json_out);
+    }
+  }
+  if (preview_json && result.details_json && result.details_json[0] != '\0') {
     printf("\n--- Preview Details (JSON) ---\n%s\n", result.details_json);
+  } else if (!preview_json) {
+    printf("Hint: use --rename-preview-json or --rename-preview-json-out <path> "
+           "for full JSON details.\n");
   }
 
   AppFreeRenamePreviewResult(&result);
@@ -266,8 +361,23 @@ static void PrintAppError(AppContext *app, const char *prefix) {
   }
 }
 
+static bool SaveTextFile(const char *path, const char *text) {
+  if (!path || path[0] == '\0' || !text) {
+    return false;
+  }
+
+  FILE *f = fopen(path, "wb");
+  if (!f) {
+    return false;
+  }
+
+  bool ok = fputs(text, f) >= 0;
+  fclose(f);
+  return ok;
+}
+
 int main(int argc, char **argv) {
-  printf("CGalleryOrganizer v0.6.0\n");
+  printf("CGalleryOrganizer v0.6.1\n");
 
   bool exhaustive = false;
   bool ml_enrich = false;
@@ -281,12 +391,17 @@ int main(int argc, char **argv) {
 
   bool rename_preview = false;
   bool rename_apply = false;
+  bool rename_apply_latest = false;
+  bool rename_init = false;
+  bool rename_bootstrap_tags_from_filename = false;
   bool rename_history = false;
   const char *rename_rollback_operation = NULL;
   const char *rename_pattern = NULL;
   const char *rename_tags_map_path = NULL;
   const char *rename_tag_add_csv = NULL;
   const char *rename_tag_remove_csv = NULL;
+  bool rename_preview_json = false;
+  const char *rename_preview_json_out = NULL;
   const char *rename_from_preview = NULL;
   bool rename_accept_auto_suffix = false;
 
@@ -423,6 +538,12 @@ int main(int argc, char **argv) {
       rename_preview = true;
     } else if (strcmp(argv[i], "--rename-apply") == 0) {
       rename_apply = true;
+    } else if (strcmp(argv[i], "--rename-apply-latest") == 0) {
+      rename_apply_latest = true;
+    } else if (strcmp(argv[i], "--rename-init") == 0) {
+      rename_init = true;
+    } else if (strcmp(argv[i], "--rename-bootstrap-tags-from-filename") == 0) {
+      rename_bootstrap_tags_from_filename = true;
     } else if (strcmp(argv[i], "--rename-pattern") == 0) {
       if (i + 1 >= argc) {
         printf("Error: --rename-pattern requires a pattern value.\n");
@@ -447,6 +568,14 @@ int main(int argc, char **argv) {
         return 1;
       }
       rename_tag_remove_csv = argv[++i];
+    } else if (strcmp(argv[i], "--rename-preview-json") == 0) {
+      rename_preview_json = true;
+    } else if (strcmp(argv[i], "--rename-preview-json-out") == 0) {
+      if (i + 1 >= argc) {
+        printf("Error: --rename-preview-json-out requires an output path.\n");
+        return 1;
+      }
+      rename_preview_json_out = argv[++i];
     } else if (strcmp(argv[i], "--rename-from-preview") == 0) {
       if (i + 1 >= argc) {
         printf("Error: --rename-from-preview requires a preview id.\n");
@@ -480,16 +609,26 @@ int main(int argc, char **argv) {
 
   bool rename_rollback =
       rename_rollback_operation && rename_rollback_operation[0] != '\0';
+  bool rename_apply_action = rename_apply || rename_apply_latest;
   int rename_action_count = 0;
+  rename_action_count += rename_init ? 1 : 0;
+  rename_action_count += rename_bootstrap_tags_from_filename ? 1 : 0;
   rename_action_count += rename_preview ? 1 : 0;
-  rename_action_count += rename_apply ? 1 : 0;
+  rename_action_count += rename_apply_action ? 1 : 0;
   rename_action_count += rename_history ? 1 : 0;
   rename_action_count += rename_rollback ? 1 : 0;
 
   if (rename_action_count > 1) {
     printf("Error: Rename actions are mutually exclusive "
-           "(--rename-preview|--rename-apply|--rename-history|"
-           "--rename-rollback).\n");
+           "(--rename-init|--rename-bootstrap-tags-from-filename|"
+           "--rename-preview|--rename-apply|--rename-apply-latest|"
+           "--rename-history|--rename-rollback).\n");
+    return 1;
+  }
+
+  if (rename_apply && rename_apply_latest) {
+    printf("Error: --rename-apply and --rename-apply-latest cannot be used "
+           "together.\n");
     return 1;
   }
 
@@ -503,9 +642,23 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (!rename_apply && rename_accept_auto_suffix) {
+  if (rename_apply_latest && rename_from_preview && rename_from_preview[0] != '\0') {
+    printf("Error: --rename-from-preview cannot be used with "
+           "--rename-apply-latest.\n");
+    return 1;
+  }
+
+  if (!rename_apply_action && rename_accept_auto_suffix) {
     printf("Error: --rename-accept-auto-suffix can only be used with "
-           "--rename-apply.\n");
+           "--rename-apply or --rename-apply-latest.\n");
+    return 1;
+  }
+
+  if (!rename_preview &&
+      (rename_preview_json ||
+       (rename_preview_json_out && rename_preview_json_out[0] != '\0'))) {
+    printf("Error: --rename-preview-json and --rename-preview-json-out are only "
+           "valid with --rename-preview.\n");
     return 1;
   }
 
@@ -530,6 +683,13 @@ int main(int argc, char **argv) {
   if (rename_action_count > 0 && (jobs_set_by_cli || exhaustive || group_by_arg)) {
     printf("Error: --jobs/--exhaustive/--group-by are not applicable to dedicated "
            "rename actions.\n");
+    return 1;
+  }
+
+  if ((rename_init || rename_bootstrap_tags_from_filename) &&
+      (!target_dir || target_dir[0] == '\0' || !env_dir || env_dir[0] == '\0')) {
+    printf("Error: --rename-init and --rename-bootstrap-tags-from-filename "
+           "require <target_dir> <env_dir>.\n");
     return 1;
   }
 
@@ -579,15 +739,48 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (rename_preview) {
-    int rc = HandleRenamePreview(app, target_dir, env_dir, rename_pattern,
-                                 rename_tags_map_path, rename_tag_add_csv,
-                                 rename_tag_remove_csv, argv[0]);
+  if (rename_init) {
+    int rc = HandleRenameInit(target_dir, env_dir, argv[0]);
     AppContextDestroy(app);
     return rc;
   }
-  if (rename_apply) {
-    int rc = HandleRenameApply(app, target_dir, env_dir, rename_from_preview,
+  if (rename_bootstrap_tags_from_filename) {
+    int rc = HandleRenameBootstrap(target_dir, env_dir, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_preview) {
+    int rc = HandleRenamePreview(app, target_dir, env_dir, rename_pattern,
+                                 rename_tags_map_path, rename_tag_add_csv,
+                                 rename_tag_remove_csv, rename_preview_json,
+                                 rename_preview_json_out, argv[0]);
+    AppContextDestroy(app);
+    return rc;
+  }
+  if (rename_apply_action) {
+    const char *resolved_preview_id = rename_from_preview;
+    char latest_preview_id[64] = {0};
+    if (rename_apply_latest) {
+      const char *apply_env = CliResolveRollbackEnvDir(target_dir, env_dir);
+      if (!apply_env) {
+        printf("Error: --rename-apply-latest requires an environment directory.\n");
+        AppContextDestroy(app);
+        return 1;
+      }
+      char resolve_error[APP_MAX_ERROR] = {0};
+      if (!CliRenameResolveLatestPreviewId(apply_env, latest_preview_id,
+                                           sizeof(latest_preview_id),
+                                           resolve_error,
+                                           sizeof(resolve_error))) {
+        printf("Error: --rename-apply-latest failed: %s\n", resolve_error);
+        AppContextDestroy(app);
+        return 1;
+      }
+      printf("Resolved latest preview id: %s\n", latest_preview_id);
+      resolved_preview_id = latest_preview_id;
+    }
+
+    int rc = HandleRenameApply(app, target_dir, env_dir, resolved_preview_id,
                                rename_accept_auto_suffix, argv[0]);
     AppContextDestroy(app);
     return rc;
