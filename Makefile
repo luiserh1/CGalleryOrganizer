@@ -48,6 +48,7 @@ TEST_ALL_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(TEST_SRCS)) $(patsubst %.cp
 TEST_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/test_runner.o
 TEST_OBJS = $(filter-out $(TEST_RUNNER_OBJ), $(TEST_ALL_OBJS))
 TEST_BIN = $(TEST_BIN_DIR)/test_runner
+TEST_ARGS ?=
 
 BENCHMARK_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/benchmark_runner.o
 BENCH_SUPPORT_SRCS = $(wildcard tests/bench/*.c)
@@ -76,7 +77,7 @@ $(TARGET): $(OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 test: $(TARGET) $(TEST_BIN) $(BENCHMARK_BIN)
-	@./$(TEST_BIN)
+	@./$(TEST_BIN) $(TEST_ARGS)
 
 coverage:
 	@./scripts/coverage_ci.sh

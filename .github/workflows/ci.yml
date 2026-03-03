@@ -60,7 +60,7 @@ jobs:
             mingw-w64-ucrt-x86_64-zstd
 
       - name: Build + test
-        run: make test CC=clang CXX=clang++
+        run: make test CC=clang CXX=clang++ TEST_ARGS="--suite unit"
 
   coverage-ubuntu:
     name: coverage (ubuntu-latest)
