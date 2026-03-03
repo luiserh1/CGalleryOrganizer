@@ -18,6 +18,19 @@ static const char *SUPPORTED_EXTS[] = {
     ".mp4", ".mov",  ".mkv", ".avi", ".webm",                  // Videos
     NULL};
 
+#if defined(_WIN32)
+static void FsNormalizeSeparators(char *path) {
+  if (!path) {
+    return;
+  }
+  for (size_t i = 0; path[i] != '\0'; i++) {
+    if (path[i] == '\\') {
+      path[i] = '/';
+    }
+  }
+}
+#endif
+
 bool FsIsSupportedMedia(const char *path) {
   if (!path)
     return false;
@@ -56,6 +69,7 @@ bool FsGetAbsolutePath(const char *path, char *out_path, size_t out_size) {
   if (!_fullpath(resolved, path, sizeof(resolved))) {
     return false;
   }
+  FsNormalizeSeparators(resolved);
   size_t len = strlen(resolved);
   if (len >= out_size) {
     return false;
@@ -216,7 +230,12 @@ static void FsGetFilenameAndExt(const char *path, char *filename,
                                 size_t filename_size, char *ext,
                                 size_t ext_size) {
   const char *last_slash = strrchr(path, '/');
-  const char *base = last_slash ? last_slash + 1 : path;
+  const char *last_backslash = strrchr(path, '\\');
+  const char *sep = last_slash;
+  if (!sep || (last_backslash && last_backslash > sep)) {
+    sep = last_backslash;
+  }
+  const char *base = sep ? sep + 1 : path;
 
   const char *last_dot = strrchr(base, '.');
   if (!last_dot || last_dot == base) {
