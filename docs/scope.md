@@ -640,7 +640,7 @@ and rollback history) unchanged.
 
 ---
 
-## v0.6.2 Scope: GUI Rename Workflow Usability (Planned)
+## v0.6.2 Scope: GUI Rename Workflow Usability (Completed)
 
 ### Primary Goal
 Improve the dedicated Rename tab usability for first-run and iterative batch
@@ -664,8 +664,26 @@ rename workflows without changing backend rename semantics.
 
 ### Release Notes
 - Behavior changes:
-  - TBD at completion: finalized GUI rename panel improvements.
+  - Added native picker-backed path selection on supported platforms for:
+    - Scan tab gallery directory
+    - Scan tab environment directory
+    - Rename tab tags-map JSON path
+  - Added Rename tab bootstrap action to generate a tags map from filename
+    numeric tokens directly from GUI (`Bootstrap Tags`).
+  - Added interactive rename preview table in GUI with:
+    - source/candidate/manual-tags columns
+    - row selection
+    - collision-only and warnings-only filters
+    - mouse-wheel scroll for large result sets
+  - Added per-file manual tag editing from selected preview rows with in-panel
+    persistence into tags-map/sidecar-compatible JSON.
+  - Improved rename summary hints in GUI to include visible-row/warning context.
 - Migration/compat notes:
-  - TBD at completion: GUI state compatibility and defaults.
+  - Existing GUI persisted state remains backward compatible; new rename filter
+    and table-selection controls are runtime-only and initialized to safe
+    defaults (`false` filters, no selected row until preview).
+  - Existing CLI/API rename contracts and semantics remain unchanged.
+  - GUI title/version string advanced to `v0.6.2`.
 - Benchmark impact summary:
-  - TBD at completion: expected no benchmark schema/methodology changes.
+  - No benchmark schema, methodology, or benchmark command changes in this
+    milestone.

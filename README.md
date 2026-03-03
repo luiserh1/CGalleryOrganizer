@@ -4,7 +4,7 @@ CGalleryOrganizer is a local-first C/C++ gallery organizer with dual frontends:
 CLI (`gallery_organizer`) and a lightweight multiplatform GUI
 (`gallery_organizer_gui`). Both frontends use the same backend app API.
 
-## Key Features (v0.6.1)
+## Key Features (v0.6.2)
 - Recursive media scan with cache invalidation by file size and modification timestamp.
 - Metadata extraction through Exiv2 (dimensions, date taken, camera, GPS, orientation).
 - Optional exhaustive metadata capture with `--exhaustive`.
@@ -43,6 +43,11 @@ CLI (`gallery_organizer`) and a lightweight multiplatform GUI
   - manual + metadata tag merge model with sidecar persistence
   - preview handshake and explicit collision acceptance for auto suffixing
   - deterministic overlength truncate+hash naming policy
+  - GUI rename usability improvements:
+    - path pickers for gallery/env/tags-map fields (supported platforms)
+    - in-panel bootstrap action for filename-derived tags map generation
+    - preview table with collision/warning filters and row selection
+    - selected-row manual tag edit + persistence helper
   - CLI onboarding/usability improvements:
     - `--rename-init` for target/env preflight and cache layout setup
     - `--rename-bootstrap-tags-from-filename` to build tag map JSON from
@@ -189,8 +194,13 @@ Additional 0.5.4 behavior:
   - scan-like actions run profile preflight first
   - when cache exists and profile mismatches, GUI asks confirmation before rebuild
 - idle runtime refresh uses event-driven updates plus a slow poll cadence
+- rename tab usability additions (v0.6.2):
+  - tags-map picker + bootstrap action
+  - preview table with collision/warning filtering
+  - selected-row per-file manual tag update action
 
-Initial GUI path inputs are manual text fields (no native file picker in 0.5.x).
+GUI path fields remain directly editable and now also provide picker actions on
+supported platforms.
 
 Cache profile behavior:
 - sidecar file: `<env_dir>/.cache/gallery_cache.profile.json`
