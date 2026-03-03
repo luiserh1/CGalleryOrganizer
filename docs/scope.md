@@ -584,3 +584,41 @@ and multi-step rollback by operation id.
   - Rename history retention is capped to the latest 200 operations.
 - Benchmark impact summary:
   - No benchmark schema or benchmark command changes in this milestone.
+
+---
+
+## v0.6.1 Scope: CLI Rename Onboarding + Usability (Planned)
+
+### Primary Goal
+Reduce first-run friction in the dedicated rename CLI workflow while keeping
+existing rename safety semantics (preview/apply handshake, collision controls,
+and rollback history) unchanged.
+
+### Features
+- Add explicit rename environment preflight command:
+  - `--rename-init` validates target/env paths, resolves canonical absolute
+    paths, creates required cache subdirectories, and prints readiness summary.
+- Add built-in tag bootstrap from filenames:
+  - `--rename-bootstrap-tags-from-filename` writes a valid rename tags map JSON
+    from numeric tokens detected in current filenames.
+- Improve path error diagnostics for rename preview:
+  - unresolved directory errors include nearby sibling suggestions when
+    available (e.g. typo/case mismatch hints).
+- Improve preview output ergonomics:
+  - default preview output remains concise summary-first.
+  - add explicit full JSON output controls:
+    - `--rename-preview-json`
+    - `--rename-preview-json-out <path>`
+- Add apply shortcut for latest preview:
+  - `--rename-apply-latest` resolves latest preview id in env and reuses
+    existing apply/fingerprint validation rules.
+- Add integration coverage for new CLI contracts and guardrails.
+- Sync documentation for CLI usage, examples, and smoke tests.
+
+### Release Notes
+- Behavior changes:
+  - TBD at completion: finalized CLI onboarding and preview output behavior.
+- Migration/compat notes:
+  - TBD at completion: compatibility constraints and flag interaction details.
+- Benchmark impact summary:
+  - TBD at completion: expected no benchmark schema/methodology changes.
