@@ -13,6 +13,10 @@ make test
 # Build + run only one suite category (unit|integration)
 make test TEST_ARGS="--suite unit"
 
+# Build + run filtered tests by name
+make test TEST_ARGS="--suite integration --name-prefix test_cli_"
+make test TEST_ARGS="--suite integration --name-contains metadata"
+
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
 ./scripts/release_check.sh --expected-tag v0.6.11

@@ -36,8 +36,28 @@ jobs:
         run: make test
 
   test-windows-msys2:
-    name: test (windows-msys2)
+    name: test (windows-msys2, ${{ matrix.label }})
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: unit
+            test_args: --suite unit
+          - label: integration-app
+            test_args: --suite integration --name-prefix test_app_
+          - label: integration-gui
+            test_args: --suite integration --name-prefix test_gui_
+          - label: integration-cli
+            test_args: --suite integration --name-prefix test_cli_
+          - label: integration-metadata
+            test_args: --suite integration --name-prefix test_metadata_
+          - label: integration-unified
+            test_args: --suite integration --name-prefix test_unified_
+          - label: integration-exhaustive
+            test_args: --suite integration --name-prefix test_exhaustive_
+          - label: integration-duplicate
+            test_args: --suite integration --name-prefix test_duplicate_
     defaults:
       run:
         shell: msys2 {0}
@@ -60,7 +80,7 @@ jobs:
             mingw-w64-ucrt-x86_64-zstd
 
       - name: Build + test
-        run: make test CC=clang CXX=clang++ TEST_ARGS="--suite unit"
+        run: make test CC=clang CXX=clang++ TEST_ARGS="${{ matrix.test_args }}"
 
   coverage-ubuntu:
     name: coverage (ubuntu-latest)
