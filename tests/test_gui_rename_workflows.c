@@ -277,44 +277,46 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
   strncpy(preview_input.rename_pattern, "pic-[index].[format]",
           sizeof(preview_input.rename_pattern) - 1);
 
-  GuiTaskSnapshot preview_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&preview_input, &preview_snapshot));
-  ASSERT_TRUE(preview_snapshot.success);
-  ASSERT_TRUE(preview_snapshot.rename_preview_id[0] != '\0');
+  GuiTaskSnapshot snapshot = {0};
+  ASSERT_TRUE(RunWorkerTask(&preview_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_TRUE(snapshot.rename_preview_id[0] != '\0');
+
+  char preview_id[64] = {0};
+  strncpy(preview_id, snapshot.rename_preview_id, sizeof(preview_id) - 1);
+  preview_id[sizeof(preview_id) - 1] = '\0';
 
   GuiTaskInput apply_input = {0};
   InitTaskInput(&apply_input, GUI_TASK_RENAME_APPLY, NULL,
                 "build/test_gui_rename_detail_env");
-  strncpy(apply_input.rename_preview_id, preview_snapshot.rename_preview_id,
+  strncpy(apply_input.rename_preview_id, preview_id,
           sizeof(apply_input.rename_preview_id) - 1);
 
-  GuiTaskSnapshot apply_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&apply_input, &apply_snapshot));
-  ASSERT_TRUE(apply_snapshot.success);
-  ASSERT_TRUE(apply_snapshot.rename_apply_result.operation_id[0] != '\0');
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&apply_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_TRUE(snapshot.rename_apply_result.operation_id[0] != '\0');
 
   char operation_id[64] = {0};
-  strncpy(operation_id, apply_snapshot.rename_apply_result.operation_id,
+  strncpy(operation_id, snapshot.rename_apply_result.operation_id,
           sizeof(operation_id) - 1);
   operation_id[sizeof(operation_id) - 1] = '\0';
 
   GuiTaskInput latest_preview_input = {0};
   InitTaskInput(&latest_preview_input, GUI_TASK_RENAME_PREVIEW_LATEST_ID, NULL,
                 "build/test_gui_rename_detail_env");
-  GuiTaskSnapshot latest_preview_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&latest_preview_input, &latest_preview_snapshot));
-  ASSERT_TRUE(latest_preview_snapshot.success);
-  ASSERT_STR_EQ(preview_snapshot.rename_preview_id,
-                latest_preview_snapshot.rename_preview_id);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&latest_preview_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_STR_EQ(preview_id, snapshot.rename_preview_id);
 
   GuiTaskInput latest_history_input = {0};
   InitTaskInput(&latest_history_input, GUI_TASK_RENAME_HISTORY_LATEST_ID, NULL,
                 "build/test_gui_rename_detail_env");
-  GuiTaskSnapshot latest_history_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&latest_history_input, &latest_history_snapshot));
-  ASSERT_TRUE(latest_history_snapshot.success);
-  ASSERT_STR_EQ(operation_id,
-                latest_history_snapshot.rename_latest_operation_id);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&latest_history_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_STR_EQ(operation_id, snapshot.rename_latest_operation_id);
 
   GuiTaskInput detail_input = {0};
   InitTaskInput(&detail_input, GUI_TASK_RENAME_HISTORY_DETAIL, NULL,
@@ -322,23 +324,23 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
   strncpy(detail_input.rename_operation_id, operation_id,
           sizeof(detail_input.rename_operation_id) - 1);
 
-  GuiTaskSnapshot detail_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&detail_input, &detail_snapshot));
-  ASSERT_TRUE(detail_snapshot.success);
-  ASSERT_TRUE(strstr(detail_snapshot.detail_text, "Rename history detail") != NULL);
-  ASSERT_TRUE(strstr(detail_snapshot.detail_text, operation_id) != NULL);
-  ASSERT_TRUE(strstr(detail_snapshot.detail_text, "\"operationId\"") != NULL);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&detail_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_TRUE(strstr(snapshot.detail_text, "Rename history detail") != NULL);
+  ASSERT_TRUE(strstr(snapshot.detail_text, operation_id) != NULL);
+  ASSERT_TRUE(strstr(snapshot.detail_text, "\"operationId\"") != NULL);
 
   GuiTaskInput preflight_input = {0};
   InitTaskInput(&preflight_input, GUI_TASK_RENAME_ROLLBACK_PREFLIGHT, NULL,
                 "build/test_gui_rename_detail_env");
   strncpy(preflight_input.rename_operation_id, operation_id,
           sizeof(preflight_input.rename_operation_id) - 1);
-  GuiTaskSnapshot preflight_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&preflight_input, &preflight_snapshot));
-  ASSERT_TRUE(preflight_snapshot.success);
-  ASSERT_TRUE(preflight_snapshot.rename_rollback_preflight_result.total_items >= 1);
-  ASSERT_TRUE(preflight_snapshot.rename_rollback_preflight_result.fully_restorable);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&preflight_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_TRUE(snapshot.rename_rollback_preflight_result.total_items >= 1);
+  ASSERT_TRUE(snapshot.rename_rollback_preflight_result.fully_restorable);
 
   GuiTaskInput export_input = {0};
   InitTaskInput(&export_input, GUI_TASK_RENAME_HISTORY_EXPORT, NULL,
@@ -348,9 +350,9 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
           sizeof(export_input.rename_history_export_path) - 1);
   strncpy(export_input.rename_history_id_prefix, operation_id,
           sizeof(export_input.rename_history_id_prefix) - 1);
-  GuiTaskSnapshot export_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&export_input, &export_snapshot));
-  ASSERT_TRUE(export_snapshot.success);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&export_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
   ASSERT_TRUE(FileExists("build/test_gui_rename_detail_env/history_export.json"));
   ASSERT_TRUE(FileContainsText("build/test_gui_rename_detail_env/history_export.json",
                                operation_id));
@@ -360,9 +362,9 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
                 "build/test_gui_rename_detail_env");
   strncpy(rollback_input.rename_operation_id, operation_id,
           sizeof(rollback_input.rename_operation_id) - 1);
-  GuiTaskSnapshot rollback_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&rollback_input, &rollback_snapshot));
-  ASSERT_TRUE(rollback_snapshot.success);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&rollback_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
 
   GuiTaskInput redo_input = {0};
   InitTaskInput(&redo_input, GUI_TASK_RENAME_REDO, NULL,
@@ -371,22 +373,22 @@ void test_gui_rename_workflow_latest_detail_and_redo(void) {
           sizeof(redo_input.rename_operation_id) - 1);
   redo_input.rename_accept_auto_suffix = false;
 
-  GuiTaskSnapshot redo_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&redo_input, &redo_snapshot));
-  ASSERT_TRUE(redo_snapshot.success);
-  ASSERT_TRUE(redo_snapshot.rename_apply_result.operation_id[0] != '\0');
-  ASSERT_STR_EQ(preview_snapshot.rename_preview_id, redo_snapshot.rename_preview_id);
-  ASSERT_TRUE(strstr(redo_snapshot.detail_text, "Rename redo completed") != NULL);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&redo_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_TRUE(snapshot.rename_apply_result.operation_id[0] != '\0');
+  ASSERT_STR_EQ(preview_id, snapshot.rename_preview_id);
+  ASSERT_TRUE(strstr(snapshot.detail_text, "Rename redo completed") != NULL);
 
   GuiTaskInput prune_input = {0};
   InitTaskInput(&prune_input, GUI_TASK_RENAME_HISTORY_PRUNE, NULL,
                 "build/test_gui_rename_detail_env");
   prune_input.rename_history_prune_keep_count = 1;
-  GuiTaskSnapshot prune_snapshot = {0};
-  ASSERT_TRUE(RunWorkerTask(&prune_input, &prune_snapshot));
-  ASSERT_TRUE(prune_snapshot.success);
-  ASSERT_TRUE(prune_snapshot.rename_history_prune_result.before_count >= 2);
-  ASSERT_EQ(1, prune_snapshot.rename_history_prune_result.after_count);
+  memset(&snapshot, 0, sizeof(snapshot));
+  ASSERT_TRUE(RunWorkerTask(&prune_input, &snapshot));
+  ASSERT_TRUE(snapshot.success);
+  ASSERT_TRUE(snapshot.rename_history_prune_result.before_count >= 2);
+  ASSERT_EQ(1, snapshot.rename_history_prune_result.after_count);
 
   TeardownWorker(ctx);
   ASSERT_TRUE(RemovePathsForTest(
