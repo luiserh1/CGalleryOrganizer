@@ -32,14 +32,23 @@ extern void register_gui_rename_workflow_tests(void);
 extern void register_cli_rename_tests(void);
 
 int main(int argc, char **argv) {
+  setvbuf(stdout, NULL, _IONBF, 0);
   printf("=== CGalleryOrganizer Test Suite ===\n\n");
 
   const char *filter_suite = NULL;
+  const char *filter_name_prefix = NULL;
+  const char *filter_name_contains = NULL;
 
   // Simple arg parsing
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--suite") == 0 && i + 1 < argc) {
       filter_suite = argv[i + 1];
+      i++;
+    } else if (strcmp(argv[i], "--name-prefix") == 0 && i + 1 < argc) {
+      filter_name_prefix = argv[i + 1];
+      i++;
+    } else if (strcmp(argv[i], "--name-contains") == 0 && i + 1 < argc) {
+      filter_name_contains = argv[i + 1];
       i++;
     }
   }
@@ -78,12 +87,23 @@ int main(int argc, char **argv) {
     if (filter_suite && strcmp(g_tests[i].category, filter_suite) != 0) {
       continue;
     }
+    if (filter_name_prefix &&
+        strncmp(g_tests[i].name, filter_name_prefix,
+                strlen(filter_name_prefix)) != 0) {
+      continue;
+    }
+    if (filter_name_contains &&
+        strstr(g_tests[i].name, filter_name_contains) == NULL) {
+      continue;
+    }
 
     printf("RUN  %s\n", g_tests[i].name);
+    fflush(stdout);
     int start_fails = g_fail_count;
     g_tests[i].func();
     if (g_fail_count == start_fails) {
       printf("PASS %s\n", g_tests[i].name);
+      fflush(stdout);
     }
     run_count++;
   }

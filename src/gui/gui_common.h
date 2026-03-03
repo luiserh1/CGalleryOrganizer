@@ -4,10 +4,13 @@
 #include <stdbool.h>
 
 #include "app_api.h"
-#include "raylib.h"
 
 #include "gui/gui_state.h"
 #include "gui/gui_worker.h"
+
+#ifndef RAYLIB_H
+typedef struct Rectangle Rectangle;
+#endif
 
 typedef struct {
   GuiState persisted_state;

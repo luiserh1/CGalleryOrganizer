@@ -1,6 +1,8 @@
 #include "memory_metrics.h"
 
+#if !defined(_WIN32)
 #include <sys/resource.h>
+#endif
 
 #if defined(__APPLE__)
 #include <mach/mach.h>
@@ -43,6 +45,9 @@ long long GetCurrentRssBytes(void) {
 }
 
 long long GetPeakRssBytes(void) {
+#if defined(_WIN32)
+  return -1;
+#else
   struct rusage usage;
   if (getrusage(RUSAGE_SELF, &usage) != 0) {
     return -1;
@@ -54,5 +59,6 @@ long long GetPeakRssBytes(void) {
   return (long long)usage.ru_maxrss * 1024LL;
 #else
   return -1;
+#endif
 #endif
 }

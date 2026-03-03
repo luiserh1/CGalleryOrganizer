@@ -10,9 +10,20 @@ The repository uses a custom lightweight test framework in `tests/test_framework
 # Build main binary + test runner and execute all tests
 make test
 
+# Build + run only one suite category (unit|integration)
+make test TEST_ARGS="--suite unit"
+
+# Build + run filtered tests by name
+make test TEST_ARGS="--suite integration --name-prefix test_cli_"
+make test TEST_ARGS="--suite integration --name-contains metadata"
+
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.10
+./scripts/release_check.sh --expected-tag v0.6.11
+
+# Run coverage pipeline (requires gcovr)
+make coverage
+python3 ./scripts/coverage_gate.py --baseline tests/coverage/baseline.json --summary build/coverage/summary.json
 
 # Build binaries only
 make
@@ -48,6 +59,19 @@ Assertions currently used by the suite:
 - `ASSERT_STR_EQ`
 
 Tests are registered with `register_test(name, fn, category)` and executed by the runner.
+
+## Coverage Ratchet
+
+Coverage artifacts are generated under `build/coverage/`:
+- `coverage.txt`: human-readable summary.
+- `coverage.json`: machine-readable gcovr report.
+- `coverage.xml`: Cobertura XML report.
+- `summary.json`: normalized line/branch summary used by ratchet gate.
+
+Ratchet policy:
+- Coverage gate compares current summary against `tests/coverage/baseline.json`.
+- Gate fails only on regression (line/branch percentage drop below baseline).
+- Metrics with baseline `total = 0` are treated as ungated until baseline is refreshed.
 
 ## Coverage Focus
 

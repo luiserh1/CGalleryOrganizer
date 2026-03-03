@@ -5,6 +5,40 @@
 #include "organizer.h"
 #include "systems/organizer_internal.h"
 
+static bool OrganizerBuildProbePath(char *out_path, size_t out_size,
+                                    const char *base_path, const char *ext,
+                                    int collision_idx) {
+  if (!out_path || out_size == 0 || !base_path || !ext) {
+    return false;
+  }
+
+  size_t base_len = strlen(base_path);
+  size_t ext_len = strlen(ext);
+  size_t suffix_len = 0;
+  char suffix[32] = {0};
+
+  if (collision_idx > 0) {
+    int written = snprintf(suffix, sizeof(suffix), "_%d", collision_idx);
+    if (written < 0 || (size_t)written >= sizeof(suffix)) {
+      return false;
+    }
+    suffix_len = (size_t)written;
+  }
+
+  size_t total_len = base_len + suffix_len + ext_len;
+  if (total_len + 1 > out_size) {
+    return false;
+  }
+
+  memcpy(out_path, base_path, base_len);
+  if (suffix_len > 0) {
+    memcpy(out_path + base_len, suffix, suffix_len);
+  }
+  memcpy(out_path + base_len + suffix_len, ext, ext_len);
+  out_path[total_len] = '\0';
+  return true;
+}
+
 bool OrganizerExecutePlan(OrganizerPlan *plan) {
   if (!plan)
     return false;
@@ -26,13 +60,25 @@ bool OrganizerExecutePlan(OrganizerPlan *plan) {
     struct stat st;
     int collision_idx = 1;
     char probe_path[MAX_PATH_LENGTH];
-
-    snprintf(probe_path, sizeof(probe_path), "%s%s", exact_new_path, ext);
+    if (!OrganizerBuildProbePath(probe_path, sizeof(probe_path), exact_new_path,
+                                 ext, 0)) {
+      printf("  [!] Target path too long, skipping: %s\n",
+             plan->moves[i].new_path);
+      continue;
+    }
 
     while (stat(probe_path, &st) == 0) {
-      snprintf(probe_path, sizeof(probe_path), "%s_%d%s", exact_new_path,
-               collision_idx, ext);
+      if (!OrganizerBuildProbePath(probe_path, sizeof(probe_path),
+                                   exact_new_path, ext, collision_idx)) {
+        printf("  [!] Target path too long after collision suffix, skipping: %s\n",
+               plan->moves[i].new_path);
+        break;
+      }
       collision_idx++;
+    }
+
+    if (stat(probe_path, &st) == 0) {
+      continue;
     }
 
     char target_dir[MAX_PATH_LENGTH];

@@ -6,18 +6,43 @@
 #include "test_framework.h"
 #include "integration_test_helpers.h"
 
+static int SetTestEnvVar(const char *key, const char *value) {
+#if defined(_WIN32)
+  return _putenv_s(key, value);
+#else
+  return setenv(key, value, 1);
+#endif
+}
+
+static void ClearTestEnvVar(const char *key) {
+#if defined(_WIN32)
+  (void)_putenv_s(key, "");
+#else
+  unsetenv(key);
+#endif
+}
+
 void test_benchmark_output_jsonl_contract(void) {
+#if defined(_WIN32)
+  printf("  INFO: skipping benchmark shell integration test on Windows\n");
+  return;
+#endif
   ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_output"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_output"));
+  ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_DATASET", "tests/assets/png"));
+  ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_HISTORY_PATH",
+                             "build/test_bench_output/history.jsonl"));
+  ASSERT_EQ(
+      0, SetTestEnvVar("BENCHMARK_LAST_PATH", "build/test_bench_output/last.json"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
-      "BENCHMARK_DATASET=tests/assets/png "
-      "BENCHMARK_HISTORY_PATH=build/test_bench_output/history.jsonl "
-      "BENCHMARK_LAST_PATH=build/test_bench_output/last.json "
-      "./build/tests/bin/benchmark_runner --profile uncompressed --workload "
+      "build/tests/bin/benchmark_runner --profile uncompressed --workload "
       "cache_metadata_only 2>&1",
       output, sizeof(output));
+  ClearTestEnvVar("BENCHMARK_LAST_PATH");
+  ClearTestEnvVar("BENCHMARK_HISTORY_PATH");
+  ClearTestEnvVar("BENCHMARK_DATASET");
   ASSERT_EQ(0, code);
 
   FILE *f = fopen("build/test_bench_output/history.jsonl", "r");
@@ -45,19 +70,29 @@ void test_benchmark_output_jsonl_contract(void) {
 }
 
 void test_benchmark_stats_and_comparison_report(void) {
+#if defined(_WIN32)
+  printf("  INFO: skipping benchmark shell integration test on Windows\n");
+  return;
+#endif
   ASSERT_TRUE(RemovePathRecursiveForTest("build/test_bench_stats"));
   ASSERT_TRUE(FsMakeDirRecursive("build/test_bench_stats"));
+  ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_DATASET", "tests/assets/png"));
+  ASSERT_EQ(0, SetTestEnvVar("BENCHMARK_HISTORY_PATH",
+                             "build/test_bench_stats/history.jsonl"));
+  ASSERT_EQ(0,
+            SetTestEnvVar("BENCHMARK_LAST_PATH",
+                          "build/test_bench_stats/last.json"));
 
   char output[4096] = {0};
   int code = RunCommandCapture(
-      "BENCHMARK_DATASET=tests/assets/png "
-      "BENCHMARK_HISTORY_PATH=build/test_bench_stats/history.jsonl "
-      "BENCHMARK_LAST_PATH=build/test_bench_stats/last.json "
-      "./build/tests/bin/benchmark_runner --profile uncompressed "
+      "build/tests/bin/benchmark_runner --profile uncompressed "
       "--compare-profile uncompressed --comparison-path "
       "build/test_bench_stats/compare.json --workload cache_metadata_only "
       "--runs 2 --warmup-runs 1 2>&1",
       output, sizeof(output));
+  ClearTestEnvVar("BENCHMARK_LAST_PATH");
+  ClearTestEnvVar("BENCHMARK_HISTORY_PATH");
+  ClearTestEnvVar("BENCHMARK_DATASET");
   ASSERT_EQ(0, code);
 
   FILE *f = fopen("build/test_bench_stats/last.json", "r");

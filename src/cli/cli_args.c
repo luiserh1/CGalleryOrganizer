@@ -1,11 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "cli/cli_args.h"
 
 static const int DEFAULT_MAX_JOBS = 8;
+
+static int CliDetectLogicalCores(void) {
+#if defined(_WIN32)
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  if (info.dwNumberOfProcessors < 1) {
+    return 1;
+  }
+  if (info.dwNumberOfProcessors > 256) {
+    return 256;
+  }
+  return (int)info.dwNumberOfProcessors;
+#else
+  long cores = sysconf(_SC_NPROCESSORS_ONLN);
+  if (cores < 1) {
+    return 1;
+  }
+  if (cores > 256) {
+    return 256;
+  }
+  return (int)cores;
+#endif
+}
 
 void CliPrintUsage(const char *argv0) {
   printf("Usage: %s <directory_to_scan> [env_dir] [options]\n", argv0);
@@ -121,8 +149,7 @@ int CliResolveJobsFromString(const char *raw_value, bool *out_valid) {
     *out_valid = true;
   }
   if (!raw_value || raw_value[0] == '\0' || strcmp(raw_value, "auto") == 0) {
-    long cores = sysconf(_SC_NPROCESSORS_ONLN);
-    int resolved = (cores > 0) ? (int)cores : 1;
+    int resolved = CliDetectLogicalCores();
     if (resolved > DEFAULT_MAX_JOBS) {
       resolved = DEFAULT_MAX_JOBS;
     }

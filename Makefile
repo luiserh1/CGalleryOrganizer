@@ -1,9 +1,9 @@
 CC = clang
 CXX = clang++
-CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "")
-CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "")
+CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "") $(EXTRA_CFLAGS)
+CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -pthread -Iinclude -Ivendor -Isrc $(shell pkg-config --cflags exiv2 2>/dev/null || echo "-I/opt/homebrew/include") $(shell pkg-config --cflags onnxruntime 2>/dev/null || echo "") $(shell pkg-config --cflags libzstd 2>/dev/null || pkg-config --cflags zstd 2>/dev/null || echo "") $(EXTRA_CXXFLAGS)
 DEPFLAGS = -MMD -MP
-LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "") $(shell pkg-config --libs libzstd 2>/dev/null || pkg-config --libs zstd 2>/dev/null || echo "") -lm -pthread
+LDFLAGS = $(shell pkg-config --libs exiv2 2>/dev/null || echo "-L/opt/homebrew/lib -lexiv2") $(shell pkg-config --libs onnxruntime 2>/dev/null || echo "") $(shell pkg-config --libs libzstd 2>/dev/null || pkg-config --libs zstd 2>/dev/null || echo "") -lm -pthread $(EXTRA_LDFLAGS)
 RAYLIB_CFLAGS = $(shell pkg-config --cflags raylib 2>/dev/null || echo "")
 RAYLIB_LIBS = $(shell pkg-config --libs raylib 2>/dev/null || echo "")
 UNAME_S := $(shell uname -s)
@@ -16,6 +16,11 @@ APP_API_LIB_EXT = so
 APP_API_LIB_LDFLAGS = -shared
 CFLAGS += -fPIC
 CXXFLAGS += -fPIC
+endif
+
+ifeq ($(UNAME_S),Linux)
+CFLAGS += -D_POSIX_C_SOURCE=200809L
+CFLAGS += -D_XOPEN_SOURCE=700
 endif
 
 # Directories
@@ -43,6 +48,7 @@ TEST_ALL_OBJS = $(patsubst %.c,$(TEST_OBJ_DIR)/%.o,$(TEST_SRCS)) $(patsubst %.cp
 TEST_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/test_runner.o
 TEST_OBJS = $(filter-out $(TEST_RUNNER_OBJ), $(TEST_ALL_OBJS))
 TEST_BIN = $(TEST_BIN_DIR)/test_runner
+TEST_ARGS ?=
 
 BENCHMARK_RUNNER_OBJ = $(TEST_OBJ_DIR)/tests/benchmark_runner.o
 BENCH_SUPPORT_SRCS = $(wildcard tests/bench/*.c)
@@ -55,7 +61,6 @@ GUI_SRCS = $(wildcard $(addsuffix /*.c, $(GUI_SRC_DIRS)))
 GUI_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(COMMON_C_SRCS) $(GUI_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 GUI_BIN = $(BIN_DIR)/gallery_organizer_gui
 $(GUI_OBJS): CFLAGS += $(RAYLIB_CFLAGS)
-$(TEST_OBJ_DIR)/tests/test_gui_action_rules.o $(TEST_OBJ_DIR)/src/gui/core/gui_action_rules.o: CFLAGS += $(RAYLIB_CFLAGS)
 APP_API_LIB = $(BUILD_DIR)/lib/libcgallery_app_api.$(APP_API_LIB_EXT)
 APP_API_SRC_DIRS = src/core src/systems src/utils src/ml src/ml/providers src/app
 APP_API_LIB_SRCS = $(wildcard $(addsuffix /*.c, $(APP_API_SRC_DIRS))) vendor/cJSON.c vendor/md5.c vendor/sha256.c
@@ -63,7 +68,7 @@ APP_API_LIB_SRCS += src/cli/cli_scan_pipeline.c
 APP_API_LIB_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(APP_API_SRC_DIRS)))
 APP_API_LIB_OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(APP_API_LIB_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(APP_API_LIB_CXX_SRCS))
 
-.PHONY: all clean clean-all test benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models gui run-gui check-gui-deps app-api-lib help
+.PHONY: all clean clean-all test coverage benchmark benchmark-compare benchmark-sim-memory-compare benchmark-stats models gui run-gui check-gui-deps app-api-lib help
 
 all: $(TARGET)
 
@@ -72,7 +77,10 @@ $(TARGET): $(OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 test: $(TARGET) $(TEST_BIN) $(BENCHMARK_BIN)
-	@./$(TEST_BIN)
+	@./$(TEST_BIN) $(TEST_ARGS)
+
+coverage:
+	@./scripts/coverage_ci.sh
 
 benchmark: $(BENCHMARK_BIN)
 	@if [ -z "$$BENCHMARK_DATASET" ] && [ ! -f "build/stress_data/.downloaded" ]; then \
@@ -173,6 +181,7 @@ help:
 	@echo "  make        - Build the main executable (alias for make all)"
 	@echo "  make all    - Build the main executable (default)"
 	@echo "  make test   - Build and run the test suite"
+	@echo "  make coverage - Run tests with coverage instrumentation and emit reports"
 	@echo "  make clean      - Remove built objects and binaries (preserves datasets)"
 	@echo "  make clean-all  - Recursively remove the entire build directory (including datasets)"
 	@echo "  make help       - Show this help message"

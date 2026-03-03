@@ -26,7 +26,7 @@ bool ExtractMetadataExiv2(const char *filepath, ImageMetadata *out_metadata,
     return false;
 
   try {
-    Exiv2::Image::UniquePtr image = Exiv2::ImageFactory::open(filepath);
+    auto image = Exiv2::ImageFactory::open(filepath);
     if (image.get() == 0)
       return false;
 

@@ -15,10 +15,11 @@ long long BenchNowMs(void) {
     return (long long)ts.tv_sec * 1000LL + (long long)(ts.tv_nsec / 1000000LL);
   }
 #endif
-  struct timespec ts_fallback;
-  timespec_get(&ts_fallback, TIME_UTC);
-  return (long long)ts_fallback.tv_sec * 1000LL +
-         (long long)(ts_fallback.tv_nsec / 1000000LL);
+  time_t now = time(NULL);
+  if (now < 0) {
+    return 0;
+  }
+  return (long long)now * 1000LL;
 }
 
 void BenchFillNowUtcIso(char out[64]) {
@@ -34,7 +35,11 @@ void BenchFillNowUtcIso(char out[64]) {
 
 void BenchFillGitCommit(char out[32]) {
   out[0] = '\0';
+#if defined(_WIN32)
+  FILE *pipe = popen("git rev-parse --short HEAD 2>nul", "r");
+#else
   FILE *pipe = popen("git rev-parse --short HEAD 2>/dev/null", "r");
+#endif
   if (!pipe) {
     snprintf(out, 32, "unknown");
     return;

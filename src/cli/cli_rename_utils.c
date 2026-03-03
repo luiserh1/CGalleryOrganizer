@@ -15,6 +15,10 @@
 #define CLI_RENAME_MAX_EDIT_LEN 255
 #define CLI_RENAME_MAX_FILENAME_TAGS 64
 
+#if !defined(NAME_MAX)
+#define NAME_MAX 255
+#endif
+
 typedef struct {
   char **items;
   int count;

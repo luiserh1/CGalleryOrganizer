@@ -5,8 +5,19 @@
 
 #include "fs_utils.h"
 #include "gallery_cache.h"
+#include "integration_test_helpers.h"
 #include "organizer.h"
 #include "test_framework.h"
+
+static bool WriteDummyFile(const char *path) {
+  FILE *f = fopen(path, "wb");
+  if (!f) {
+    return false;
+  }
+  fputs("x", f);
+  fclose(f);
+  return true;
+}
 
 void test_organizer_plan_generation(void) {
   const char *env_dir = "build/test_env_plan";
@@ -100,30 +111,22 @@ void test_organizer_compound_grouping(void) {
 
 void test_organizer_manifest_rw(void) {
   const char *env_dir = "build/test_env_manifest";
-  FsMakeDirRecursive(env_dir);
-
-  system("mkdir -p build/test_env_manifest/orig build/test_env_manifest/new");
-  system("touch build/test_env_manifest/new/file.jpg"); // Put the file in 'new'
+  ASSERT_TRUE(ResetDirForTest(env_dir));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_env_manifest/orig"));
+  ASSERT_TRUE(FsMakeDirRecursive("build/test_env_manifest/new"));
+  ASSERT_TRUE(WriteDummyFile("build/test_env_manifest/new/file.jpg"));
 
   ASSERT_TRUE(OrganizerInit(env_dir));
-
-  // We need to use system-resolved paths for rollback to work perfectly since
-  // it moves stuff Wait, no, FsGetAbsolutePath requires the file to exist, but
-  // "orig/file.jpg" doesn't exist yet! It's okay, FsGetAbsolutePath uses
-  // realpath which might fail if the file doesn't exist... Let's create it
-  // first, get its realpath, then move it.
-
-  system("touch build/test_env_manifest/orig/file.jpg");
+  ASSERT_TRUE(WriteDummyFile("build/test_env_manifest/orig/file.jpg"));
   char abs_orig[1024];
-  FsGetAbsolutePath("build/test_env_manifest/orig/file.jpg", abs_orig,
-                    sizeof(abs_orig));
+  ASSERT_TRUE(FsGetAbsolutePath("build/test_env_manifest/orig/file.jpg",
+                                abs_orig, sizeof(abs_orig)));
 
   char abs_new[1024];
-  FsGetAbsolutePath("build/test_env_manifest/new/file.jpg", abs_new,
-                    sizeof(abs_new));
+  ASSERT_TRUE(FsGetAbsolutePath("build/test_env_manifest/new/file.jpg", abs_new,
+                                sizeof(abs_new)));
 
-  // Now "move" it manually to 'new' so it is missing from 'orig'
-  system("rm build/test_env_manifest/orig/file.jpg");
+  ASSERT_TRUE(FsDeleteFile("build/test_env_manifest/orig/file.jpg"));
 
   ASSERT_TRUE(OrganizerRecordMove(abs_orig, abs_new));
   ASSERT_TRUE(OrganizerSaveManifest());
@@ -141,6 +144,8 @@ void test_organizer_manifest_rw(void) {
   // Verify it's removed from new
   f_check = fopen("build/test_env_manifest/new/file.jpg", "r");
   ASSERT_TRUE(f_check == NULL);
+
+  ASSERT_TRUE(RemovePathRecursiveForTest(env_dir));
 }
 
 void test_organizer_print_plan_no_duplicate_last_group(void) {
