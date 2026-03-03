@@ -106,7 +106,22 @@ void test_gui_path_picker_unavailable_status(void) {
   runner.steps[0].launch_ok = true;
   runner.steps[0].exit_code = 127;
   runner.steps[0].output = "";
+#if defined(__linux__)
+  runner.steps[1].launch_ok = true;
+  runner.steps[1].exit_code = 127;
+  runner.steps[1].output = "";
+  runner.steps[2].launch_ok = true;
+  runner.steps[2].exit_code = 127;
+  runner.steps[2].output = "";
+  runner.step_count = 3;
+#elif defined(_WIN32)
+  runner.steps[1].launch_ok = true;
+  runner.steps[1].exit_code = 127;
+  runner.steps[1].output = "";
+  runner.step_count = 2;
+#else
   runner.step_count = 1;
+#endif
 
   GuiPathPickerSetCommandRunnerForTest(MockPickerRunner, &runner);
   char picked[512] = {0};

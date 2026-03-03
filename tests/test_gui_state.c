@@ -5,6 +5,22 @@
 #include "gui/gui_state.h"
 #include "test_framework.h"
 
+static int TestSetEnv(const char *key, const char *value) {
+#if defined(_WIN32)
+  return _putenv_s(key, value);
+#else
+  return setenv(key, value, 1);
+#endif
+}
+
+static void TestUnsetEnv(const char *key) {
+#if defined(_WIN32)
+  (void)_putenv_s(key, "");
+#else
+  unsetenv(key);
+#endif
+}
+
 static void ReadFileText(const char *path, char *out, size_t out_size) {
   ASSERT_TRUE(path != NULL);
   ASSERT_TRUE(out != NULL);
@@ -20,7 +36,7 @@ static void ReadFileText(const char *path, char *out, size_t out_size) {
 void test_gui_state_roundtrip_with_override(void) {
   system("rm -rf build/test_gui_state");
   system("mkdir -p build/test_gui_state");
-  ASSERT_EQ(0, setenv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json", 1));
+  ASSERT_EQ(0, TestSetEnv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json"));
 
   GuiState in = {0};
   strncpy(in.gallery_dir, "/tmp/gallery_a", sizeof(in.gallery_dir) - 1);
@@ -71,12 +87,12 @@ void test_gui_state_roundtrip_with_override(void) {
   ASSERT_TRUE(GuiStateReset());
   ASSERT_FALSE(GuiStateLoad(&out));
 
-  unsetenv("CGO_GUI_STATE_PATH");
+  TestUnsetEnv("CGO_GUI_STATE_PATH");
   system("rm -rf build/test_gui_state");
 }
 
 void test_gui_state_resolve_default_path(void) {
-  unsetenv("CGO_GUI_STATE_PATH");
+  TestUnsetEnv("CGO_GUI_STATE_PATH");
 
   char resolved[GUI_STATE_MAX_PATH] = {0};
   ASSERT_TRUE(GuiStateResolvePath(resolved, sizeof(resolved)));
@@ -86,7 +102,7 @@ void test_gui_state_resolve_default_path(void) {
 void test_gui_state_legacy_defaults(void) {
   system("rm -rf build/test_gui_state");
   system("mkdir -p build/test_gui_state");
-  ASSERT_EQ(0, setenv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json", 1));
+  ASSERT_EQ(0, TestSetEnv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json"));
 
   FILE *f = fopen("build/test_gui_state/state.json", "wb");
   ASSERT_TRUE(f != NULL);
@@ -118,14 +134,14 @@ void test_gui_state_legacy_defaults(void) {
   ASSERT_TRUE(strstr(rewritten_json, "windowWidth") == NULL);
   ASSERT_TRUE(strstr(rewritten_json, "windowHeight") == NULL);
 
-  unsetenv("CGO_GUI_STATE_PATH");
+  TestUnsetEnv("CGO_GUI_STATE_PATH");
   system("rm -rf build/test_gui_state");
 }
 
 void test_gui_state_invalid_values_are_clamped(void) {
   system("rm -rf build/test_gui_state");
   system("mkdir -p build/test_gui_state");
-  ASSERT_EQ(0, setenv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json", 1));
+  ASSERT_EQ(0, TestSetEnv("CGO_GUI_STATE_PATH", "build/test_gui_state/state.json"));
 
   FILE *f = fopen("build/test_gui_state/state.json", "wb");
   ASSERT_TRUE(f != NULL);
@@ -153,7 +169,7 @@ void test_gui_state_invalid_values_are_clamped(void) {
   ASSERT_EQ(APP_SIM_MEMORY_CHUNKED, loaded.sim_memory_mode);
   ASSERT_STR_EQ("date", loaded.organize_group_by);
 
-  unsetenv("CGO_GUI_STATE_PATH");
+  TestUnsetEnv("CGO_GUI_STATE_PATH");
   system("rm -rf build/test_gui_state");
 }
 
