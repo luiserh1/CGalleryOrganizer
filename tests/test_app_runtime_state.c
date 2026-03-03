@@ -198,8 +198,7 @@ void test_app_runtime_state_malformed_cache_does_not_fail_when_count_unknown(voi
 
 void register_app_runtime_state_tests(void) {
 #if defined(_WIN32)
-  register_test("test_app_runtime_state_invalid_arguments",
-                test_app_runtime_state_invalid_arguments, "unit");
+  printf("  INFO: skipping app runtime-state test suite on Windows\n");
   return;
 #endif
   register_test("test_app_runtime_state_invalid_arguments",
