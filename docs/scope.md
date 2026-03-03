@@ -648,6 +648,8 @@ rename workflows without changing backend rename semantics.
 
 ### Features
 - Add GUI path pickers for gallery, environment, and tags-map fields.
+  - provide native picker integration on validated platform(s) with graceful
+    manual-entry fallback on unsupported platforms.
 - Add GUI action to bootstrap manual tags from filename numeric tokens.
 - Add preview table UI (source -> candidate) with collision/warning filters.
 - Add per-file manual tag editor plus bulk add/remove controls in-panel.
@@ -655,6 +657,10 @@ rename workflows without changing backend rename semantics.
   - clearer preview/apply/rollback progression
   - better preview/apply/history result summaries for large batches
 - Keep CLI/API contracts from v0.6.1 and v0.6.0 unchanged.
+- Add GUI-focused tests for:
+  - new rename panel layout non-overlap constraints
+  - rename action availability for new bootstrap workflow
+  - per-file manual tag edit sidecar/map persistence helper
 
 ### Release Notes
 - Behavior changes:
