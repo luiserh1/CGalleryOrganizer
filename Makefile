@@ -39,7 +39,7 @@ CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 # Generate object file paths in the OBJ_DIR
 OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRCS)) $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CXX_SRCS))
 
-TEST_GUI_SRCS = src/gui/gui_state.c src/gui/gui_worker.c src/gui/gui_worker_inspect.c src/gui/gui_worker_tasks.c src/gui/gui_worker_tasks_core.c src/gui/gui_worker_tasks_rename_ops.c src/gui/gui_worker_tasks_rename_history.c src/gui/frontends/functional/gui_fixed_layout.c src/gui/core/gui_action_rules.c src/gui/core/gui_rename_map.c src/gui/core/gui_path_picker.c src/gui/core/gui_path_picker_runner.c src/gui/core/gui_rename_preview_model.c
+TEST_GUI_SRCS = src/gui/gui_state.c src/gui/gui_state_paths.c src/gui/gui_worker.c src/gui/gui_worker_inspect.c src/gui/gui_worker_tasks.c src/gui/gui_worker_tasks_core.c src/gui/gui_worker_tasks_rename_ops.c src/gui/gui_worker_tasks_rename_history.c src/gui/frontends/functional/gui_fixed_layout.c src/gui/core/gui_action_rules.c src/gui/core/gui_rename_map.c src/gui/core/gui_path_picker.c src/gui/core/gui_path_picker_runner.c src/gui/core/gui_rename_preview_model.c
 TEST_SRCS = $(wildcard tests/test_*.c) vendor/cJSON.c vendor/md5.c vendor/sha256.c $(wildcard $(addsuffix /*.c, $(SRC_DIRS))) $(TEST_GUI_SRCS)
 TEST_CXX_SRCS = $(wildcard $(addsuffix /*.cpp, $(SRC_DIRS)))
 
