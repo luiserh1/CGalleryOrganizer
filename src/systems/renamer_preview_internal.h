@@ -7,6 +7,12 @@
 #include "metadata_parser.h"
 #include "systems/renamer_preview.h"
 
+typedef struct {
+  char **paths;
+  int count;
+  int capacity;
+} RenamerPreviewPathList;
+
 void RenamerPreviewSetError(char *out_error, size_t out_error_size,
                             const char *fmt, ...);
 
@@ -43,5 +49,20 @@ bool RenamerPreviewLoadMetadataForPath(const char *absolute_path,
                                        ImageMetadata *out_metadata,
                                        char *out_error,
                                        size_t out_error_size);
+
+void RenamerPreviewPathListFree(RenamerPreviewPathList *list);
+
+bool RenamerPreviewCollectFilesRecursive(const char *root,
+                                         RenamerPreviewPathList *out_list,
+                                         char *out_error,
+                                         size_t out_error_size);
+
+void RenamerPreviewBuildPreviewId(const char *fingerprint, char *out_preview_id,
+                                  size_t out_preview_id_size);
+
+bool RenamerPreviewBuildParentDir(const char *path, char *out_dir,
+                                  size_t out_dir_size);
+
+void RenamerPreviewDetectCollisions(RenamerPreviewArtifact *preview);
 
 #endif // RENAMER_PREVIEW_INTERNAL_H
