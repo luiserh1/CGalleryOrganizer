@@ -7,6 +7,10 @@
 #include "metadata_parser.h"
 #include "systems/renamer_preview.h"
 
+#if !defined(cJSON__h)
+typedef struct cJSON cJSON;
+#endif
+
 typedef struct {
   char **paths;
   int count;
@@ -64,5 +68,12 @@ bool RenamerPreviewBuildParentDir(const char *path, char *out_dir,
                                   size_t out_dir_size);
 
 void RenamerPreviewDetectCollisions(RenamerPreviewArtifact *preview);
+
+cJSON *RenamerPreviewBuildArtifactJson(const RenamerPreviewArtifact *preview);
+
+bool RenamerPreviewParseArtifactJson(const cJSON *json, const char *env_dir,
+                                     const char *artifact_path,
+                                     RenamerPreviewArtifact *out_preview,
+                                     char *out_error, size_t out_error_size);
 
 #endif // RENAMER_PREVIEW_INTERNAL_H
