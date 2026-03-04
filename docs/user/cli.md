@@ -73,6 +73,9 @@ Inspect history and rollback:
 
 ## Option Families
 
+This section is intentionally curated for common workflows and is not an
+exhaustive flag catalog.
+
 Scan/cache:
 - `--exhaustive`
 - `--jobs <n|auto>`

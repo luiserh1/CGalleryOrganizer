@@ -19,7 +19,7 @@ make test TEST_ARGS="--suite integration --name-contains metadata"
 
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.13
+./scripts/release_check.sh --expected-tag vX.Y.Z
 
 # Run coverage pipeline (requires gcovr; auto-detects `.venv/bin/gcovr` when present)
 make coverage
@@ -408,8 +408,8 @@ Expected:
 - `v0.4.4`:
   - verify `--jobs 1` and `--jobs N` output parity.
   - run repeated parallel smoke to detect instability/deadlocks.
-- `codex/benchmark-methodology` branch:
-  - validate statistical report fields (`runs`, `median`, `p95`, `stddev`) without runtime behavior diffs.
+- benchmark methodology workstream (historical + maintenance):
+  - validate statistical report fields (`runs`, `median`, `p95`, `stddev`) when benchmark runner/report logic changes, without runtime behavior diffs.
 
 ## Asset and Model Attribution Requirements
 

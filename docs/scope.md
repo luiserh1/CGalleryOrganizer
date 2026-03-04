@@ -1237,7 +1237,8 @@ Workstream scope remained benchmark-focused:
 
 For every merged milestone branch:
 1. Update this file (`docs/scope.md`) status transitions (`Planned` -> `Completed`) with exact version.
-2. Keep `README.md` CLI/options/examples synchronized with parser behavior.
+2. Keep user-facing usage docs synchronized with parser behavior:
+   `README.md` quick-start, `docs/user/cli.md`, and `docs/user/workflows.md`.
 3. Keep `docs/tests.md` smoke and benchmark flows synchronized.
 4. If benchmark schema changes, update schema docs in the same commit.
 5. Add version release-notes section in docs for:
