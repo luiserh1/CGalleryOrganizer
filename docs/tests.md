@@ -19,7 +19,7 @@ make test TEST_ARGS="--suite integration --name-contains metadata"
 
 # Run release checklist gates (tests + optional GUI + optional tag check)
 ./scripts/release_check.sh
-./scripts/release_check.sh --expected-tag v0.6.12
+./scripts/release_check.sh --expected-tag v0.6.13
 
 # Run coverage pipeline (requires gcovr; auto-detects `.venv/bin/gcovr` when present)
 make coverage

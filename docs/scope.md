@@ -1103,16 +1103,16 @@ quality gate for tests.
 
 ---
 
-## v0.6.12 Scope: Audit Remediation + Governance Alignment (Planned)
+## v0.6.13 Scope: Audit Remediation + Governance Alignment (Completed)
 
 ### Primary Goal
 Implement the high-priority remediation backlog identified by the repository
 audit so release/process truth, architecture boundaries, and quality gates stay
 aligned as the codebase grows.
 
-### Planned Features
+### Delivered Features
 - Release-truth alignment:
-  - synchronize runtime banners/window titles and docs examples to `v0.6.12`.
+  - synchronize runtime banners/window titles and docs examples to `v0.6.13`.
   - keep roadmap/scope entries synchronized with tagged releases.
 - Coverage ratchet activation:
   - replace zeroed bootstrap baseline with measurable non-zero baseline values.
@@ -1128,7 +1128,7 @@ aligned as the codebase grows.
   - reduce non-semantic CLI output-string coupling where behavior/artifact
     assertions are more stable.
 
-### Release Notes (Planned)
+### Release Notes (Delivered)
 - Behavior changes:
   - expected to be mostly behavior-preserving; focus is maintainability and
     governance hardening.
@@ -1136,4 +1136,4 @@ aligned as the codebase grows.
   - no intentional CLI/app API contract breaks.
   - refactors must preserve existing workflows and test expectations.
 - Benchmark impact summary:
-  - no benchmark schema changes planned; performance impact will be tracked.
+  - no benchmark schema changes; performance impact tracked as neutral.
