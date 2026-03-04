@@ -1,5 +1,54 @@
 # CGalleryOrganizer - Scope And Roadmap
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Core Design Principles](#core-design-principles)
+- [Milestones](#milestones)
+  - `v0.1-v0.2`
+    - [v0.1.0](#v010-scope-core-foundation--basic-metadata-completed)
+    - [v0.1.x Patch Rollup](#v01x-patch-rollup-tagged-releases)
+    - [v0.2.0](#v020-scope-exact-duplicates--actions-completed)
+    - [v0.2.1](#v021-scope-dynamic-metadata--dashboard-completed)
+    - [v0.2.2](#v022-scope-active-gallery-organization-completed)
+    - [v0.2.3](#v023-scope-compound-grouping--file-renaming-completed)
+    - [v0.2.4](#v024-scope-stability-remediation-completed)
+  - `v0.3-v0.4`
+    - [v0.3.0](#v030-scope-local-ml-foundation-completed)
+    - [v0.4.0](#v040-scope-similarity-engine--dedicated-similarity-tool-completed)
+    - [v0.4.1](#v041-scope-performance-baseline--optional-cache-compression-completed)
+    - [v0.4.2](#v042-scope-incremental-similarity--compression-auto-mode-completed)
+    - [v0.4.3](#v043-scope-similarity-memory-optimization-completed)
+    - [v0.4.4](#v044-scope-parallel-scaninference-pipeline-completed)
+    - [v0.4.5](#v045-scope-modularity--technical-debt-cleanup-completed)
+  - `v0.5`
+    - [v0.5.0](#v050-scope-unified-frontend-api--cligui-dual-frontends-completed)
+    - [v0.5.1](#v051-scope-responsive-gui-layout--scalable-typography-completed)
+    - [v0.5.2](#v052-scope-functional-gui-simplification--language-agnostic-frontend-foundation-completed)
+    - [v0.5.3](#v053-scope-guided-functional-gui--in-app-model-management-completed)
+    - [v0.5.4](#v054-scope-persistent-cache-profile--parameter-aware-recompute-completed)
+    - [v0.5.5](#v055-scope-pm-audit-remediation--team-handover-docs-completed)
+  - `v0.6`
+    - [v0.6.0](#v060-scope-dedicated-pattern-based-renaming--tagging-completed)
+    - [v0.6.1](#v061-scope-cli-rename-onboarding--usability-completed)
+    - [v0.6.2](#v062-scope-gui-rename-workflow-usability-completed)
+    - [v0.6.3](#v063-scope-extended-rename-tokens-locationgps-core-completed)
+    - [v0.6.4](#v064-scope-metadata-tag-editing-workflow-completed)
+    - [v0.6.5](#v065-scope-cross-platform-gui-picker-expansion-completed)
+    - [v0.6.6](#v066-scope-gui-rename-integratione2e-coverage-completed)
+    - [v0.6.7](#v067-scope-release-hardening-ci-matrix--checklist-completed)
+    - [v0.6.8](#v068-scope-rename-history-ergonomics-cli-detail--redo-helpers-completed)
+    - [v0.6.9](#v069-scope-gui-rename-history-ergonomics-detail--redo--latest-ids-completed)
+    - [v0.6.10](#v0610-scope-rename-history-management--audit-export-completed)
+    - [v0.6.11](#v0611-scope-ci-stabilization--coverage-ratchet--test-reinforcement-completed)
+    - [v0.6.12](#v0612-scope-audit-remediation--governance-baseline-completed)
+    - [v0.6.13](#v0613-scope-audit-remediation--governance-alignment-completed)
+- [Appendices](#appendices)
+  - [Benchmark Methodology Workstream (Historical)](#benchmark-methodology-workstream-historical)
+  - [Documentation Governance](#documentation-governance)
+
+---
+
 ## Overview
 
 **Project Name:** CGalleryOrganizer  
@@ -13,9 +62,15 @@ CGalleryOrganizer is a local, privacy-first application designed to analyze, cla
 ## Core Design Principles
 
 - **Zero-to-Minimal Vendor Dependencies**: Third-party C header packages (JSON parsers, ML frameworks) are heavily isolated in `vendor/`. Heavy system-level libraries (like `exiv2` for robust format parsing) are integrated natively via the host OS package manager and securely abstracted behind pure C wrappers. All dependencies are documented in `docs/dependencies.md`.
-- **Granular Evolution**: Features are strictly bounded by minor version bumps (0.1.0 -> 0.2.0, etc.).
+- **Granular Evolution**: Milestones are primarily planned and tracked at minor versions (0.1.0 -> 0.2.0, etc.), while patch releases are used for remediation, governance/process alignment, and documentation-truth updates.
 - **Strict Data Contract**: The application revolves around a JSON-backed cache (`.cache/gallery_cache.json`) to avoid re-computing expensive heuristics.
 - **TDD Driven**: All logic (FS parsing, caching, hashing, math) is tested via a custom, lightweight framework without relying on external testing libraries.
+
+---
+
+## Milestones
+
+Versioned scope milestones in chronological order.
 
 ---
 
@@ -36,6 +91,14 @@ Establish the project structure, testing framework, code style, and implement ba
   - Modification Date (Unix Timestamp)
 - JSON Cache integration (`.cache/gallery_cache.json`) using a lightweight vendor library (e.g., `cJSON`).
   - Cache invalidation logic based on file size and timestamp.
+
+### v0.1.x Patch Rollup (Tagged Releases)
+- `v0.1.1`: audit fixes and code style corrections.
+- `v0.1.2`: PNG metadata extraction support.
+- `v0.1.3`: WebP metadata extraction support.
+- `v0.1.4`: GIF metadata extraction support.
+- `v0.1.5`: HEIC metadata extraction support.
+- `v0.1.6`: CLI `--help` flag introduction.
 
 ---
 
@@ -225,24 +288,6 @@ Improve throughput via parallel scan->metadata->inference processing while prese
 
 ---
 
-## Benchmark Methodology Branch (Non-Versioned)
-
-### Branch
-- `codex/benchmark-methodology`
-
-### Scope
-- Benchmark-only improvements (no runtime behavior changes):
-  - repeated runs (`--runs N`)
-  - summary stats (median/p95/min/max/stddev)
-  - optional warmup runs
-  - structured comparison report export
-
-### Merge Policy
-- May merge to `master` without creating a release tag.
-- If behavior changes leak into runtime paths, defer merge to the next functional version branch.
-
----
-
 ## v0.4.5 Scope: Modularity + Technical Debt Cleanup (Completed)
 
 ### Primary Goal
@@ -256,20 +301,6 @@ guardrails, and preserving runtime behavior contracts.
 - Formalize low technical debt and modularity rules in `docs/CODE_STYLE.md`.
 - Improve test maintainability by splitting oversized integration test suites.
 - Keep CLI/cache/report behavior stable (cleanup-only milestone).
-
----
-
-## Documentation Governance
-
-For every merged milestone branch:
-1. Update this file (`docs/scope.md`) status transitions (`Planned` -> `Completed`) with exact version.
-2. Keep `README.md` CLI/options/examples synchronized with parser behavior.
-3. Keep `docs/tests.md` smoke and benchmark flows synchronized.
-4. If benchmark schema changes, update schema docs in the same commit.
-5. Add version release-notes section in docs for:
-   - behavior changes
-   - migration/compat notes
-   - benchmark impact summary
 
 ---
 
@@ -1103,32 +1134,73 @@ quality gate for tests.
 
 ---
 
+## v0.6.12 Scope: Audit Remediation + Governance Baseline (Completed)
+
+### Primary Goal
+Close the audit remediation baseline by aligning governance/process truth with
+repository workflows, activating measurable coverage baselines, and reducing
+cross-layer ownership ambiguity before the next refactor stream.
+
+### Features
+- Coverage baseline recalibration and activation:
+  - replace bootstrap/zeroed coverage assumptions with measurable baseline
+    values.
+  - keep regression ratchet behavior aligned between local and CI workflows.
+- CLI parser coverage expansion:
+  - broaden parser branch coverage to reduce option-path blind spots.
+- App-layer ownership hardening:
+  - move scan pipeline ownership into the app layer to reduce backend coupling
+    on CLI internals.
+- Governance and git policy alignment:
+  - align branch policy docs with CI trigger strategy and release history.
+  - document local upstream tracking expectations for `master`.
+- Process guardrails:
+  - add PR template checks for audit/governance consistency.
+- Coverage tooling ergonomics:
+  - auto-detect `gcovr` from local virtual environments in coverage flow.
+
+### Release Notes
+- Behavior changes:
+  - coverage baseline values and ratchet expectations are now explicit and
+    measurable.
+  - app-level scan orchestration ownership is enforced to keep layering
+    boundaries cleaner.
+  - process/governance docs are aligned with actual release and branch
+    operations.
+- Migration/compat notes:
+  - no intentional CLI/app API contract breaks.
+  - changes are remediation/governance-oriented with behavior-preserving intent
+    for user-facing flows.
+- Benchmark impact summary:
+  - no benchmark schema changes; benchmark commands remain stable.
+
+---
+
 ## v0.6.13 Scope: Audit Remediation + Governance Alignment (Completed)
 
 ### Primary Goal
-Implement the high-priority remediation backlog identified by the repository
-audit so release/process truth, architecture boundaries, and quality gates stay
-aligned as the codebase grows.
+Continue post-audit hardening by decomposing oversized modules into focused
+units, preserving behavior contracts, and keeping release-truth documentation
+aligned for maintainable iteration.
 
-### Delivered Features
+### Features
 - Release-truth alignment:
   - synchronize runtime banners/window titles and docs examples to `v0.6.13`.
   - keep roadmap/scope entries synchronized with tagged releases.
-- Coverage ratchet activation:
-  - replace zeroed bootstrap baseline with measurable non-zero baseline values.
-  - validate regression gate behavior against baseline in CI and local workflow.
-- Governance consistency:
-  - align git branch policy documentation and CI branch trigger strategy.
-  - document canonical local upstream tracking expectations for `master`.
-- Architecture/modularity remediation:
-  - remove backend dependency on CLI scan pipeline internals.
-  - decompose oversized production modules into focused units while preserving
-    public contracts and behavior.
-- Validation maintainability:
-  - reduce non-semantic CLI output-string coupling where behavior/artifact
-    assertions are more stable.
+- Post-audit modularity refactor stream:
+  - decompose renamer preview, tags, and history subsystems into focused
+    modules.
+  - split CLI options and rename-history utilities by concern.
+  - split GUI worker tasks, UI state persistence/codec, rename table rendering,
+    path-picker runner, and main dialog paths into dedicated units.
+- Test reinforcement for extracted modules:
+  - add targeted GUI path-picker-runner error-path coverage to preserve
+    behavior during module splits.
+- Maintainability-forward internal cleanup:
+  - reduce coupling in large implementation units while preserving public
+    contracts and expected workflows.
 
-### Release Notes (Delivered)
+### Release Notes
 - Behavior changes:
   - expected to be mostly behavior-preserving; focus is maintainability and
     governance hardening.
@@ -1137,3 +1209,38 @@ aligned as the codebase grows.
   - refactors must preserve existing workflows and test expectations.
 - Benchmark impact summary:
   - no benchmark schema changes; performance impact tracked as neutral.
+
+---
+
+## Appendices
+
+### Benchmark Methodology Workstream (Historical)
+
+Benchmark methodology improvements are tracked as a historical workstream in git
+history rather than an active, separately named branch policy.
+
+Representative commits:
+- `4d549b9`: add benchmark workload runner with RSS/disk/time metrics.
+- `61102e4`: add similarity memory-mode benchmarking and compare target.
+- `6da04ce`: add repeated runs, warmups, summary stats, and comparison export.
+- `33aabed`: split benchmark runner/CLI structure for maintainability.
+- `905785f`: harden benchmark output tests for windows-shell portability.
+
+Workstream scope remained benchmark-focused:
+- runner capability expansion and comparison ergonomics.
+- portability and test hardening for CI environments.
+- no benchmark schema contract breaks introduced by the tracked changes above.
+
+---
+
+### Documentation Governance
+
+For every merged milestone branch:
+1. Update this file (`docs/scope.md`) status transitions (`Planned` -> `Completed`) with exact version.
+2. Keep `README.md` CLI/options/examples synchronized with parser behavior.
+3. Keep `docs/tests.md` smoke and benchmark flows synchronized.
+4. If benchmark schema changes, update schema docs in the same commit.
+5. Add version release-notes section in docs for:
+   - behavior changes
+   - migration/compat notes
+   - benchmark impact summary
