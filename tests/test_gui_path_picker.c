@@ -180,6 +180,79 @@ void test_gui_path_picker_fallback_to_next_backend_when_supported(void) {
 #endif
 }
 
+void test_gui_path_picker_runner_invalid_output_buffer(void) {
+  GuiPickerCommand candidate = {0};
+  candidate.backend = "mock";
+  strncpy(candidate.command, "noop", sizeof(candidate.command) - 1);
+  candidate.command[sizeof(candidate.command) - 1] = '\0';
+
+  char picked[8] = {0};
+  char error[256] = {0};
+  GuiPathPickerStatus status =
+      GuiPathPickerRunCandidates(&candidate, 1, picked, 0, error, sizeof(error),
+                                 "unused");
+
+  ASSERT_EQ(GUI_PATH_PICKER_STATUS_ERROR, status);
+  ASSERT_STR_EQ("invalid picker output buffer", error);
+}
+
+void test_gui_path_picker_runner_launch_and_backend_failures(void) {
+  MockPickerRunnerState runner = {0};
+  runner.steps[0].launch_ok = false;
+  runner.steps[1].launch_ok = true;
+  runner.steps[1].exit_code = 2;
+  runner.steps[1].output = "";
+  runner.step_count = 2;
+
+  GuiPickerCommand candidates[2] = {0};
+  candidates[0].backend = "backend-a";
+  strncpy(candidates[0].command, "cmd-a", sizeof(candidates[0].command) - 1);
+  candidates[0].command[sizeof(candidates[0].command) - 1] = '\0';
+  candidates[1].backend = "backend-b";
+  strncpy(candidates[1].command, "cmd-b", sizeof(candidates[1].command) - 1);
+  candidates[1].command[sizeof(candidates[1].command) - 1] = '\0';
+
+  GuiPathPickerSetCommandRunnerForTest(MockPickerRunner, &runner);
+  char picked[64] = {0};
+  char error[256] = {0};
+  GuiPathPickerStatus status =
+      GuiPathPickerRunCandidates(candidates, 2, picked, sizeof(picked), error,
+                                 sizeof(error), "unused");
+
+  ASSERT_EQ(GUI_PATH_PICKER_STATUS_ERROR, status);
+  ASSERT_TRUE(strstr(error, "backend-b") != NULL);
+  ASSERT_TRUE(strstr(error, "exit=2") != NULL);
+  ASSERT_TRUE(picked[0] == '\0');
+
+  GuiPathPickerResetCommandRunnerForTest();
+}
+
+void test_gui_path_picker_runner_unavailable_message_passthrough(void) {
+  MockPickerRunnerState runner = {0};
+  runner.steps[0].launch_ok = true;
+  runner.steps[0].exit_code = 127;
+  runner.steps[0].output = "";
+  runner.step_count = 1;
+
+  GuiPickerCommand candidate = {0};
+  candidate.backend = "backend-a";
+  strncpy(candidate.command, "cmd-a", sizeof(candidate.command) - 1);
+  candidate.command[sizeof(candidate.command) - 1] = '\0';
+
+  GuiPathPickerSetCommandRunnerForTest(MockPickerRunner, &runner);
+  char picked[64] = {0};
+  char error[256] = {0};
+  GuiPathPickerStatus status = GuiPathPickerRunCandidates(
+      &candidate, 1, picked, sizeof(picked), error, sizeof(error),
+      "custom unavailable message");
+
+  ASSERT_EQ(GUI_PATH_PICKER_STATUS_UNAVAILABLE, status);
+  ASSERT_STR_EQ("custom unavailable message", error);
+  ASSERT_TRUE(picked[0] == '\0');
+
+  GuiPathPickerResetCommandRunnerForTest();
+}
+
 void register_gui_path_picker_tests(void) {
   register_test("test_gui_path_picker_directory_success_status",
                 test_gui_path_picker_directory_success_status, "unit");
@@ -191,5 +264,12 @@ void register_gui_path_picker_tests(void) {
                 test_gui_path_picker_bool_wrapper_matches_status, "unit");
   register_test("test_gui_path_picker_fallback_to_next_backend_when_supported",
                 test_gui_path_picker_fallback_to_next_backend_when_supported,
+                "unit");
+  register_test("test_gui_path_picker_runner_invalid_output_buffer",
+                test_gui_path_picker_runner_invalid_output_buffer, "unit");
+  register_test("test_gui_path_picker_runner_launch_and_backend_failures",
+                test_gui_path_picker_runner_launch_and_backend_failures, "unit");
+  register_test("test_gui_path_picker_runner_unavailable_message_passthrough",
+                test_gui_path_picker_runner_unavailable_message_passthrough,
                 "unit");
 }
